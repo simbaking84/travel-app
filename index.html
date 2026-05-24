@@ -7,7 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="여행 플래너">
-<meta name="theme-color" content="#0f0f0f">
+<meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
 <title>여행 플래너</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -16,13 +17,35 @@
 /* ─── RESET & BASE ─── */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
+  --accent:#c8963e;--accent2:#a67830;
+  --green:#16a34a;--red:#dc2626;--blue:#2563eb;--purple:#7c3aed;--orange:#ea580c;
+  --font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;
+  --r:10px;--rl:16px;--tap:48px;--nav:60px;
+}
+/* 라이트 모드 */
+:root,[data-theme="light"]{
+  --bg:#f8f7f4;--surface:#ffffff;--surface2:#f1f0ec;--surface3:#e8e6e0;
+  --border:#e0ddd6;--border2:#ccc9c0;
+  --text:#1a1a1a;--text2:#6b6560;--text3:#a09890;
+  --accent:#c8963e;--accent2:#a67830;
+  --green:#16a34a;--red:#dc2626;--blue:#2563eb;--purple:#7c3aed;--orange:#ea580c;
+}
+/* 다크 모드 */
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
+    --border:#333;--border2:#404040;
+    --text:#f0f0f0;--text2:#a0a0a0;--text3:#666;
+    --accent:#e8c87a;--accent2:#c8a855;
+    --green:#4ade80;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c;
+  }
+}
+[data-theme="dark"]{
   --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
   --border:#333;--border2:#404040;
   --text:#f0f0f0;--text2:#a0a0a0;--text3:#666;
   --accent:#e8c87a;--accent2:#c8a855;
   --green:#4ade80;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c;
-  --font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;
-  --r:10px;--rl:16px;--tap:48px;--nav:60px;
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
 
@@ -57,8 +80,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* ─── BUTTONS ─── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;min-height:var(--tap);transition:all .15s}
 .btn:active{background:var(--surface2)}
-.btn-accent{background:var(--accent);color:#0f0f0f;border-color:var(--accent);font-weight:600}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
 .btn-accent:active{background:var(--accent2)}
+@media(prefers-color-scheme:dark){.btn-accent{color:#0f0f0f}}
+[data-theme="dark"] .btn-accent{color:#0f0f0f}
+[data-theme="light"] .btn-accent{color:#fff}
 .btn-surface{background:var(--surface);border-color:var(--border2)}
 .btn-full{width:100%;margin-top:.5rem}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
@@ -235,8 +261,6 @@ select.fi{cursor:pointer}
 }
 #drive-status-bar{display:flex;align-items:center;gap:8px;padding:.5rem .875rem;border-radius:var(--r);font-size:12px;margin-bottom:.875rem;border:1px solid var(--border);background:var(--surface2);transition:all .3s}
 </style>
-<script src="https://apis.google.com/js/api.js" onload="initGapi()"></script>
-<script src="https://accounts.google.com/gsi/client" onload="initGis()"></script>
 </head>
 <body>
 <div id="app">
@@ -249,6 +273,7 @@ select.fi{cursor:pointer}
         <div id="trip-date-display">일정을 업로드해 주세요</div>
       </div>
       <div class="header-actions">
+        <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="테마 전환"><i class="ti ti-sun-moon"></i></button>
         <button class="icon-btn" onclick="openFinish()" title="여행 마무리"><i class="ti ti-flag-check"></i></button>
         <button class="icon-btn" onclick="saveDrive()" title="드라이브 저장"><i class="ti ti-device-floppy"></i></button>
       </div>
@@ -263,15 +288,17 @@ select.fi{cursor:pointer}
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
     <div class="sidebar-section">체크리스트</div>
     <button class="sidebar-item" onclick="swPC(this,'domestic')"><i class="ti ti-home"></i> 국내</button>
-    <button class="sidebar-item" onclick="swPC(this,'japan')"><i class="ti ti-torii-gate"></i> 일본</button>
-    <button class="sidebar-item" onclick="swPC(this,'europe')"><i class="ti ti-building-arch"></i> 유럽</button>
-    <button class="sidebar-item" onclick="swPC(this,'sea')"><i class="ti ti-waves"></i> 동남아</button>
+    <button class="sidebar-item" onclick="swPC(this,'japan')"><i class="ti ti-torii"></i> 일본</button>
+    <button class="sidebar-item" onclick="swPC(this,'europe')"><i class="ti ti-camera"></i> 유럽</button>
+    <button class="sidebar-item" onclick="swPC(this,'sea')"><i class="ti ti-trekking"></i> 동남아</button>
     <button class="sidebar-item" onclick="swPC(this,'usa')"><i class="ti ti-building-skyscraper"></i> 미국</button>
     <div class="sidebar-section">특화</div>
     <button class="sidebar-item" onclick="swPC(this,'companion')"><i class="ti ti-users"></i> 동행 유형</button>
     <button class="sidebar-item" onclick="swPC(this,'carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
     <div class="sidebar-section">기록</div>
     <button class="sidebar-item" onclick="swPC(this,'archive');renderArchive()"><i class="ti ti-archive"></i> 여행 아카이브</button>
+    <div class="sidebar-section">설정</div>
+    <button class="sidebar-item" onclick="toggleTheme()"><i class="ti ti-sun-moon"></i> 테마 전환</button>
   </div>
 
   <!-- 콘텐츠 -->
@@ -401,7 +428,20 @@ select.fi{cursor:pointer}
       <button class="btn btn-full btn-surface" onclick="addBRow()"><i class="ti ti-plus"></i> 카테고리 추가</button>
     </div>
 
-    <!-- ── 체크리스트 ── -->
+    <!-- ── 체크리스트 선택 ── -->
+    <div id="checklist" class="panel">
+      <div class="section-title"><i class="ti ti-checkbox"></i> 체크리스트</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('domestic')"><i class="ti ti-home"></i> 국내여행</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('japan')"><i class="ti ti-torii"></i> 일본</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('europe')"><i class="ti ti-camera"></i> 유럽</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('sea')"><i class="ti ti-trekking"></i> 동남아</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('usa')"><i class="ti ti-building-skyscraper"></i> 미국</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
+      </div>
+    </div>
+
+    <!-- ── 체크리스트 패널들 ── -->
     <div id="domestic" class="panel"></div>
     <div id="japan" class="panel"></div>
     <div id="europe" class="panel"></div>
@@ -461,7 +501,7 @@ select.fi{cursor:pointer}
     <div id="bottom-nav-inner">
       <button class="nav-item on" onclick="swMob(this,'itinerary')"><i class="ti ti-map-2"></i>일정</button>
       <button class="nav-item" onclick="swMob(this,'budget')"><i class="ti ti-wallet"></i>예산</button>
-      <button class="nav-item" onclick="swMob(this,'japan')"><i class="ti ti-checkbox"></i>체크</button>
+      <button class="nav-item" onclick="swMob(this,'checklist')"><i class="ti ti-checkbox"></i>체크</button>
       <button class="nav-item" onclick="swMob(this,'companion')"><i class="ti ti-users"></i>동행</button>
       <button class="nav-item" onclick="swMob(this,'archive');renderArchive()"><i class="ti ti-archive"></i>기록</button>
     </div>
@@ -553,6 +593,27 @@ function swPC(el,tab){
   el.classList.add('on');
   const p=document.getElementById(tab);if(p)p.classList.add('on');
 }
+function swPanel(tab){
+  // 체크리스트 하위 패널로 이동 (뒤로가기 없이 바로 열기)
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  const p=document.getElementById(tab);if(p)p.classList.add('on');
+}
+
+// ─── THEME ───
+function toggleTheme(){
+  const html=document.documentElement;
+  const cur=html.getAttribute('data-theme');
+  const sys=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+  if(!cur){html.setAttribute('data-theme',sys==='dark'?'light':'dark');}
+  else if(cur==='dark'){html.setAttribute('data-theme','light');}
+  else{html.removeAttribute('data-theme');}
+  localStorage.setItem('theme',html.getAttribute('data-theme')||'auto');
+}
+function initTheme(){
+  const saved=localStorage.getItem('theme');
+  if(saved&&saved!=='auto')document.documentElement.setAttribute('data-theme',saved);
+}
+initTheme();
 function showSt(msg,type,id='it-st'){
   const el=document.getElementById(id);if(!el)return;
   el.className=`sb sb-${type}`;el.innerHTML=msg;
@@ -1163,5 +1224,18 @@ renderComp();renderCarry();
 // 드라이브 상태 바 초기 렌더링 (API 로드 전이라 로컬 상태 기준)
 renderDriveStatus(driveMode==='drive');
 </script>
+
+<!-- Google API — body 끝에 로드 -->
+<script>
+function gapiLoaded(){if(typeof initGapi==='function')initGapi();}
+function gisLoaded(){if(typeof initGis==='function')initGis();}
+// 로드 실패 대비 폴백 타이머
+setTimeout(()=>{
+  if(typeof gapi!=='undefined'&&typeof initGapi==='function')initGapi();
+  if(typeof google!=='undefined'&&typeof initGis==='function')initGis();
+},2000);
+</script>
+<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
 </html>
