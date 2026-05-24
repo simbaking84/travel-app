@@ -6,10 +6,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="여행 플래너">
+<meta name="apple-mobile-web-app-title" content="모리의 여행플래너">
 <meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
-<title>여행 플래너</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>모리의 여행플래너</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
@@ -1227,9 +1229,16 @@ renderDriveStatus(driveMode==='drive');
 
 <!-- Google API — body 끝에 로드 -->
 <script>
+// Service Worker 등록
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('service-worker.js')
+      .then(reg=>console.log('SW 등록됨:',reg.scope))
+      .catch(err=>console.log('SW 등록 실패:',err));
+  });
+}
 function gapiLoaded(){if(typeof initGapi==='function')initGapi();}
 function gisLoaded(){if(typeof initGis==='function')initGis();}
-// 로드 실패 대비 폴백 타이머
 setTimeout(()=>{
   if(typeof gapi!=='undefined'&&typeof initGapi==='function')initGapi();
   if(typeof google!=='undefined'&&typeof initGis==='function')initGis();

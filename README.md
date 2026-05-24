@@ -2,7 +2,7 @@
 
 모바일·PC 겸용 여행 관리 웹앱입니다.
 
-- **앱 URL**: https://moriaty84.github.io/travel-app
+- **앱 URL**: https://simbaking84.github.io/travel-app/
 - **Google 계정**: moriaty84@gmail.com
 
 ---

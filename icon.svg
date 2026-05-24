@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1a1a1a"/>
+  <rect width="512" height="512" rx="112" fill="#e8c87a" opacity="0.12"/>
+  <!-- 비행기 아이콘 -->
+  <g transform="translate(256,256)" stroke="#e8c87a" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M-80,-20 L40,-80 Q80,-90 85,-50 Q90,-10 50,20 L-20,60 L0,120 L-30,110 L-60,40 L-120,60 L-130,30 Z" fill="#e8c87a" stroke="none"/>
+  </g>
+</svg>
