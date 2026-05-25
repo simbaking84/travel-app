@@ -825,7 +825,7 @@ function switchDay(el,day){
 }
 function toggleVisit(id){
   const s=state.itinerary.find(s=>s.id===id);if(s){s.visited=!s.visited;save();renderItinerary();
-renderTripCard();}
+setTimeout(()=>renderTripCard(),100);}
 }
 function confirmExp(sid){
   const nm=(document.getElementById(`me-nm-${sid}`)?.value||'').trim();
