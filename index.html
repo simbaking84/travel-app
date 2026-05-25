@@ -16,42 +16,39 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
-/* ─── RESET & BASE ─── */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{
-  --accent:#c8963e;--accent2:#a67830;
-  --green:#16a34a;--red:#dc2626;--blue:#2563eb;--purple:#7c3aed;--orange:#ea580c;
-  --font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;
-  --r:10px;--rl:16px;--tap:48px;--nav:60px;
-}
-/* 라이트 모드 */
+:root{--font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;--r:10px;--rl:16px;--tap:48px}
 :root,[data-theme="light"]{
   --bg:#f8f7f4;--surface:#ffffff;--surface2:#f1f0ec;--surface3:#e8e6e0;
   --border:#e0ddd6;--border2:#ccc9c0;
   --text:#1a1a1a;--text2:#6b6560;--text3:#a09890;
   --accent:#c8963e;--accent2:#a67830;
   --green:#16a34a;--red:#dc2626;--blue:#2563eb;--purple:#7c3aed;--orange:#ea580c;
+  --carry-red-bg:#fee2e2;--carry-red-text:#991b1b;--carry-red-border:#fca5a5;
+  --carry-amber-bg:#fef3c7;--carry-amber-text:#92400e;--carry-amber-border:#fcd34d;
+  --carry-green-bg:#dcfce7;--carry-green-text:#166534;--carry-green-border:#86efac;
 }
-/* 다크 모드 */
-@media(prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
-    --border:#333;--border2:#404040;
-    --text:#f0f0f0;--text2:#a0a0a0;--text3:#666;
-    --accent:#e8c87a;--accent2:#c8a855;
-    --green:#4ade80;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c;
-  }
-}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
+  --border:#333;--border2:#404040;
+  --text:#f0f0f0;--text2:#a0a0a0;--text3:#666;
+  --accent:#e8c87a;--accent2:#c8a855;
+  --green:#4ade80;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c;
+  --carry-red-bg:rgba(248,113,113,.08);--carry-red-text:#fca5a5;--carry-red-border:rgba(248,113,113,.2);
+  --carry-amber-bg:rgba(251,191,36,.08);--carry-amber-text:#fcd34d;--carry-amber-border:rgba(251,191,36,.2);
+  --carry-green-bg:rgba(74,222,128,.08);--carry-green-text:#86efac;--carry-green-border:rgba(74,222,128,.2);
+}}
 [data-theme="dark"]{
   --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
   --border:#333;--border2:#404040;
   --text:#f0f0f0;--text2:#a0a0a0;--text3:#666;
   --accent:#e8c87a;--accent2:#c8a855;
   --green:#4ade80;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c;
+  --carry-red-bg:rgba(248,113,113,.08);--carry-red-text:#fca5a5;--carry-red-border:rgba(248,113,113,.2);
+  --carry-amber-bg:rgba(251,191,36,.08);--carry-amber-text:#fcd34d;--carry-amber-border:rgba(251,191,36,.2);
+  --carry-green-bg:rgba(74,222,128,.08);--carry-green-text:#86efac;--carry-green-border:rgba(74,222,128,.2);
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
-
-/* ─── LAYOUT ─── */
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
 #header{flex-shrink:0;padding:env(safe-area-inset-top) 0 0;background:var(--bg);border-bottom:1px solid var(--border)}
 #header-inner{display:flex;align-items:center;justify-content:space-between;padding:.625rem 1rem;gap:8px}
@@ -62,38 +59,28 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #bottom-nav{flex-shrink:0;padding:0 0 env(safe-area-inset-bottom);background:var(--bg);border-top:1px solid var(--border)}
 #bottom-nav-inner{display:flex;justify-content:space-around;padding:.375rem 0}
-.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:.375rem .75rem;border-radius:var(--r);border:none;background:none;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--font);min-width:60px;transition:color .15s}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:.375rem .75rem;border-radius:var(--r);border:none;background:none;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--font);min-width:56px;transition:color .15s}
 .nav-item i{font-size:20px;line-height:1}
 .nav-item.on{color:var(--accent)}
-.nav-item.on i{font-weight:bold}
-
-/* ─── PANELS ─── */
 .panel{display:none;padding:1rem}.panel.on{display:block}
 .section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;display:flex;align-items:center;gap:6px}
-
-/* ─── METRIC CARDS ─── */
 .mcards{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:1rem}
 .mc{background:var(--surface);border-radius:var(--r);padding:.75rem;border:1px solid var(--border)}
 .mc-l{font-size:11px;color:var(--text3);margin-bottom:3px;font-family:var(--mono)}
 .mc-v{font-size:16px;font-weight:600}
 .mc-v.ok{color:var(--green)}.mc-v.over{color:var(--red)}
 .mc-s{font-size:11px;color:var(--text3);margin-top:2px}
-
-/* ─── BUTTONS ─── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;min-height:var(--tap);transition:all .15s}
 .btn:active{background:var(--surface2)}
 .btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
 .btn-accent:active{background:var(--accent2)}
-@media(prefers-color-scheme:dark){.btn-accent{color:#0f0f0f}}
 [data-theme="dark"] .btn-accent{color:#0f0f0f}
-[data-theme="light"] .btn-accent{color:#fff}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn-accent{color:#0f0f0f}}
 .btn-surface{background:var(--surface);border-color:var(--border2)}
 .btn-full{width:100%;margin-top:.5rem}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:var(--tap);height:var(--tap);border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:18px}
 .icon-btn:active{background:var(--surface2)}
-
-/* ─── FORM ELEMENTS ─── */
 .fl{font-size:12px;color:var(--text2);display:block;margin-bottom:5px}
 .fi{width:100%;border:1px solid var(--border);border-radius:var(--r);padding:0 12px;font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);height:var(--tap);transition:border-color .15s;appearance:none}
 .fi:focus{outline:none;border-color:var(--accent)}
@@ -101,26 +88,29 @@ select.fi{cursor:pointer}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.75rem}
 .r1{margin-bottom:.75rem}
 .hint{font-size:11px;color:var(--text3);margin-top:4px}
-
-/* ─── CARDS ─── */
 .card{background:var(--surface);border-radius:var(--rl);border:1px solid var(--border);padding:.875rem;margin-bottom:.625rem}
-.card-danger{border-color:rgba(248,113,113,.3)}
-
-/* ─── STATUS BAR ─── */
 .sb{display:flex;align-items:center;gap:8px;padding:.625rem .875rem;border-radius:var(--r);font-size:13px;margin-bottom:.875rem}
 .sb-ok{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
 .sb-err{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
 .sb-i{background:rgba(96,165,250,.1);color:var(--blue);border:1px solid rgba(96,165,250,.2)}
 .sb-h{display:none}
-
-/* ─── UPLOAD AREA ─── */
+/* 여행 카드 */
+.trip-card-wrap{border-radius:var(--rl);overflow:hidden;margin-bottom:.875rem;border:1px solid rgba(201,168,76,0.25);box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.trip-card-content{width:100%}
+.trip-card-content img{width:100%;display:block}
+.trip-card-actions{display:flex;gap:6px;padding:.5rem .875rem;border-top:1px solid var(--border);background:var(--surface2)}
+.trip-card-upload{border:1.5px dashed var(--border2);border-radius:var(--rl);padding:1.25rem;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:.875rem}
+.trip-card-upload:hover{border-color:var(--accent);background:rgba(201,168,76,0.04)}
+.trip-card-upload i{font-size:24px;color:var(--text3);display:block;margin-bottom:.5rem}
+.trip-card-upload-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:3px}
+.trip-card-upload-sub{font-size:11px;color:var(--text3)}
+/* 업로드 존 */
 .upload-zone{border:2px dashed var(--border2);border-radius:var(--rl);padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:.875rem}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(232,200,122,.05)}
 .upload-zone i{font-size:32px;color:var(--text3);display:block;margin-bottom:.5rem}
 .upload-title{font-size:14px;font-weight:500;margin-bottom:4px}
 .upload-sub{font-size:12px;color:var(--text3)}
-
-/* ─── TIMELINE ─── */
+/* 타임라인 */
 .day-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:.875rem;scrollbar-width:none}
 .day-tabs::-webkit-scrollbar{display:none}
 .day-tab{padding:6px 14px;border-radius:20px;font-size:12px;font-family:var(--font);cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);white-space:nowrap;min-height:36px;display:inline-flex;align-items:center;gap:5px;transition:all .15s;flex-shrink:0}
@@ -129,9 +119,9 @@ select.fi{cursor:pointer}
 .timeline{position:relative;padding-left:22px}
 .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:1px;background:var(--border2)}
 .slot{margin-bottom:.75rem;position:relative}
-.slot-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--bg);position:absolute;left:-19px;top:15px;flex-shrink:0}
+.slot-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--bg);position:absolute;left:-19px;top:15px}
 .slot-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:.875rem;transition:border-color .15s}
-.slot-card.visited{opacity:.7;border-color:var(--border)}
+.slot-card.visited{opacity:.7}
 .slot-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
 .tband{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;font-weight:600;font-family:var(--mono)}
 .t-mo{background:rgba(74,222,128,.15);color:var(--green)}
@@ -160,8 +150,7 @@ select.fi{cursor:pointer}
 .mini-fi:focus{outline:none;border-color:var(--accent)}
 .empty-day{text-align:center;padding:3rem 1rem;color:var(--text3)}
 .empty-day i{font-size:32px;display:block;margin-bottom:.75rem}
-
-/* ─── BUDGET ROW ─── */
+/* 예산 */
 .brow{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.75rem;margin-bottom:.5rem}
 .brow-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .brow-ic{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
@@ -171,8 +160,7 @@ select.fi{cursor:pointer}
 .brow-del:active{color:var(--red)}
 .brow-bar-wrap{height:3px;background:var(--surface3);border-radius:2px;margin-top:6px}
 .brow-bar{height:100%;border-radius:2px;transition:width .4s}
-
-/* ─── ARCHIVE CARD ─── */
+/* 아카이브 */
 .arch-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:.875rem;margin-bottom:.75rem}
 .arch-name{font-size:15px;font-weight:600;margin-bottom:3px}
 .arch-date{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:.75rem}
@@ -182,15 +170,13 @@ select.fi{cursor:pointer}
 .arch-bar-wrap{height:4px;background:var(--surface3);border-radius:2px;margin:.75rem 0 .625rem}
 .arch-bar{height:100%;border-radius:2px;transition:width .4s}
 .arch-pct{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:.75rem}
-.arch-actions{display:flex;gap:6px}
-
-/* ─── CHECKLIST ─── */
+/* 체크리스트 */
 .ck-section{margin-bottom:1.25rem}
 .ck-sec-title{font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;margin-bottom:.5rem}
 .ck-list{display:flex;flex-direction:column;gap:5px}
 .cki{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:13px;color:var(--text);min-height:var(--tap);transition:all .15s}
 .cki:active{background:var(--surface2)}
-.cki.on{background:var(--surface2);color:var(--text2);border-color:var(--border)}
+.cki.on{background:var(--surface2);color:var(--text2)}
 .cki.on .ckbox{background:var(--accent);border-color:var(--accent)}
 .cki.on .ckbox::after{display:block}
 .cki.on .ck-lbl{text-decoration:line-through;color:var(--text3)}
@@ -203,79 +189,68 @@ select.fi{cursor:pointer}
 .prog-bar-wrap{height:3px;background:var(--surface3);border-radius:2px;margin:.5rem 0 1rem}
 .prog-bar{height:100%;border-radius:2px;background:var(--accent);transition:width .3s}
 .prog-txt{font-size:12px;color:var(--text3);margin-bottom:.375rem;font-family:var(--mono)}
-
-/* ─── CARRY ─── */
+/* 기내반입 */
 .carry-item{padding:10px 14px;border-radius:var(--r);border:1px solid;margin-bottom:6px}
-.c-red{background:rgba(248,113,113,.08);color:#fca5a5;border-color:rgba(248,113,113,.2)}
-.c-amber{background:rgba(251,191,36,.08);color:#fcd34d;border-color:rgba(251,191,36,.2)}
-.c-green{background:rgba(74,222,128,.08);color:#86efac;border-color:rgba(74,222,128,.2)}
+.c-red{background:var(--carry-red-bg);color:var(--carry-red-text);border-color:var(--carry-red-border)}
+.c-amber{background:var(--carry-amber-bg);color:var(--carry-amber-text);border-color:var(--carry-amber-border)}
+.c-green{background:var(--carry-green-bg);color:var(--carry-green-text);border-color:var(--carry-green-border)}
 .ci-t{font-weight:600;font-size:13px;margin-bottom:2px}
-.ci-s{font-size:12px;opacity:.7}
-
-/* ─── COMPANION ─── */
+.ci-s{font-size:12px;opacity:.8}
+/* 동행 */
 .comp-info-box{background:var(--surface2);border-radius:var(--r);padding:.625rem .875rem;font-size:12px;color:var(--text2);margin-bottom:.875rem;border:1px solid var(--border)}
-
-/* ─── MODAL ─── */
+/* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
 .modal-overlay.hidden{display:none}
 .modal-sheet{background:var(--surface);border-radius:var(--rl) var(--rl) 0 0;padding:1.25rem 1rem calc(1.25rem + env(safe-area-inset-bottom));width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
 .modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 1rem}
 .modal-title{font-size:15px;font-weight:600;margin-bottom:1rem}
-
-/* ─── DIVIDER ─── */
+/* 테마 옵션 */
+.theme-option{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid var(--border);background:transparent;cursor:pointer;margin-bottom:8px;transition:all .15s;width:100%}
+.theme-option:hover{background:var(--surface2)}
+.theme-option.active{border-color:var(--accent);background:rgba(201,168,76,.08)}
+.theme-option-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.theme-option-text{text-align:left;flex:1}
+.theme-option-title{font-size:13px;font-weight:600;color:var(--text)}
+.theme-option-desc{font-size:11px;color:var(--text3);margin-top:2px}
+.theme-check{color:var(--accent);font-size:16px;display:none}
+.theme-option.active .theme-check{display:block}
+/* 설정 섹션 헤더 */
+.setting-section{margin-bottom:1.5rem}
+.setting-section-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+/* 기타 */
 .div{height:1px;background:var(--border);margin:1rem 0}
-
-/* ─── TABS (currency tags) ─── */
 .tag{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;font-family:var(--mono)}
 .tag-krw{background:rgba(74,222,128,.15);color:var(--green)}
 .tag-loc{background:rgba(232,200,122,.15);color:var(--accent)}
 .tag-cloc{background:rgba(96,165,250,.15);color:var(--blue)}
 .tag-ckrw{background:rgba(192,132,252,.15);color:var(--purple)}
-
-/* ─── CSV TEMPLATE BOX ─── */
 .template-box{background:var(--surface2);border-radius:var(--r);padding:.875rem;border:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.8;overflow-x:auto;white-space:pre;margin-bottom:.875rem}
-
-/* ─── SCROLLBAR ─── */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-
-/* ─── PC LAYOUT ─── */
+#drive-status-bar{display:flex;align-items:center;gap:8px;padding:.5rem .875rem;border-radius:var(--r);font-size:12px;margin-bottom:.875rem;border:1px solid var(--border);background:var(--surface2);transition:all .3s}
+/* PC */
 @media(min-width:720px){
   #app{flex-direction:row}
-  #header{display:none}
-  #bottom-nav{display:none}
+  #header,#bottom-nav{display:none}
   #sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1.5rem 0;gap:2px;overflow-y:auto}
   .sidebar-logo{padding:.5rem 1.25rem 1.25rem;font-size:16px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px}
   .sidebar-section{font-size:11px;color:var(--text3);padding:.75rem 1.25rem .25rem;text-transform:uppercase;letter-spacing:.08em}
-  .sidebar-item{display:flex;align-items:center;gap:10px;padding:.625rem 1.25rem;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);font-family:var(--font);width:100%;text-align:left;border-radius:0;transition:all .15s}
+  .sidebar-item{display:flex;align-items:center;gap:10px;padding:.625rem 1.25rem;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);font-family:var(--font);width:100%;text-align:left;transition:all .15s}
   .sidebar-item:hover{background:var(--surface);color:var(--text)}
   .sidebar-item.on{background:var(--surface2);color:var(--accent);font-weight:500}
   .sidebar-item i{font-size:18px;width:22px;flex-shrink:0}
   #content{flex:1;overflow-y:auto}
   .panel{padding:1.5rem 2rem;max-width:800px}
   .mcards{grid-template-columns:repeat(4,1fr)}
-  .r2-4{grid-template-columns:repeat(4,1fr)}
   .ck-list{display:grid;grid-template-columns:repeat(2,1fr)}
   .carry-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 1rem}
 }
-@media(max-width:719px){
-  #sidebar{display:none}
-}
-#drive-status-bar{display:flex;align-items:center;gap:8px;padding:.5rem .875rem;border-radius:var(--r);font-size:12px;margin-bottom:.875rem;border:1px solid var(--border);background:var(--surface2);transition:all .3s}
-.trip-card-wrap{border-radius:var(--rl);overflow:hidden;margin-bottom:.875rem;border:1px solid rgba(201,168,76,0.2);background:linear-gradient(135deg,rgba(201,168,76,0.05),transparent)}
-.trip-card-content{width:100%;overflow:hidden}
-.trip-card-actions{display:flex;gap:6px;padding:.5rem .875rem;border-top:1px solid var(--border);background:var(--surface2)}
-.trip-card-upload{border:1.5px dashed var(--border2);border-radius:var(--rl);padding:1.25rem;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:.875rem}
-.trip-card-upload:hover{border-color:var(--accent);background:rgba(201,168,76,0.04)}
-.trip-card-upload i{font-size:24px;color:var(--text3);display:block;margin-bottom:.5rem}
-.trip-card-upload-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:3px}
-.trip-card-upload-sub{font-size:11px;color:var(--text3)}
+@media(max-width:719px){#sidebar{display:none}}
 </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- 모바일 헤더 -->
   <div id="header">
     <div id="header-inner">
       <div id="trip-display">
@@ -283,14 +258,13 @@ select.fi{cursor:pointer}
         <div id="trip-date-display">일정을 업로드해 주세요</div>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="테마 전환"><i class="ti ti-sun-moon"></i></button>
+        <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
         <button class="icon-btn" onclick="openFinish()" title="여행 마무리"><i class="ti ti-flag-check"></i></button>
         <button class="icon-btn" onclick="saveDrive()" title="드라이브 저장"><i class="ti ti-device-floppy"></i></button>
       </div>
     </div>
   </div>
 
-  <!-- PC 사이드바 -->
   <div id="sidebar">
     <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너</div>
     <div class="sidebar-section">일정·예산</div>
@@ -308,61 +282,23 @@ select.fi{cursor:pointer}
     <div class="sidebar-section">기록</div>
     <button class="sidebar-item" onclick="swPC(this,'archive');renderArchive()"><i class="ti ti-archive"></i> 여행 아카이브</button>
     <div class="sidebar-section">설정</div>
-    <button class="sidebar-item" onclick="toggleTheme()"><i class="ti ti-sun-moon"></i> 테마 전환</button>
+    <button class="sidebar-item" onclick="swPC(this,'settings');renderSettings()"><i class="ti ti-settings"></i> 설정</button>
   </div>
 
-  <!-- 콘텐츠 -->
   <div id="content">
 
-    <!-- ── 일정표 ── -->
+    <!-- 일정표 -->
     <div id="itinerary" class="panel on">
       <div id="it-st" class="sb-h"></div>
-
-
-      <!-- 업로드 -->
-      <div id="upload-section" style="display:none">
-        <div class="section-title"><i class="ti ti-upload"></i> 일정 업로드</div>
-        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('csv-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
-          <i class="ti ti-table-import"></i>
-          <div class="upload-title">CSV 파일 업로드</div>
-          <div class="upload-sub">엑셀에서 작성 후 CSV로 저장 → 여기에 드래그 또는 탭</div>
-          <input type="file" id="csv-file" accept=".csv,.json" style="display:none" onchange="handleFileInput(event)">
-        </div>
-        <div class="template-box" id="csv-template">day,time,title,note
-0,morning,공항 도착,이동수단 및 소요시간
-0,afternoon,첫 번째 장소,입장료·오픈시간·예약여부
-0,evening,저녁 맛집,예약 필요 여부
-1,morning,오전 관광지,메모
-1,afternoon,오후 일정,메모
-1,evening,저녁 일정,메모</div>
-        <div class="hint" style="margin-bottom:.875rem">💡 day는 0부터 시작 (0=1일차) · time: morning/afternoon/evening/allday · 엑셀에서 열 그대로 작성 후 CSV 저장</div>
-        <div class="btns">
-          <button class="btn btn-accent" style="flex:1" onclick="applyCSV()"><i class="ti ti-check"></i> 적용</button>
-          <button class="btn btn-surface" onclick="copyTemplate()"><i class="ti ti-copy"></i> 양식 복사</button>
-          <button class="btn" onclick="document.getElementById('upload-section').style.display='none'"><i class="ti ti-chevron-up"></i></button>
-        </div>
-      </div>
-
       <div id="trip-card-section"></div>
-      <div id="upload-toggle" style="display:none;margin-bottom:.875rem">
-        <button class="btn btn-surface" style="width:100%" onclick="document.getElementById('upload-section').style.display='block';document.getElementById('upload-toggle').style.display='none'">
-          <i class="ti ti-upload"></i> 일정 다시 업로드
-        </button>
-      </div>
-
-      <!-- 요약 -->
-      <div class="mcards" id="it-mcards">
+      <div class="mcards">
         <div class="mc"><div class="mc-l">방문 완료</div><div class="mc-v" id="it-visited">0곳</div></div>
         <div class="mc"><div class="mc-l">전체 일정</div><div class="mc-v" id="it-total">0곳</div></div>
         <div class="mc"><div class="mc-l">지출 합계</div><div class="mc-v" id="it-exp">—</div></div>
         <div class="mc"><div class="mc-l">남은 예산</div><div class="mc-v" id="it-rem">—</div></div>
       </div>
-
-      <!-- 타임라인 -->
       <div class="day-tabs" id="day-tabs"></div>
       <div id="day-panels"></div>
-
-      <!-- 직접 추가 -->
       <details style="margin-top:.875rem">
         <summary style="cursor:pointer;padding:.625rem 0;color:var(--text2);font-size:13px;display:flex;align-items:center;gap:6px;list-style:none">
           <i class="ti ti-plus-circle"></i> 일정 직접 추가
@@ -382,23 +318,18 @@ select.fi{cursor:pointer}
           <button class="btn btn-full btn-accent" onclick="addSlot()"><i class="ti ti-plus"></i> 추가</button>
         </div>
       </details>
-
       <div class="div"></div>
       <div id="drive-status-bar"></div>
-      <div class="btns" style="justify-content:space-between;align-items:center">
-        <span style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px"><i class="ti ti-device-floppy"></i> localStorage 자동저장</span>
-        <div class="btns">
-          <button class="btn" onclick="exportCurrentCSV()"><i class="ti ti-download"></i> CSV 내보내기</button>
-          <button class="btn btn-accent" onclick="openFinish()"><i class="ti ti-flag-check"></i> 여행 마무리</button>
-        </div>
+      <div class="btns" style="justify-content:flex-end">
+        <button class="btn btn-accent" onclick="openFinish()"><i class="ti ti-flag-check"></i> 여행 마무리</button>
       </div>
     </div>
 
-    <!-- ── 예산·지출 ── -->
+    <!-- 예산 -->
     <div id="budget" class="panel">
       <div id="bs" class="sb-h"></div>
       <div class="section-title"><i class="ti ti-wallet"></i> 통화 설정</div>
-      <div class="cbox card" style="margin-bottom:.875rem">
+      <div class="card" style="margin-bottom:.875rem">
         <div class="r1"><label class="fl">현지 통화</label>
           <select class="fi" id="curr" onchange="updateCurr()">
             <option value="KRW">원화만 (국내여행)</option><option value="JPY">JPY — 엔화</option>
@@ -415,13 +346,11 @@ select.fi{cursor:pointer}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" id="ctags"></div>
       </div>
-
       <div class="r2">
         <div><label class="fl">총 예산 (원)</label><input type="number" class="fi" id="total" placeholder="0" oninput="calcBudget()"></div>
         <div><label class="fl" id="cash-lbl">현지통화 예산</label><input type="number" class="fi" id="cash" placeholder="0" oninput="calcBudget()"></div>
         <div><label class="fl">카드 한도 (원)</label><input type="number" class="fi" id="climit" placeholder="0" oninput="calcBudget()"></div>
       </div>
-
       <div class="mcards">
         <div class="mc"><div class="mc-l">총 예산</div><div class="mc-v" id="s-total">—</div></div>
         <div class="mc"><div class="mc-l">잔액</div><div class="mc-v" id="s-remain">—</div></div>
@@ -434,13 +363,12 @@ select.fi{cursor:pointer}
         <div class="mc"><div class="mc-l" id="lbl-cloc">카드·현지</div><div class="mc-v" id="v-cloc">—</div><div class="mc-s" id="sub-cloc"></div></div>
         <div class="mc"><div class="mc-l">카드·원화</div><div class="mc-v" id="v-ckrw">—</div></div>
       </div>
-
       <div class="section-title"><i class="ti ti-chart-pie"></i> 카테고리별 예산</div>
       <div id="brows"></div>
       <button class="btn btn-full btn-surface" onclick="addBRow()"><i class="ti ti-plus"></i> 카테고리 추가</button>
     </div>
 
-    <!-- ── 체크리스트 선택 ── -->
+    <!-- 체크리스트 -->
     <div id="checklist" class="panel">
       <div class="section-title"><i class="ti ti-checkbox"></i> 체크리스트</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -452,15 +380,13 @@ select.fi{cursor:pointer}
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
       </div>
     </div>
-
-    <!-- ── 체크리스트 패널들 ── -->
     <div id="domestic" class="panel"></div>
     <div id="japan" class="panel"></div>
     <div id="europe" class="panel"></div>
     <div id="sea" class="panel"></div>
     <div id="usa" class="panel"></div>
 
-    <!-- ── 동행 ── -->
+    <!-- 동행 -->
     <div id="companion" class="panel">
       <div class="section-title"><i class="ti ti-users"></i> 동행 유형</div>
       <div class="r2">
@@ -482,7 +408,7 @@ select.fi{cursor:pointer}
       <div id="ccontent"></div>
     </div>
 
-    <!-- ── 기내반입 ── -->
+    <!-- 기내반입 -->
     <div id="carry" class="panel">
       <div class="section-title"><i class="ti ti-luggage"></i> 기내 반입 금지 물품</div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:.875rem">항공사·노선마다 다를 수 있습니다. 출발 전 항공사 공식 사이트에서 재확인하세요.</p>
@@ -494,21 +420,68 @@ select.fi{cursor:pointer}
       <div class="carry-grid" id="carry-c"></div>
     </div>
 
-    <!-- ── 아카이브 ── -->
+    <!-- 아카이브 -->
     <div id="archive" class="panel">
       <div id="ar-st" class="sb-h"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.875rem">
         <div class="section-title" style="margin-bottom:0"><i class="ti ti-archive"></i> 여행 아카이브</div>
-        <div class="btns">
-          <button class="btn" onclick="exportAllCSV()"><i class="ti ti-table-export"></i> 전체 CSV</button>
-        </div>
+        <button class="btn" onclick="exportAllCSV()"><i class="ti ti-table-export"></i> 전체 CSV</button>
       </div>
       <div id="arch-list"></div>
     </div>
 
-  </div><!-- content -->
+    <!-- 설정 -->
+    <div id="settings" class="panel">
+      <div class="section-title"><i class="ti ti-settings"></i> 설정</div>
 
-  <!-- 모바일 하단 네비 -->
+      <!-- 테마 -->
+      <div class="setting-section">
+        <div class="setting-section-title">테마</div>
+        <button class="theme-option" id="theme-opt-system" onclick="setTheme('system')">
+          <div class="theme-option-icon" style="background:var(--surface2)">⚙️</div>
+          <div class="theme-option-text"><div class="theme-option-title">시스템 설정</div><div class="theme-option-desc">기기 설정에 따라 자동 전환</div></div>
+          <i class="ti ti-check theme-check"></i>
+        </button>
+        <button class="theme-option" id="theme-opt-light" onclick="setTheme('light')">
+          <div class="theme-option-icon" style="background:#fff8e8">☀️</div>
+          <div class="theme-option-text"><div class="theme-option-title">밝은 테마</div><div class="theme-option-desc">항상 라이트 모드</div></div>
+          <i class="ti ti-check theme-check"></i>
+        </button>
+        <button class="theme-option" id="theme-opt-dark" onclick="setTheme('dark')">
+          <div class="theme-option-icon" style="background:#1a1a2e">🌙</div>
+          <div class="theme-option-text"><div class="theme-option-title">어두운 테마</div><div class="theme-option-desc">항상 다크 모드</div></div>
+          <i class="ti ti-check theme-check"></i>
+        </button>
+      </div>
+
+      <!-- 여행 카드 -->
+      <div class="setting-section">
+        <div class="setting-section-title">여행 카드</div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:.875rem">Claude에게 여행지 분위기 카드를 만들어달라고 하세요. HTML 파일을 업로드하면 일정 탭 상단에 표시됩니다.</p>
+        <div id="settings-card-area"></div>
+      </div>
+
+      <!-- 일정 CSV -->
+      <div class="setting-section">
+        <div class="setting-section-title">일정 CSV</div>
+        <div class="upload-zone" onclick="document.getElementById('settings-csv-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleSettingsDrop(event)">
+          <i class="ti ti-table-import"></i>
+          <div class="upload-title">CSV 파일 업로드</div>
+          <div class="upload-sub">day, time, title, note 형식</div>
+          <input type="file" id="settings-csv-file" accept=".csv,.json" style="display:none" onchange="handleSettingsFileInput(event)">
+        </div>
+        <button class="btn btn-surface btn-full" onclick="exportCurrentCSV()"><i class="ti ti-download"></i> 지출 CSV 내보내기</button>
+      </div>
+
+      <!-- Google Drive -->
+      <div class="setting-section">
+        <div class="setting-section-title">Google Drive</div>
+        <div id="settings-drive-area"></div>
+      </div>
+    </div>
+
+  </div>
+
   <div id="bottom-nav">
     <div id="bottom-nav-inner">
       <button class="nav-item on" onclick="swMob(this,'itinerary')"><i class="ti ti-map-2"></i>일정</button>
@@ -516,10 +489,11 @@ select.fi{cursor:pointer}
       <button class="nav-item" onclick="swMob(this,'checklist')"><i class="ti ti-checkbox"></i>체크</button>
       <button class="nav-item" onclick="swMob(this,'companion')"><i class="ti ti-users"></i>동행</button>
       <button class="nav-item" onclick="swMob(this,'archive');renderArchive()"><i class="ti ti-archive"></i>기록</button>
+      <button class="nav-item" onclick="swMob(this,'settings');renderSettings()"><i class="ti ti-settings"></i>설정</button>
     </div>
   </div>
 
-</div><!-- app -->
+</div>
 
 <!-- 여행 마무리 모달 -->
 <div class="modal-overlay hidden" id="finish-modal">
@@ -541,38 +515,29 @@ select.fi{cursor:pointer}
 </div>
 
 <script>
-// ─── CONSTANTS ───
-const LS_KEY='travel_app_v1';
-const LS_ARCH='travel_archive_v1';
+const LS_KEY='travel_app_v1',LS_ARCH='travel_archive_v1';
 const COLORS=['#e8c87a','#4ade80','#60a5fa','#f87171','#c084fc','#fb923c','#34d399','#a78bfa'];
-const CAT_ICONS={식비:'ti-soup',교통:'ti-train',숙소:'ti-building',관광:'ti-ticket',쇼핑:'ti-shopping-bag',카페:'ti-coffee',기타:'ti-dots'};
-const CAT_COLORS={식비:'#fb923c',교통:'#60a5fa',숙소:'#4ade80',관광:'#f87171',쇼핑:'#c084fc',카페:'#e8c87a',기타:'#666'};
 const TLAB={morning:'오전',afternoon:'오후',evening:'저녁',allday:'하루종일'};
 const TDOT={morning:'#4ade80',afternoon:'#60a5fa',evening:'#c084fc',allday:'#fb923c'};
 const TCLS={morning:'t-mo',afternoon:'t-af',evening:'t-ev',allday:'t-al'};
 const MLAB={krw:'원화현금',local:'현지통화','card-loc':'카드·현지','card-krw':'카드·원화'};
 
-// ─── STATE ───
 let state={
   tripName:'',tripStart:'',tripEnd:'',tripCard:'',
   itinerary:[],expenses:[],
   currency:'KRW',rate:1,totalBudget:0,cashBudget:0,cardLimit:0,
   budgetRows:[
-    {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},
-    {ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
-    {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},
-    {ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
-    {ic:'ti-shopping-bag',nm:'쇼핑',plan:0,cat:'쇼핑'},
-    {ic:'ti-dots',nm:'기타',plan:0,cat:'기타'},
+    {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
+    {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
+    {ic:'ti-shopping-bag',nm:'쇼핑',plan:0,cat:'쇼핑'},{ic:'ti-dots',nm:'기타',plan:0,cat:'기타'},
   ]
 };
-let ckSt={};
-let activeExpSlot=null;
+let ckSt={},activeExpSlot=null;
 
-function gk(t,si,ii){return `${t}|${si}|${ii}`}
-function fmt(n){if(n===undefined||n===null)return '—';return Math.round(n).toLocaleString('ko-KR')+'원'}
-function fmtL(n,c){return (Math.round(n*100)/100).toLocaleString('ko-KR')+' '+c}
-function toKRW(v,m){const r=state.rate||1;const isK=state.currency==='KRW';return(m==='krw'||m==='card-krw')?v:v*(isK?1:r)}
+function gk(t,si,ii){return`${t}|${si}|${ii}`}
+function fmt(n){return(n===undefined||n===null)?'—':Math.round(n).toLocaleString('ko-KR')+'원'}
+function fmtL(n,c){return(Math.round(n*100)/100).toLocaleString('ko-KR')+' '+c}
+function toKRW(v,m){const r=state.rate||1,isK=state.currency==='KRW';return(m==='krw'||m==='card-krw')?v:v*(isK?1:r)}
 function today(){return new Date().toISOString().slice(0,10)}
 function getDays(){
   if(!state.tripStart||!state.tripEnd)return 3;
@@ -581,85 +546,102 @@ function getDays(){
 }
 function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({state,ckSt}));}catch{}}
 function load(){
-  try{
-    const raw=localStorage.getItem(LS_KEY);
-    if(!raw)return;
-    const d=JSON.parse(raw);
-    if(d.state)state={...state,...d.state};
-    if(d.ckSt)ckSt={...d.ckSt};
-  }catch{}
+  try{const raw=localStorage.getItem(LS_KEY);if(!raw)return;const d=JSON.parse(raw);if(d.state)state={...state,...d.state};if(d.ckSt)ckSt={...d.ckSt};}catch{}
 }
 function loadArchive(){try{return JSON.parse(localStorage.getItem(LS_ARCH)||'[]');}catch{return[];}}
 function saveArchive(arr){try{localStorage.setItem(LS_ARCH,JSON.stringify(arr));}catch{}}
 
-// ─── NAVIGATION ───
+// 네비
 function swMob(el,tab){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  el.classList.add('on');
-  const p=document.getElementById(tab);if(p)p.classList.add('on');
+  el.classList.add('on');document.getElementById(tab)?.classList.add('on');
+  if(tab==='settings')renderSettings();
+  if(tab==='archive')renderArchive();
 }
 function swPC(el,tab){
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  el.classList.add('on');
-  const p=document.getElementById(tab);if(p)p.classList.add('on');
+  el.classList.add('on');document.getElementById(tab)?.classList.add('on');
+  if(tab==='settings')renderSettings();
+  if(tab==='archive')renderArchive();
 }
 function swPanel(tab){
-  // 체크리스트 하위 패널로 이동 (뒤로가기 없이 바로 열기)
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  const p=document.getElementById(tab);if(p)p.classList.add('on');
+  document.getElementById(tab)?.classList.add('on');
 }
-
-// ─── THEME ───
-function toggleTheme(){
-  const html=document.documentElement;
-  const cur=html.getAttribute('data-theme');
-  const sys=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
-  if(!cur){html.setAttribute('data-theme',sys==='dark'?'light':'dark');}
-  else if(cur==='dark'){html.setAttribute('data-theme','light');}
-  else{html.removeAttribute('data-theme');}
-  localStorage.setItem('theme',html.getAttribute('data-theme')||'auto');
-}
-function initTheme(){
-  const saved=localStorage.getItem('theme');
-  if(saved&&saved!=='auto')document.documentElement.setAttribute('data-theme',saved);
-}
-initTheme();
 function showSt(msg,type,id='it-st'){
   const el=document.getElementById(id);if(!el)return;
   el.className=`sb sb-${type}`;el.innerHTML=msg;
   if(type==='ok')setTimeout(()=>{el.className='sb-h';},3500);
 }
 
-// ─── CSV UPLOAD ───
-const TEMPLATE_CSV=`day,time,title,note
-0,morning,공항 도착,이동수단 및 소요시간
-0,afternoon,첫 번째 장소,입장료·오픈시간·예약여부
-0,evening,저녁 맛집,예약 필요 여부
-1,morning,오전 관광지,메모
-1,afternoon,오후 일정,메모
-1,evening,저녁 일정,메모`;
+// 테마
+function initTheme(){applyTheme(localStorage.getItem('theme')||'system');}
+function applyTheme(mode){
+  const html=document.documentElement;
+  html.removeAttribute('data-theme');
+  if(mode==='light')html.setAttribute('data-theme','light');
+  else if(mode==='dark')html.setAttribute('data-theme','dark');
+  localStorage.setItem('theme',mode);
+  ['system','light','dark'].forEach(m=>{
+    document.getElementById(`theme-opt-${m}`)?.classList.toggle('active',m===mode);
+  });
+}
+function setTheme(mode){applyTheme(mode);}
 
-function copyTemplate(){
-  navigator.clipboard?.writeText(TEMPLATE_CSV).catch(()=>{});
-  showSt('<i class="ti ti-check"></i> 양식이 클립보드에 복사됐습니다. 엑셀에 붙여넣고 수정 후 CSV로 저장하세요','ok');
+// 여행 카드
+function renderTripCard(){
+  const el=document.getElementById('trip-card-section');if(!el)return;
+  if(state.tripCard){
+    el.innerHTML=`<div class="trip-card-wrap"><div class="trip-card-content" id="trip-card-inner"></div><div class="trip-card-actions"><span style="font-size:11px;color:var(--text3);flex:1;display:flex;align-items:center;gap:5px"><i class="ti ti-layout-cards"></i> 여행 카드</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings');renderSettings()"><i class="ti ti-settings"></i> 관리</button></div></div>`;
+    const inner=document.getElementById('trip-card-inner');
+    if(inner)inner.innerHTML=state.tripCard;
+  } else {
+    el.innerHTML='';
+  }
 }
-function handleDrop(e){
-  e.preventDefault();document.getElementById('drop-zone').classList.remove('drag');
-  const file=e.dataTransfer.files[0];if(file)readFile(file);
+function renderSettings(){
+  // 카드 영역
+  const ca=document.getElementById('settings-card-area');
+  if(ca){
+    if(state.tripCard){
+      ca.innerHTML=`<div class="trip-card-wrap"><div class="trip-card-content" id="s-card-inner"></div><div class="trip-card-actions"><span style="font-size:11px;color:var(--text3);flex:1"><i class="ti ti-check" style="color:var(--green)"></i> 등록됨</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="document.getElementById('card-file').click()"><i class="ti ti-refresh"></i> 교체</button><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--red)" onclick="removeTripCard()"><i class="ti ti-trash"></i></button></div></div><input type="file" id="card-file" accept=".html,.svg" style="display:none" onchange="handleCardFile(event)">`;
+      const si=document.getElementById('s-card-inner');if(si)si.innerHTML=state.tripCard;
+    } else {
+      ca.innerHTML=`<div class="trip-card-upload" onclick="document.getElementById('card-file').click()"><i class="ti ti-layout-cards"></i><div class="trip-card-upload-title">여행 카드 업로드</div><div class="trip-card-upload-sub">Claude가 만든 HTML 파일을 업로드하세요</div></div><input type="file" id="card-file" accept=".html,.svg" style="display:none" onchange="handleCardFile(event)">`;
+    }
+  }
+  // 드라이브
+  const da=document.getElementById('settings-drive-area');
+  if(da){
+    const loggedIn=driveMode==='drive';
+    if(loggedIn){
+      da.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:.75rem;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:var(--r);margin-bottom:8px"><span style="color:var(--green);flex:1;font-size:13px"><i class="ti ti-brand-google-drive"></i> 연동 중</span><button class="btn" style="font-size:12px;min-height:36px" onclick="saveDrive()"><i class="ti ti-device-floppy"></i> 저장</button><button class="btn" style="font-size:12px;min-height:36px;color:var(--text3)" onclick="driveLogout()">해제</button></div>`;
+    } else {
+      da.innerHTML=`<button class="btn btn-accent btn-full" onclick="driveLogin()"><i class="ti ti-brand-google-drive"></i> Google Drive 연동</button>`;
+    }
+  }
 }
+function handleCardFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{state.tripCard=ev.target.result;save();renderTripCard();renderSettings();showSt('<i class="ti ti-check"></i> 여행 카드 등록됨','ok');};
+  reader.readAsText(file,'UTF-8');
+}
+function removeTripCard(){state.tripCard='';save();renderTripCard();renderSettings();}
+
+// CSV
+const TEMPLATE_CSV=`day,time,title,note\n0,morning,공항 도착,이동수단 및 소요시간\n0,afternoon,첫 번째 장소,입장료·오픈시간·예약여부\n0,evening,저녁 맛집,예약 필요 여부\n1,morning,오전 관광지,메모`;
+function handleSettingsDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const file=e.dataTransfer.files[0];if(file)readFile(file);}
+function handleSettingsFileInput(e){const file=e.target.files[0];if(file)readFile(file);}
+function handleDrop(e){e.preventDefault();document.getElementById('drop-zone')?.classList.remove('drag');const file=e.dataTransfer.files[0];if(file)readFile(file);}
 function handleFileInput(e){const file=e.target.files[0];if(file)readFile(file);}
 function readFile(file){
   const reader=new FileReader();
-  reader.onload=ev=>{
-    const content=ev.target.result;
-    if(file.name.endsWith('.json')){applyJSON(content);}
-    else{applyCSVContent(content);}
-  };
+  reader.onload=ev=>{file.name.endsWith('.json')?applyJSON(ev.target.result):applyCSVContent(ev.target.result);};
   reader.readAsText(file,'UTF-8');
 }
-
 function applyCSVContent(csv){
   try{
     const lines=csv.trim().split('\n').map(l=>l.trim()).filter(Boolean);
@@ -673,161 +655,67 @@ function applyCSVContent(csv){
     }).filter(s=>s.title);
     state.itinerary=slots;state.expenses=[];activeExpSlot=null;
     updateDaySel();syncHeader();renderItinerary();
-    document.getElementById('upload-section').style.display='none';
-    document.getElementById('upload-toggle').style.display='block';
     showSt(`<i class="ti ti-check"></i> ${slots.length}개 일정 적용됨`,'ok');save();
-  }catch(e){showSt('<i class="ti ti-alert-circle"></i> CSV 형식 오류: '+e.message,'err');}
+    // 일정 탭으로 이동
+    swMob(document.querySelector('.nav-item'),tabs='itinerary');
+    document.querySelectorAll('.nav-item').forEach((b,i)=>{b.classList.toggle('on',i===0);});
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    document.getElementById('itinerary')?.classList.add('on');
+  }catch(e){showSt('<i class="ti ti-alert-circle"></i> CSV 오류: '+e.message,'err');}
 }
-
 function applyJSON(raw){
   try{
     const d=JSON.parse(raw);
     state.itinerary=(d.itinerary||[]).map(s=>({...s,id:s.id||Date.now()+Math.random(),visited:s.visited||false}));
     state.expenses=d.expenses||[];
-    if(d.name)state.tripName=d.name;
-    if(d.start)state.tripStart=d.start;
-    if(d.end)state.tripEnd=d.end;
+    if(d.name)state.tripName=d.name;if(d.start)state.tripStart=d.start;if(d.end)state.tripEnd=d.end;
     if(d.currency){state.currency=d.currency;document.getElementById('curr').value=d.currency;}
     if(d.rate){state.rate=d.rate;document.getElementById('rate').value=d.rate;}
     if(d.totalRaw){state.totalBudget=d.totalRaw;document.getElementById('total').value=d.totalRaw;}
     updateCurr();updateDaySel();syncHeader();renderItinerary();
-    document.getElementById('upload-section').style.display='none';
-    document.getElementById('upload-toggle').style.display='block';
     showSt(`<i class="ti ti-check"></i> JSON 일정 적용됨`,'ok');save();
   }catch(e){showSt('<i class="ti ti-alert-circle"></i> JSON 오류: '+e.message,'err');}
 }
 
-function applyCSV(){
-  const box=document.getElementById('csv-template');
-  if(!box)return;
-  applyCSVContent(box.value||box.textContent);
-}
-
-// ─── HEADER SYNC ───
+// 헤더
 function syncHeader(){
-  const nm=state.tripName||'여행 플래너';
-  document.getElementById('trip-name-display').textContent=nm;
+  document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
-  document.getElementById('trip-date-display').textContent=
-    state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd}  (${days-1}박${days}일)`:'일정을 업로드해 주세요';
+  document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:'일정을 업로드해 주세요';
 }
-
-// ─── DAY SELECT ───
 function updateDaySel(){
   const sel=document.getElementById('nd-day');if(!sel)return;
   const days=getDays();
   sel.innerHTML=Array.from({length:days},(_,i)=>`<option value="${i}">${i+1}일차</option>`).join('');
 }
 
-// ─── TIMELINE RENDER ───
-function renderTripCard(){
-  const el=document.getElementById('trip-card-section');if(!el)return;
-  if(state.tripCard){
-    el.innerHTML=`<div class="trip-card-wrap">
-      <div class="trip-card-content" id="trip-card-inner"></div>
-      <div class="trip-card-actions">
-        <span style="font-size:11px;color:var(--text3);flex:1;display:flex;align-items:center;gap:5px"><i class="ti ti-layout-cards"></i> 여행 카드</span>
-        <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="document.getElementById('card-file').click()"><i class="ti ti-refresh"></i> 교체</button>
-        <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--text3)" onclick="removeTripCard()"><i class="ti ti-x"></i></button>
-      </div></div>
-      <input type="file" id="card-file" accept=".html" style="display:none" onchange="handleCardFile(event)">`;
-    const inner=document.getElementById('trip-card-inner');
-    if(inner)inner.innerHTML=state.tripCard;
-  } else {
-    el.innerHTML=`<div class="trip-card-upload" onclick="document.getElementById('card-file').click()">
-      <i class="ti ti-layout-cards"></i>
-      <div class="trip-card-upload-title">여행 카드 업로드</div>
-      <div class="trip-card-upload-sub">Claude가 만든 HTML 카드 파일을 업로드하세요</div>
-    </div>
-    <input type="file" id="card-file" accept=".html" style="display:none" onchange="handleCardFile(event)">`;
-  }
-}
-function handleCardFile(e){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{state.tripCard=ev.target.result;save();renderTripCard();showSt('<i class="ti ti-check"></i> 여행 카드 등록됨','ok');};
-  reader.readAsText(file,'UTF-8');
-}
-function removeTripCard(){state.tripCard='';save();renderTripCard();}
+// 타임라인
 function renderItinerary(){
-  const days=getDays();
-  const tabsEl=document.getElementById('day-tabs');
-  const panelsEl=document.getElementById('day-panels');
+  const days=getDays(),tabsEl=document.getElementById('day-tabs'),panelsEl=document.getElementById('day-panels');
   const activeDay=parseInt(document.querySelector('.day-tab.on')?.dataset.day||'0');
-
   tabsEl.innerHTML=Array.from({length:days},(_,i)=>{
-    const ds=state.itinerary.filter(s=>s.day===i);
-    const vc=ds.filter(s=>s.visited).length;
+    const ds=state.itinerary.filter(s=>s.day===i),vc=ds.filter(s=>s.visited).length;
     const badge=ds.length?` <span style="font-size:10px;opacity:.6">${vc}/${ds.length}</span>`:'';
-    return `<button class="day-tab${i===activeDay?' on':''}" data-day="${i}" onclick="switchDay(this,${i})">${i+1}일차${badge}</button>`;
+    return`<button class="day-tab${i===activeDay?' on':''}" data-day="${i}" onclick="switchDay(this,${i})">${i+1}일차${badge}</button>`;
   }).join('');
-
   panelsEl.innerHTML=Array.from({length:days},(_,i)=>{
-    const ds=state.itinerary.filter(s=>s.day===i).sort((a,b)=>{const o={morning:0,afternoon:1,evening:2,allday:3};return o[a.time]-o[b.time];});
-    if(!ds.length)return `<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="empty-day"><i class="ti ti-calendar-off"></i>일정 없음<br><span style="font-size:12px">아래에서 직접 추가하거나 CSV를 재업로드하세요</span></div></div>`;
+    const ds=state.itinerary.filter(s=>s.day===i).sort((a,b)=>({morning:0,afternoon:1,evening:2,allday:3}[a.time]-{morning:0,afternoon:1,evening:2,allday:3}[b.time]));
+    if(!ds.length)return`<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="empty-day"><i class="ti ti-calendar-off"></i>일정 없음<br><span style="font-size:12px">설정 탭에서 CSV를 업로드하세요</span></div></div>`;
     const slots=ds.map(slot=>{
       const se=state.expenses.filter(e=>e.slotId===slot.id);
       const st=se.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0);
-      const expHtml=se.map(e=>`<div class="sexp">
-        <span class="sexp-nm">${e.nm}</span>
-        <span class="sexp-amt">${e.method==='local'||e.method==='card-loc'?fmtL(e.amt,state.currency):fmt(e.amt)}</span>
-        <button class="sexp-del" onclick="delExp(${e.id})"><i class="ti ti-x"></i></button>
-      </div>`).join('');
+      const expHtml=se.map(e=>`<div class="sexp"><span class="sexp-nm">${e.nm}</span><span class="sexp-amt">${e.method==='local'||e.method==='card-loc'?fmtL(e.amt,state.currency):fmt(e.amt)}</span><button class="sexp-del" onclick="delExp(${e.id})"><i class="ti ti-x"></i></button></div>`).join('');
       const isActive=activeExpSlot===slot.id;
-      const mini=isActive?`<div class="mini-form">
-        <div class="mini-form-title"><i class="ti ti-receipt"></i> 지출 추가 — ${slot.title}</div>
-        <div class="r2" style="margin-bottom:6px">
-          <div><label class="fl" style="font-size:11px">가게명 / 내용</label><input class="mini-fi" id="me-nm-${slot.id}" placeholder="예: 이치란 라멘" maxlength="25"></div>
-          <div><label class="fl" style="font-size:11px">금액</label><input type="number" class="mini-fi" id="me-amt-${slot.id}" placeholder="0" step="any"></div>
-          <div><label class="fl" style="font-size:11px">결제방식</label><select class="mini-fi" id="me-m-${slot.id}">${miniOpts()}</select></div>
-          <div><label class="fl" style="font-size:11px">카테고리</label><select class="mini-fi" id="me-cat-${slot.id}"><option>식비</option><option>교통</option><option>숙소</option><option>관광</option><option>쇼핑</option><option>카페</option><option>기타</option></select></div>
-        </div>
-        <div class="btns">
-          <button class="btn btn-accent" style="flex:1;min-height:40px;font-size:13px" onclick="confirmExp(${slot.id})"><i class="ti ti-check"></i> 추가</button>
-          <button class="btn" style="min-height:40px" onclick="activeExpSlot=null;renderItinerary()"><i class="ti ti-x"></i></button>
-        </div>
-      </div>`:'';
-      return `<div class="slot">
-        <div class="slot-dot" style="background:${TDOT[slot.time]}"></div>
-        <div class="slot-card${slot.visited?' visited':''}">
-          <div class="slot-head">
-            <span class="tband ${TCLS[slot.time]}">${TLAB[slot.time]}</span>
-            <span class="slot-ttl">${slot.title}</span>
-            <button class="del-slot-btn" onclick="delSlot(${slot.id})"><i class="ti ti-x"></i></button>
-          </div>
-          ${slot.note?`<div class="slot-note"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> ${slot.note}</div>`:''}
-          ${st>0?`<div class="slot-exp-sum">지출 <strong>${fmt(Math.round(st))}</strong></div>`:''}
-          ${se.length?`<div class="slot-exps">${expHtml}</div>`:''}
-          ${mini}
-          <div class="slot-acts">
-            <button class="vis-btn${slot.visited?' on':''}" onclick="toggleVisit(${slot.id})">
-              <i class="ti ti-${slot.visited?'check':'map-pin'}"></i>${slot.visited?'방문 완료':'방문 체크'}
-            </button>
-            ${!isActive?`<button class="exp-btn" onclick="activeExpSlot=${slot.id};renderItinerary()"><i class="ti ti-plus"></i> 지출</button>`:''}
-          </div>
-        </div>
-      </div>`;
+      const mini=isActive?`<div class="mini-form"><div class="mini-form-title"><i class="ti ti-receipt"></i> 지출 추가</div><div class="r2" style="margin-bottom:6px"><div><label class="fl" style="font-size:11px">가게명</label><input class="mini-fi" id="me-nm-${slot.id}" placeholder="예: 이치란"></div><div><label class="fl" style="font-size:11px">금액</label><input type="number" class="mini-fi" id="me-amt-${slot.id}" step="any"></div><div><label class="fl" style="font-size:11px">결제방식</label><select class="mini-fi" id="me-m-${slot.id}">${miniOpts()}</select></div><div><label class="fl" style="font-size:11px">카테고리</label><select class="mini-fi" id="me-cat-${slot.id}"><option>식비</option><option>교통</option><option>숙소</option><option>관광</option><option>쇼핑</option><option>카페</option><option>기타</option></select></div></div><div class="btns"><button class="btn btn-accent" style="flex:1;min-height:40px;font-size:13px" onclick="confirmExp(${slot.id})"><i class="ti ti-check"></i> 추가</button><button class="btn" style="min-height:40px" onclick="activeExpSlot=null;renderItinerary()"><i class="ti ti-x"></i></button></div></div>`:'';
+      return`<div class="slot"><div class="slot-dot" style="background:${TDOT[slot.time]}"></div><div class="slot-card${slot.visited?' visited':''}"><div class="slot-head"><span class="tband ${TCLS[slot.time]}">${TLAB[slot.time]}</span><span class="slot-ttl">${slot.title}</span><button class="del-slot-btn" onclick="delSlot(${slot.id})"><i class="ti ti-x"></i></button></div>${slot.note?`<div class="slot-note"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> ${slot.note}</div>`:''}${st>0?`<div class="slot-exp-sum">지출 <strong>${fmt(Math.round(st))}</strong></div>`:''}${se.length?`<div class="slot-exps">${expHtml}</div>`:''}${mini}<div class="slot-acts"><button class="vis-btn${slot.visited?' on':''}" onclick="toggleVisit(${slot.id})"><i class="ti ti-${slot.visited?'check':'map-pin'}"></i>${slot.visited?'방문 완료':'방문 체크'}</button>${!isActive?`<button class="exp-btn" onclick="activeExpSlot=${slot.id};renderItinerary()"><i class="ti ti-plus"></i> 지출</button>`:''}</div></div></div>`;
     }).join('');
-    return `<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="timeline">${slots}</div></div>`;
+    return`<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="timeline">${slots}</div></div>`;
   }).join('');
   updateItSummary();
 }
-
-function miniOpts(){
-  const c=state.currency,isK=c==='KRW';
-  return isK
-    ?`<option value="krw">원화현금</option><option value="card-krw">카드·원화</option>`
-    :`<option value="krw">원화현금</option><option value="local">현지통화(${c})</option><option value="card-loc">카드·현지(${c})</option><option value="card-krw">카드·원화</option>`;
-}
-function switchDay(el,day){
-  document.querySelectorAll('.day-tab').forEach(b=>b.classList.remove('on'));
-  document.querySelectorAll('.day-panel').forEach(p=>p.classList.remove('on'));
-  el.classList.add('on');document.getElementById('dp-'+day)?.classList.add('on');
-}
-function toggleVisit(id){
-  const s=state.itinerary.find(s=>s.id===id);if(s){s.visited=!s.visited;save();renderItinerary();
-setTimeout(()=>renderTripCard(),500);}
-}
+function miniOpts(){const c=state.currency,isK=c==='KRW';return isK?`<option value="krw">원화현금</option><option value="card-krw">카드·원화</option>`:`<option value="krw">원화현금</option><option value="local">현지통화(${c})</option><option value="card-loc">카드·현지(${c})</option><option value="card-krw">카드·원화</option>`;}
+function switchDay(el,day){document.querySelectorAll('.day-tab').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.day-panel').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('dp-'+day)?.classList.add('on');}
+function toggleVisit(id){const s=state.itinerary.find(s=>s.id===id);if(s){s.visited=!s.visited;save();renderItinerary();}}
 function confirmExp(sid){
   const nm=(document.getElementById(`me-nm-${sid}`)?.value||'').trim();
   const amt=parseFloat(document.getElementById(`me-amt-${sid}`)?.value)||0;
@@ -840,20 +728,14 @@ function confirmExp(sid){
 function delExp(id){state.expenses=state.expenses.filter(e=>e.id!==id);save();renderItinerary();calcBudget();}
 function addSlot(){
   const day=parseInt(document.getElementById('nd-day').value)||0;
-  const title=(document.getElementById('nd-title').value||'').trim();
-  if(!title)return;
+  const title=(document.getElementById('nd-title').value||'').trim();if(!title)return;
   state.itinerary.push({id:Date.now(),day,time:document.getElementById('nd-time').value,title,note:document.getElementById('nd-note').value.trim(),visited:false});
   document.getElementById('nd-title').value='';document.getElementById('nd-note').value='';
   save();renderItinerary();
 }
-function delSlot(id){
-  state.itinerary=state.itinerary.filter(s=>s.id!==id);
-  state.expenses=state.expenses.filter(e=>e.slotId!==id);
-  save();renderItinerary();calcBudget();
-}
+function delSlot(id){state.itinerary=state.itinerary.filter(s=>s.id!==id);state.expenses=state.expenses.filter(e=>e.slotId!==id);save();renderItinerary();calcBudget();}
 function updateItSummary(){
-  const total=state.totalBudget||0;
-  const ts=state.expenses.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0);
+  const total=state.totalBudget||0,ts=state.expenses.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0);
   document.getElementById('it-visited').textContent=state.itinerary.filter(s=>s.visited).length+'곳';
   document.getElementById('it-total').textContent=state.itinerary.length+'곳';
   document.getElementById('it-exp').textContent=fmt(Math.round(ts));
@@ -861,48 +743,37 @@ function updateItSummary(){
   re.className='mc-v'+(total>0&&(total-ts)<0?' over':total>0?' ok':'');
 }
 
-// ─── BUDGET ───
+// 예산
 function updateCurr(){
-  const c=document.getElementById('curr').value;
-  state.currency=c;state.rate=getRate();
+  const c=document.getElementById('curr').value;state.currency=c;state.rate=getRate();
   const isK=c==='KRW';
   document.getElementById('rate-wrap').style.display=isK?'none':'block';
   document.getElementById('csym').textContent=c;
   document.getElementById('cash-lbl').textContent=isK?'원화 예산':'현지통화 예산 ('+c+')';
-  document.getElementById('ctags').innerHTML=isK
-    ?`<span class="tag tag-krw">원화현금</span> <span class="tag tag-ckrw">카드·원화</span>`
-    :`<span class="tag tag-krw">원화현금</span> <span class="tag tag-loc">현지통화(${c})</span> <span class="tag tag-cloc">카드·현지(${c})</span> <span class="tag tag-ckrw">카드·원화</span>`;
+  document.getElementById('ctags').innerHTML=isK?`<span class="tag tag-krw">원화현금</span> <span class="tag tag-ckrw">카드·원화</span>`:`<span class="tag tag-krw">원화현금</span> <span class="tag tag-loc">현지통화(${c})</span> <span class="tag tag-cloc">카드·현지(${c})</span> <span class="tag tag-ckrw">카드·원화</span>`;
   save();calcBudget();
 }
 function getRate(){return parseFloat(document.getElementById('rate')?.value)||1;}
 function calcBudget(){
-  state.rate=getRate();
-  state.totalBudget=parseInt(document.getElementById('total')?.value)||0;
-  state.cashBudget=parseFloat(document.getElementById('cash')?.value)||0;
-  state.cardLimit=parseInt(document.getElementById('climit')?.value)||0;
+  state.rate=getRate();state.totalBudget=parseInt(document.getElementById('total')?.value)||0;
+  state.cashBudget=parseFloat(document.getElementById('cash')?.value)||0;state.cardLimit=parseInt(document.getElementById('climit')?.value)||0;
   const total=state.totalBudget,c=state.currency,isK=c==='KRW',r=state.rate;
   let planned=0,skrw=0,sloc=0,scloc=0,sckrw=0;
   document.querySelectorAll('.pi').forEach(inp=>planned+=parseInt(inp.value)||0);
-  state.expenses.forEach(e=>{
-    const v=parseFloat(e.amt)||0,m=e.method;
-    if(m==='krw')skrw+=v;else if(m==='local')sloc+=v;else if(m==='card-loc')scloc+=v;else if(m==='card-krw')sckrw+=v;
-  });
-  const lkrw=isK?0:(sloc+scloc)*r;const spent=skrw+sckrw+lkrw;const remain=total-spent;
-  document.getElementById('s-total').textContent=fmt(total);
-  document.getElementById('s-plan').textContent=fmt(planned);
-  document.getElementById('s-spent').textContent=fmt(Math.round(spent));
-  document.getElementById('s-sub').textContent=state.expenses.length?`${state.expenses.length}건`:'';
+  state.expenses.forEach(e=>{const v=parseFloat(e.amt)||0,m=e.method;if(m==='krw')skrw+=v;else if(m==='local')sloc+=v;else if(m==='card-loc')scloc+=v;else if(m==='card-krw')sckrw+=v;});
+  const lkrw=isK?0:(sloc+scloc)*r,spent=skrw+sckrw+lkrw,remain=total-spent;
+  document.getElementById('s-total').textContent=fmt(total);document.getElementById('s-plan').textContent=fmt(planned);
+  document.getElementById('s-spent').textContent=fmt(Math.round(spent));document.getElementById('s-sub').textContent=state.expenses.length?`${state.expenses.length}건`:'';
   const re=document.getElementById('s-remain');re.textContent=fmt(Math.round(remain));re.className='mc-v'+(remain<0?' over':total>0?' ok':'');
   document.getElementById('v-krw').textContent=fmt(skrw);document.getElementById('v-ckrw').textContent=fmt(sckrw);
   if(!isK){
     document.getElementById('lbl-loc').textContent=`현지통화(${c})`;document.getElementById('v-loc').textContent=fmtL(sloc,c);document.getElementById('sub-loc').textContent=r?`≈ ${fmt(Math.round(sloc*r))}`:'';
     document.getElementById('lbl-cloc').textContent=`카드·현지(${c})`;document.getElementById('v-cloc').textContent=fmtL(scloc,c);document.getElementById('sub-cloc').textContent=r?`≈ ${fmt(Math.round(scloc*r))}`:'';
-  } else {
+  }else{
     document.getElementById('lbl-loc').textContent='원화현금';document.getElementById('v-loc').textContent=fmt(sloc);document.getElementById('sub-loc').textContent='';
     document.getElementById('lbl-cloc').textContent='카드·원화';document.getElementById('v-cloc').textContent=fmt(sckrw);document.getElementById('sub-cloc').textContent='';
   }
   document.querySelectorAll('.bf').forEach((bar,i)=>{
-    const p=parseInt(document.querySelectorAll('.pi')[i]?.value)||0;
     const cs=state.expenses.filter(e=>e.cat===state.budgetRows[i]?.cat).reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0);
     const pct=total>0?Math.min(Math.round(cs/total*100),100):0;
     bar.style.width=pct+'%';bar.style.background=COLORS[i%COLORS.length];
@@ -914,106 +785,53 @@ function buildBRows(){
   const el=document.getElementById('brows');if(!el)return;el.innerHTML='';
   state.budgetRows.forEach((row,i)=>{
     const d=document.createElement('div');d.className='brow';
-    d.innerHTML=`<div class="brow-head">
-      <div class="brow-ic" style="background:${COLORS[i%COLORS.length]}22"><i class="ti ${row.ic}" style="color:${COLORS[i%COLORS.length]}"></i></div>
-      <span class="brow-nm">${row.nm}</span>
-      <span class="cat-spent brow-spent">—</span>
-      <button class="brow-del" onclick="delBRow(${i})"><i class="ti ti-x"></i></button>
-    </div>
-    <div><label class="fl" style="font-size:11px">계획 예산 (원)</label>
-    <input type="number" class="fi pi" style="height:40px" placeholder="0" value="${row.plan||''}" oninput="calcBudget()"></div>
-    <div class="brow-bar-wrap"><div class="bf brow-bar" style="width:0%"></div></div>`;
+    d.innerHTML=`<div class="brow-head"><div class="brow-ic" style="background:${COLORS[i%COLORS.length]}22"><i class="ti ${row.ic}" style="color:${COLORS[i%COLORS.length]}"></i></div><span class="brow-nm">${row.nm}</span><span class="cat-spent brow-spent">—</span><button class="brow-del" onclick="delBRow(${i})"><i class="ti ti-x"></i></button></div><div><label class="fl" style="font-size:11px">계획 예산 (원)</label><input type="number" class="fi pi" style="height:40px" placeholder="0" value="${row.plan||''}" oninput="calcBudget()"></div><div class="brow-bar-wrap"><div class="bf brow-bar" style="width:0%"></div></div>`;
     el.appendChild(d);
   });calcBudget();
 }
 function addBRow(){state.budgetRows.push({ic:'ti-dots',nm:'기타',plan:0,cat:'기타'});buildBRows();}
 function delBRow(i){state.budgetRows.splice(i,1);buildBRows();}
 
-// ─── ARCHIVE ───
+// 아카이브
 function openFinish(){
   document.getElementById('finish-name').value=state.tripName||'';
   document.getElementById('finish-start').value=state.tripStart||'';
   document.getElementById('finish-end').value=state.tripEnd||'';
   const ts=state.expenses.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0);
-  document.getElementById('finish-summary').innerHTML=
-    `<b>일정</b> ${state.itinerary.length}개 · 방문 ${state.itinerary.filter(s=>s.visited).length}곳<br>
-     <b>지출</b> ${fmt(Math.round(ts))} (${state.expenses.length}건)<br>
-     <b>잔액</b> ${fmt(Math.round((state.totalBudget||0)-ts))}`;
+  document.getElementById('finish-summary').innerHTML=`<b>일정</b> ${state.itinerary.length}개 · 방문 ${state.itinerary.filter(s=>s.visited).length}곳<br><b>지출</b> ${fmt(Math.round(ts))} (${state.expenses.length}건)<br><b>잔액</b> ${fmt(Math.round((state.totalBudget||0)-ts))}`;
   document.getElementById('finish-modal').classList.remove('hidden');
 }
 function closeFinish(){document.getElementById('finish-modal').classList.add('hidden');}
 function confirmFinish(){
-  const name=document.getElementById('finish-name').value||state.tripName||'이름 없음';
-  const start=document.getElementById('finish-start').value||state.tripStart||'';
-  const end=document.getElementById('finish-end').value||state.tripEnd||'';
-  const ts=state.expenses.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0);
-  const total=state.totalBudget||0;
+  const name=document.getElementById('finish-name').value||'이름 없음';
+  const start=document.getElementById('finish-start').value||'',end=document.getElementById('finish-end').value||'';
+  const ts=state.expenses.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0),total=state.totalBudget||0;
   const days=start&&end?String(Math.round((new Date(end)-new Date(start))/86400000)):'';
   const pct=total?Math.min(Math.round(ts/total*100),100):0;
-  const bSnap=state.budgetRows.map((row,i)=>({nm:row.nm,cat:row.cat,plan:parseInt(document.querySelectorAll('.pi')[i]?.value)||0}));
-  const entry={
-    id:Date.now(),name,start,end,days,
-    currency:state.currency,rate:state.rate,
-    totalRaw:total,spentRaw:Math.round(ts),pct,
-    total:fmt(total),spent:fmt(Math.round(ts)),remain:fmt(total-Math.round(ts)),
-    visitedCount:state.itinerary.filter(s=>s.visited).length,slotCount:state.itinerary.length,
-    expCount:state.expenses.length,
-    finishedAt:new Date().toLocaleDateString('ko-KR'),
-    budgetRows:bSnap,itinerary:state.itinerary,expenses:state.expenses
-  };
+  const entry={id:Date.now(),name,start,end,days,currency:state.currency,rate:state.rate,totalRaw:total,spentRaw:Math.round(ts),pct,total:fmt(total),spent:fmt(Math.round(ts)),remain:fmt(total-Math.round(ts)),visitedCount:state.itinerary.filter(s=>s.visited).length,slotCount:state.itinerary.length,expCount:state.expenses.length,finishedAt:new Date().toLocaleDateString('ko-KR'),itinerary:state.itinerary,expenses:state.expenses};
   const arr=loadArchive();arr.push(entry);saveArchive(arr);
-  closeFinish();
-  showSt(`<i class="ti ti-check"></i> "${name}" 아카이브에 저장됐습니다`,'ok');
+  closeFinish();showSt(`<i class="ti ti-check"></i> "${name}" 아카이브에 저장됐습니다`,'ok');
 }
 function renderArchive(){
-  const arr=loadArchive();const el=document.getElementById('arch-list');if(!el)return;
-  if(!arr.length){el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--text3)"><i class="ti ti-archive" style="font-size:32px;display:block;margin-bottom:.75rem"></i>완료된 여행 없음<br><span style="font-size:12px">여행 마무리 버튼으로 추가하세요</span></div>`;return;}
+  const arr=loadArchive(),el=document.getElementById('arch-list');if(!el)return;
+  if(!arr.length){el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--text3)"><i class="ti ti-archive" style="font-size:32px;display:block;margin-bottom:.75rem"></i>완료된 여행 없음</div>`;return;}
   el.innerHTML=arr.slice().reverse().map((t,ri)=>{
-    const idx=arr.length-1-ri;
-    const pct=t.pct||0;
-    const barColor=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--green)';
+    const idx=arr.length-1-ri,pct=t.pct||0,barColor=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--green)';
     const cb=t.currency&&t.currency!=='KRW'?`<span class="tag tag-loc" style="margin-left:6px">${t.currency} ${(t.rate||1).toLocaleString()}원</span>`:'';
-    return `<div class="arch-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.25rem">
-        <div>
-          <div class="arch-name">${t.name||'이름 없음'}${cb}</div>
-          <div class="arch-date">${t.start||''}${t.start&&t.end?' → ':''}${t.end||''} ${t.days?`(${t.days}박${parseInt(t.days)+1}일)`:''}</div>
-        </div>
-        <div class="btns">
-          <button class="icon-btn" style="width:36px;height:36px;font-size:15px" onclick="expTripCSV(${idx})" title="CSV 내보내기"><i class="ti ti-download"></i></button>
-          <button class="icon-btn" style="width:36px;height:36px;font-size:15px;color:var(--red)" onclick="delArchiveItem(${idx})" title="삭제"><i class="ti ti-trash"></i></button>
-        </div>
-      </div>
-      <div class="arch-kv"><span class="arch-kv-l">총 예산</span><span class="arch-kv-v">${t.total||'—'}</span></div>
-      <div class="arch-kv"><span class="arch-kv-l">실지출</span><span class="arch-kv-v">${t.spent||'—'}</span></div>
-      <div class="arch-kv"><span class="arch-kv-l">잔액</span><span class="arch-kv-v">${t.remain||'—'}</span></div>
-      <div class="arch-kv"><span class="arch-kv-l">방문</span><span class="arch-kv-v">${t.visitedCount||0}/${t.slotCount||0}곳</span></div>
-      <div class="arch-kv"><span class="arch-kv-l">지출 건수</span><span class="arch-kv-v">${t.expCount||0}건</span></div>
-      <div class="arch-kv"><span class="arch-kv-l">완료일</span><span class="arch-kv-v">${t.finishedAt||'—'}</span></div>
-      <div class="arch-bar-wrap"><div class="arch-bar" style="width:${pct}%;background:${barColor}"></div></div>
-      <div class="arch-pct">예산 소진율 ${pct}%</div>
-    </div>`;
+    return`<div class="arch-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.25rem"><div><div class="arch-name">${t.name||'이름 없음'}${cb}</div><div class="arch-date">${t.start||''}${t.start&&t.end?' → ':''}${t.end||''} ${t.days?`(${t.days}박${parseInt(t.days)+1}일)`:''}</div></div><div class="btns"><button class="icon-btn" style="width:36px;height:36px;font-size:15px" onclick="expTripCSV(${idx})"><i class="ti ti-download"></i></button><button class="icon-btn" style="width:36px;height:36px;font-size:15px;color:var(--red)" onclick="delArchiveItem(${idx})"><i class="ti ti-trash"></i></button></div></div><div class="arch-kv"><span class="arch-kv-l">총 예산</span><span class="arch-kv-v">${t.total||'—'}</span></div><div class="arch-kv"><span class="arch-kv-l">실지출</span><span class="arch-kv-v">${t.spent||'—'}</span></div><div class="arch-kv"><span class="arch-kv-l">잔액</span><span class="arch-kv-v">${t.remain||'—'}</span></div><div class="arch-kv"><span class="arch-kv-l">방문</span><span class="arch-kv-v">${t.visitedCount||0}/${t.slotCount||0}곳</span></div><div class="arch-kv"><span class="arch-kv-l">지출 건수</span><span class="arch-kv-v">${t.expCount||0}건</span></div><div class="arch-kv"><span class="arch-kv-l">완료일</span><span class="arch-kv-v">${t.finishedAt||'—'}</span></div><div class="arch-bar-wrap"><div class="arch-bar" style="width:${pct}%;background:${barColor}"></div></div><div class="arch-pct">예산 소진율 ${pct}%</div></div>`;
   }).join('');
 }
-function delArchiveItem(idx){
-  const arr=loadArchive();arr.splice(idx,1);saveArchive(arr);renderArchive();
-}
+function delArchiveItem(idx){const arr=loadArchive();arr.splice(idx,1);saveArchive(arr);renderArchive();}
 function expTripCSV(idx){
   const t=loadArchive()[idx];if(!t)return;
-  let csv=`여행명,${t.name}\n출발일,${t.start}\n귀국일,${t.end}\n통화,${t.currency}\n환율,${t.rate}\n총예산,${t.total}\n실지출,${t.spent}\n잔액,${t.remain}\n방문,${t.visitedCount}/${t.slotCount}곳\n\n`;
-  csv+='날짜,슬롯,가게명/내용,금액,결제방식,카테고리\n';
-  (t.expenses||[]).forEach(e=>{
-    const s=(t.itinerary||[]).find(sl=>sl.id===e.slotId);
-    csv+=`${e.date||''},${s?.title||''},${e.nm},${e.amt},${MLAB[e.method]||e.method},${e.cat||''}\n`;
-  });
+  let csv=`여행명,${t.name}\n출발일,${t.start}\n귀국일,${t.end}\n통화,${t.currency}\n환율,${t.rate}\n총예산,${t.total}\n실지출,${t.spent}\n잔액,${t.remain}\n\n`;
+  csv+='날짜,슬롯,가게명,금액,결제방식,카테고리\n';
+  (t.expenses||[]).forEach(e=>{const s=(t.itinerary||[]).find(sl=>sl.id===e.slotId);csv+=`${e.date||''},${s?.title||''},${e.nm},${e.amt},${MLAB[e.method]||e.method},${e.cat||''}\n`;});
   dlCSV(csv,`${t.name}_여행기록.csv`);
 }
 function exportCurrentCSV(){
-  let csv='날짜,슬롯,가게명/내용,금액,결제방식,카테고리\n';
-  state.expenses.forEach(e=>{
-    const s=state.itinerary.find(sl=>sl.id===e.slotId);
-    csv+=`${e.date||''},${s?.title||''},${e.nm},${e.amt},${MLAB[e.method]||e.method},${e.cat||''}\n`;
-  });
+  let csv='날짜,슬롯,가게명,금액,결제방식,카테고리\n';
+  state.expenses.forEach(e=>{const s=state.itinerary.find(sl=>sl.id===e.slotId);csv+=`${e.date||''},${s?.title||''},${e.nm},${e.amt},${MLAB[e.method]||e.method},${e.cat||''}\n`;});
   dlCSV(csv,`${state.tripName||'여행'}_지출.csv`);
 }
 function exportAllCSV(){
@@ -1022,16 +840,14 @@ function exportAllCSV(){
   arr.forEach(t=>csv+=`${t.name},${t.start},${t.end},${t.days?t.days+'박':''},${t.currency||'KRW'},${t.rate||1},${t.total},${t.spent},${t.remain},${t.visitedCount||0}/${t.slotCount||0},${t.expCount||0},${t.pct||0}%,${t.finishedAt||''}\n`);
   dlCSV(csv,'여행_전체아카이브.csv');
 }
-function dlCSV(csv,name){
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
-}
-// ─── GOOGLE DRIVE OAUTH ───
+function dlCSV(csv,name){const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+
+// Google Drive
 const GAPI_CLIENT_ID='840168983675-g6o8fmmnrnmbmp1u7soa48jgh8v2rsu2.apps.googleusercontent.com';
 const GAPI_SCOPE='https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive';
 const DRIVE_FILE='travel_planner_data.json';
-let gapiReady=false;let gisReady=false;let tokenClient=null;let driveFileId=null;
-let driveMode=localStorage.getItem('storage_mode')||'local'; // 'local' | 'drive'
+let gapiReady=false,gisReady=false,tokenClient=null,driveFileId=null;
+let driveMode=localStorage.getItem('storage_mode')||'local';
 
 function initGapi(){
   gapi.load('client',async()=>{
@@ -1046,20 +862,14 @@ function initGis(){
     callback:(resp)=>{
       if(resp.error){showSt('<i class="ti ti-alert-circle"></i> 로그인 실패: '+resp.error,'err','it-st');return;}
       driveMode='drive';localStorage.setItem('storage_mode','drive');
-      gisReady=true;
-      renderDriveStatus(true);
-      loadFromDrive();
+      gisReady=true;renderDriveStatus(true);renderSettings();loadFromDrive();
     }
   });
-  gisReady=true;
-  // 이미 토큰 있으면 자동 복원
-  tryAutoRestore();
+  gisReady=true;tryAutoRestore();
 }
 function tryAutoRestore(){
   if(!gapiReady||!gisReady)return;
-  if(driveMode==='drive'&&gapi.client.getToken()){
-    renderDriveStatus(true);loadFromDrive();
-  }
+  if(driveMode==='drive'&&gapi.client.getToken()){renderDriveStatus(true);loadFromDrive();}
 }
 function driveLogin(){
   if(!gapiReady||!gisReady){showSt('<i class="ti ti-loader"></i> Google API 로딩 중...','i','it-st');setTimeout(driveLogin,1000);return;}
@@ -1067,18 +877,17 @@ function driveLogin(){
 }
 function driveLogout(){
   const token=gapi.client.getToken();
-  if(token){google.accounts.oauth2.revoke(token.access_token,()=>{});}
-  gapi.client.setToken(null);
-  driveMode='local';localStorage.setItem('storage_mode','local');
-  driveFileId=null;renderDriveStatus(false);
-  showSt('<i class="ti ti-check"></i> 드라이브 연동 해제됨 — 로컬 저장으로 전환','ok','it-st');
+  if(token)google.accounts.oauth2.revoke(token.access_token,()=>{});
+  gapi.client.setToken(null);driveMode='local';localStorage.setItem('storage_mode','local');
+  driveFileId=null;renderDriveStatus(false);renderSettings();
+  showSt('<i class="ti ti-check"></i> 드라이브 연동 해제됨','ok','it-st');
 }
 function renderDriveStatus(loggedIn){
   const el=document.getElementById('drive-status-bar');if(!el)return;
   if(loggedIn){
-    el.innerHTML=`<span style="color:var(--green);display:flex;align-items:center;gap:6px"><i class="ti ti-brand-google-drive"></i> 드라이브 연동 중</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;margin-left:auto" onclick="saveDrive()"><i class="ti ti-device-floppy"></i> 저장</button><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--text3)" onclick="driveLogout()">연동 해제</button>`;
+    el.innerHTML=`<span style="color:var(--green);display:flex;align-items:center;gap:6px"><i class="ti ti-brand-google-drive"></i> 드라이브 연동 중</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;margin-left:auto" onclick="saveDrive()"><i class="ti ti-device-floppy"></i> 저장</button><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--text3)" onclick="driveLogout()">해제</button>`;
     el.style.background='rgba(74,222,128,.08)';el.style.borderColor='rgba(74,222,128,.2)';
-  } else {
+  }else{
     el.innerHTML=`<span style="color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-brand-google-drive"></i> 로컬 저장 중</span><button class="btn btn-accent" style="font-size:11px;min-height:30px;padding:0 12px;margin-left:auto" onclick="driveLogin()"><i class="ti ti-login"></i> 드라이브 연동</button>`;
     el.style.background='var(--surface2)';el.style.borderColor='var(--border)';
   }
@@ -1096,15 +905,12 @@ async function saveDrive(){
   try{
     const payload=JSON.stringify({state,ckSt,archive:loadArchive(),savedAt:new Date().toISOString()},null,2);
     const fid=await findDriveFile();
-    const boundary='boundary_travel_app';
-    const meta=JSON.stringify({name:DRIVE_FILE,mimeType:'application/json'});
+    const boundary='boundary_travel_app',meta=JSON.stringify({name:DRIVE_FILE,mimeType:'application/json'});
     const body=`--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
-    const method=fid?'PATCH':'POST';
-    const path=fid?`/upload/drive/v3/files/${fid}`:`/upload/drive/v3/files`;
+    const method=fid?'PATCH':'POST',path=fid?`/upload/drive/v3/files/${fid}`:`/upload/drive/v3/files`;
     const resp=await gapi.client.request({path,method,params:{uploadType:'multipart'},headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body});
     if(!fid)driveFileId=resp.result.id;
-    save();
-    showSt('<i class="ti ti-check"></i> 드라이브에 저장됐습니다','ok','it-st');
+    save();showSt('<i class="ti ti-check"></i> 드라이브에 저장됐습니다','ok','it-st');
   }catch(e){showSt('<i class="ti ti-alert-circle"></i> 드라이브 저장 실패: '+e.message,'err','it-st');}
 }
 async function loadFromDrive(){
@@ -1112,61 +918,29 @@ async function loadFromDrive(){
   showSt('<i class="ti ti-loader"></i> 드라이브에서 불러오는 중...','i','it-st');
   try{
     const fid=await findDriveFile();
-    if(!fid){showSt('<i class="ti ti-info-circle"></i> 드라이브에 저장된 데이터가 없습니다. 로컬 데이터를 사용합니다','i','it-st');return;}
+    if(!fid){showSt('<i class="ti ti-info-circle"></i> 드라이브에 저장된 데이터가 없습니다','i','it-st');return;}
     const resp=await gapi.client.drive.files.get({fileId:fid,alt:'media'});
     const d=typeof resp.result==='string'?JSON.parse(resp.result):resp.result;
-    if(d.state){state={...state,...d.state};}
-    if(d.ckSt){ckSt={...d.ckSt};}
-    if(d.archive){saveArchive(d.archive);}
-    // UI 동기화
+    if(d.state)state={...state,...d.state};if(d.ckSt)ckSt={...d.ckSt};if(d.archive)saveArchive(d.archive);
     document.getElementById('curr').value=state.currency||'KRW';
     if(state.rate>1)document.getElementById('rate').value=state.rate;
     if(state.totalBudget)document.getElementById('total').value=state.totalBudget;
     if(state.cashBudget)document.getElementById('cash').value=state.cashBudget;
     if(state.cardLimit)document.getElementById('climit').value=state.cardLimit;
     updateCurr();buildBRows();syncHeader();updateDaySel();
-    if(state.itinerary.length){
-      document.getElementById('upload-section').style.display='none';
-      document.getElementById('upload-toggle').style.display='block';
-    }
-    renderItinerary();Object.keys(checkData).forEach(t=>renderCk(t));renderComp();
+    renderItinerary();renderTripCard();
+    Object.keys(checkData).forEach(t=>renderCk(t));renderComp();
     showSt('<i class="ti ti-check"></i> 드라이브에서 불러왔습니다','ok','it-st');
   }catch(e){showSt('<i class="ti ti-alert-circle"></i> 불러오기 실패: '+e.message,'err','it-st');}
 }
 
-// ─── CHECKLIST DATA ───
+// 체크리스트
 const checkData={
-  domestic:[
-    {t:"신분증·예약",i:"ti-id",items:[{l:"신분증",w:1},{l:"숙소 예약 확인서"},{l:"교통 예약 티켓"},{l:"액티비티 예약",w:1}]},
-    {t:"결제·교통",i:"ti-wallet",items:[{l:"체크/신용카드"},{l:"소액 현금"},{l:"T-money 잔액"},{l:"내비게이션 앱 업데이트"},{l:"하이패스 잔액"}]},
-    {t:"산·자연",i:"ti-mountain",items:[{l:"등산화/트레킹화",b:"산악"},{l:"등산 스틱"},{l:"간식·물"},{l:"국립공원 예약",w:1}]},
-    {t:"바다·섬",i:"ti-waves",items:[{l:"수영복·래시가드"},{l:"선크림 SPF50+"},{l:"여객선 예약",w:1},{l:"타월"}]},
-    {t:"건강·편의",i:"ti-first-aid-kit",items:[{l:"상비약"},{l:"멀미약"},{l:"보조배터리"},{l:"우산 또는 우비"}]},
-  ],
-  japan:[
-    {t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"Visit Japan Web 등록",w:1,b:"입국 필수"},{l:"귀국 항공권"},{l:"여행자 보험"}]},
-    {t:"항공·숙소",i:"ti-plane",items:[{l:"항공권 e-티켓",w:1},{l:"숙소 예약 확인서"},{l:"공항 교통편 예약"}]},
-    {t:"결제·현금",i:"ti-cash",items:[{l:"엔화 현금 환전",w:1,b:"현금 사회"},{l:"IC카드 (Suica/Pasmo)"},{l:"해외 결제 카드",w:1}]},
-    {t:"교통·앱",i:"ti-train",items:[{l:"JR패스 여부"},{l:"Suica 충전"},{l:"Yahoo! 乗換案内"},{l:"Tabelog"},{l:"포켓 WiFi 또는 유심"}]},
-    {t:"짐",i:"ti-backpack",items:[{l:"날씨에 맞는 의류"},{l:"편한 신발"},{l:"세면도구 소분 (100ml)"},{l:"해외 어댑터"},{l:"보조배터리"}]},
-    {t:"문화",i:"ti-heart",items:[{l:"대중교통 내 통화 자제"},{l:"온천 문신 규정 확인"},{l:"팁 문화 없음"}]},
-  ],
-  europe:[
-    {t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"쉥겐 비자 확인",w:1},{l:"여행자 보험"},{l:"국제운전면허증"}]},
-    {t:"결제·교통",i:"ti-credit-card",items:[{l:"유로화 소액 환전",w:1},{l:"트래블월렛/하나트래블카드"},{l:"저가항공 수하물 규정",w:1},{l:"Omio 사전 예약"},{l:"유럽 유심 또는 eSIM"}]},
-    {t:"짐·안전",i:"ti-backpack",items:[{l:"날씨에 맞는 의류"},{l:"세면도구 소분 (100ml)"},{l:"멀티 어댑터 (유럽형)"},{l:"소매치기 대비 크로스백"},{l:"여권 복사본 별도 보관"}]},
-  ],
-  sea:[
-    {t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"비자 확인",w:1},{l:"여행자 보험"}]},
-    {t:"건강·위생",i:"ti-vaccine",items:[{l:"설사약/지사제",w:1},{l:"모기 기피제 (DEET)",w:1,b:"필수"},{l:"손 소독제"},{l:"선크림 SPF50+"}]},
-    {t:"결제·앱",i:"ti-cash",items:[{l:"현지 통화 환전",w:1},{l:"ATM 수수료 저렴한 카드"},{l:"Grab 앱 설치"},{l:"현지 유심 구매"}]},
-    {t:"음식·주의",i:"ti-soup",items:[{l:"생수만 음용"},{l:"얼음 주의"},{l:"알레르기 현지어 준비"}]},
-  ],
-  usa:[
-    {t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"ESTA 등록 (72시간 전)",w:1,b:"필수"},{l:"귀국 항공권 확인"},{l:"국제운전면허증"}]},
-    {t:"결제·교통",i:"ti-credit-card",items:[{l:"달러 소액 환전 (팁용)",w:1,b:"팁 문화"},{l:"Visa/Mastercard"},{l:"렌터카 예약"},{l:"Uber/Lyft 설치"},{l:"미국 유심 또는 eSIM"}]},
-    {t:"안전·건강",i:"ti-shield",items:[{l:"여행자 보험 (의료비 높음)",w:1,b:"필수"},{l:"비상 연락망 (911)"},{l:"치안 취약 지역 파악"}]},
-  ],
+  domestic:[{t:"신분증·예약",i:"ti-id",items:[{l:"신분증",w:1},{l:"숙소 예약 확인서"},{l:"교통 예약 티켓"},{l:"액티비티 예약",w:1}]},{t:"결제·교통",i:"ti-wallet",items:[{l:"체크/신용카드"},{l:"소액 현금"},{l:"T-money 잔액"},{l:"내비게이션 앱 업데이트"},{l:"하이패스 잔액"}]},{t:"산·자연",i:"ti-mountain",items:[{l:"등산화/트레킹화",b:"산악"},{l:"등산 스틱"},{l:"간식·물"},{l:"국립공원 예약",w:1}]},{t:"바다·섬",i:"ti-waves",items:[{l:"수영복·래시가드"},{l:"선크림 SPF50+"},{l:"여객선 예약",w:1},{l:"타월"}]},{t:"건강·편의",i:"ti-first-aid-kit",items:[{l:"상비약"},{l:"멀미약"},{l:"보조배터리"},{l:"우산 또는 우비"}]}],
+  japan:[{t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"Visit Japan Web 등록",w:1,b:"입국 필수"},{l:"귀국 항공권"},{l:"여행자 보험"}]},{t:"항공·숙소",i:"ti-plane",items:[{l:"항공권 e-티켓",w:1},{l:"숙소 예약 확인서"},{l:"공항 교통편 예약"}]},{t:"결제·현금",i:"ti-cash",items:[{l:"엔화 현금 환전",w:1,b:"현금 사회"},{l:"IC카드 (Suica/Pasmo)"},{l:"해외 결제 카드",w:1}]},{t:"교통·앱",i:"ti-train",items:[{l:"JR패스 여부"},{l:"Suica 충전"},{l:"Yahoo! 乗換案内"},{l:"Tabelog"},{l:"포켓 WiFi 또는 유심"}]},{t:"짐",i:"ti-backpack",items:[{l:"날씨에 맞는 의류"},{l:"편한 신발"},{l:"세면도구 소분 (100ml)"},{l:"해외 어댑터"},{l:"보조배터리"}]},{t:"문화",i:"ti-heart",items:[{l:"대중교통 내 통화 자제"},{l:"온천 문신 규정 확인"},{l:"팁 문화 없음"}]}],
+  europe:[{t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"쉥겐 비자 확인",w:1},{l:"여행자 보험"},{l:"국제운전면허증"}]},{t:"결제·교통",i:"ti-credit-card",items:[{l:"유로화 소액 환전",w:1},{l:"트래블월렛/하나트래블카드"},{l:"저가항공 수하물 규정",w:1},{l:"Omio 사전 예약"},{l:"유럽 유심 또는 eSIM"}]},{t:"짐·안전",i:"ti-backpack",items:[{l:"날씨에 맞는 의류"},{l:"세면도구 소분 (100ml)"},{l:"멀티 어댑터 (유럽형)"},{l:"소매치기 대비 크로스백"},{l:"여권 복사본 별도 보관"}]}],
+  sea:[{t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"비자 확인",w:1},{l:"여행자 보험"}]},{t:"건강·위생",i:"ti-vaccine",items:[{l:"설사약/지사제",w:1},{l:"모기 기피제 (DEET)",w:1,b:"필수"},{l:"손 소독제"},{l:"선크림 SPF50+"}]},{t:"결제·앱",i:"ti-cash",items:[{l:"현지 통화 환전",w:1},{l:"ATM 수수료 저렴한 카드"},{l:"Grab 앱 설치"},{l:"현지 유심 구매"}]},{t:"음식·주의",i:"ti-soup",items:[{l:"생수만 음용"},{l:"얼음 주의"},{l:"알레르기 현지어 준비"}]}],
+  usa:[{t:"필수 서류",i:"ti-id",items:[{l:"여권 (유효기간 6개월 이상)",w:1},{l:"ESTA 등록 (72시간 전)",w:1,b:"필수"},{l:"귀국 항공권 확인"},{l:"국제운전면허증"}]},{t:"결제·교통",i:"ti-credit-card",items:[{l:"달러 소액 환전 (팁용)",w:1,b:"팁 문화"},{l:"Visa/Mastercard"},{l:"렌터카 예약"},{l:"Uber/Lyft 설치"},{l:"미국 유심 또는 eSIM"}]},{t:"안전·건강",i:"ti-shield",items:[{l:"여행자 보험 (의료비 높음)",w:1,b:"필수"},{l:"비상 연락망 (911)"},{l:"치안 취약 지역 파악"}]}],
 };
 function renderCk(tid){
   const panel=document.getElementById(tid);if(!checkData[tid]||!panel)return;
@@ -1174,40 +948,26 @@ function renderCk(tid){
   secs.forEach((s,si)=>s.items.forEach((_,ii)=>{total++;if(ckSt[gk(tid,si,ii)])checked++;}));
   const pct=total?Math.round(checked/total*100):0;
   const names={domestic:'국내',japan:'일본',europe:'유럽',sea:'동남아',usa:'미국'};
-  let html=`<div class="section-title"><i class="ti ti-checkbox"></i> ${names[tid]||''} 체크리스트</div>
-  <div class="prog-txt">${checked} / ${total} 완료 (${pct}%)</div>
-  <div class="prog-bar-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>`;
+  let html=`<div class="section-title"><i class="ti ti-checkbox"></i> ${names[tid]||''} 체크리스트</div><div class="prog-txt">${checked} / ${total} 완료 (${pct}%)</div><div class="prog-bar-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>`;
   secs.forEach((sec,si)=>{
     html+=`<div class="ck-section"><div class="ck-sec-title"><i class="ti ${sec.i}"></i>${sec.t}</div><div class="ck-list">`;
     sec.items.forEach((item,ii)=>{
-      const k=gk(tid,si,ii);const on=ckSt[k]?'on':'';
+      const k=gk(tid,si,ii),on=ckSt[k]?'on':'';
       const bdg=item.b?`<span class="ck-badge bk-info">${item.b}</span>`:item.w?`<span class="ck-badge bk-warn">확인 필요</span>`:'';
       html+=`<div class="cki ${on}" onclick="togCk('${k}','${tid}')"><div class="ckbox"></div><span class="ck-lbl">${item.l}</span>${bdg}</div>`;
     });html+=`</div></div>`;
   });panel.innerHTML=html;
 }
 
-// ─── COMPANION ───
+// 동행
 const compData={
-  solo:{hasPpl:false,secs:[
-    {t:"안전",i:"ti-shield",items:[{l:"숙소 위치·리뷰 확인",w:1},{l:"일정 가족에게 공유"},{l:"야간 이동 자제"},{l:"비상 연락처 잠금화면 설정"}]},
-    {t:"짐·예약",i:"ti-backpack",items:[{l:"백팩 위주"},{l:"보조배터리 필수",w:1},{l:"1인 식당 인원 제한 확인"},{l:"현지 투어 사전 예약"}]}
-  ]},
-  couple:{hasPpl:false,secs:[
-    {t:"예약·숙소",i:"ti-heart",items:[{l:"더블/트윈 룸 타입 확인",w:1},{l:"기념일 서프라이즈 요청"},{l:"2인 패키지·커플 할인"}]},
-    {t:"결제",i:"ti-wallet",items:[{l:"경비 분담 방식 합의"},{l:"공동 경비 앱 (더치트릿)"},{l:"비상금 각자 보유"}]}
-  ]},
-  friends:{hasPpl:true,secs:[
-    {t:"일정·인원",i:"ti-users",items:[{l:"전체 일정 공유 문서 작성"},{l:"인원 확정 및 방 배정",w:1},{l:"집합 장소·시간 공유"}]},
-    {t:"결제·정산",i:"ti-wallet",items:[{l:"정산 앱 설치 (더치트릿·Splitwise)",w:1},{l:"대표 결제자 지정"},{l:"영수증 사진 촬영 습관화"},{l:"단체 식당 예약 (4인 이상)",w:1}]}
-  ]},
-  family:{hasPpl:true,secs:[
-    {t:"서류·보험",i:"ti-file-text",items:[{l:"아이 여권 유효기간",w:1},{l:"가족 여행자 보험",w:1},{l:"영문 의료 기록"}]},
-    {t:"이동·짐",i:"ti-baby-carriage",items:[{l:"유아용 카시트 렌터카",w:1},{l:"유모차 접이식 여부"},{l:"아이 상비약"},{l:"이유식·간식"},{l:"기저귀·물티슈"}]}
-  ]},
+  solo:{hasPpl:false,secs:[{t:"안전",i:"ti-shield",items:[{l:"숙소 위치·리뷰 확인",w:1},{l:"일정 가족에게 공유"},{l:"야간 이동 자제"},{l:"비상 연락처 잠금화면 설정"}]},{t:"짐·예약",i:"ti-backpack",items:[{l:"백팩 위주"},{l:"보조배터리 필수",w:1},{l:"1인 식당 인원 제한 확인"},{l:"현지 투어 사전 예약"}]}]},
+  couple:{hasPpl:false,secs:[{t:"예약·숙소",i:"ti-heart",items:[{l:"더블/트윈 룸 타입 확인",w:1},{l:"기념일 서프라이즈 요청"},{l:"2인 패키지·커플 할인"}]},{t:"결제",i:"ti-wallet",items:[{l:"경비 분담 방식 합의"},{l:"공동 경비 앱 (더치트릿)"},{l:"비상금 각자 보유"}]}]},
+  friends:{hasPpl:true,secs:[{t:"일정·인원",i:"ti-users",items:[{l:"전체 일정 공유 문서 작성"},{l:"인원 확정 및 방 배정",w:1},{l:"집합 장소·시간 공유"}]},{t:"결제·정산",i:"ti-wallet",items:[{l:"정산 앱 설치 (더치트릿·Splitwise)",w:1},{l:"대표 결제자 지정"},{l:"영수증 사진 촬영 습관화"},{l:"단체 식당 예약 (4인 이상)",w:1}]}]},
+  family:{hasPpl:true,secs:[{t:"서류·보험",i:"ti-file-text",items:[{l:"아이 여권 유효기간",w:1},{l:"가족 여행자 보험",w:1},{l:"영문 의료 기록"}]},{t:"이동·짐",i:"ti-baby-carriage",items:[{l:"유아용 카시트 렌터카",w:1},{l:"유모차 접이식 여부"},{l:"아이 상비약"},{l:"이유식·간식"},{l:"기저귀·물티슈"}]}]},
 };
 function renderComp(){
-  const type=document.getElementById('ctype').value;const data=compData[type];
+  const type=document.getElementById('ctype').value,data=compData[type];
   document.getElementById('ppwrap').style.display=data.hasPpl?'block':'none';compInfo();
   const secs=data.secs;let total=0,checked=0;
   secs.forEach((s,si)=>s.items.forEach((_,ii)=>{total++;if(ckSt[gk('c_'+type,si,ii)])checked++;}));
@@ -1216,20 +976,20 @@ function renderComp(){
   secs.forEach((sec,si)=>{
     html+=`<div class="ck-section"><div class="ck-sec-title"><i class="ti ${sec.i}"></i>${sec.t}</div><div class="ck-list">`;
     sec.items.forEach((item,ii)=>{
-      const k=gk('c_'+type,si,ii);const on=ckSt[k]?'on':'';
+      const k=gk('c_'+type,si,ii),on=ckSt[k]?'on':'';
       const bdg=item.b?`<span class="ck-badge bk-info">${item.b}</span>`:item.w?`<span class="ck-badge bk-warn">확인 필요</span>`:'';
       html+=`<div class="cki ${on}" onclick="togComp('${k}','${type}')"><div class="ckbox"></div><span class="ck-lbl">${item.l}</span>${bdg}</div>`;
     });html+=`</div></div>`;
   });document.getElementById('ccontent').innerHTML=html;
 }
 function compInfo(){
-  const t=document.getElementById('ctype').value;const d=compData[t];
-  const n=parseInt(document.getElementById('pcount').value)||2;const el=document.getElementById('cinfo');
+  const t=document.getElementById('ctype').value,d=compData[t];
+  const n=parseInt(document.getElementById('pcount').value)||2,el=document.getElementById('cinfo');
   if(d.hasPpl&&n>=2){el.style.display='block';el.textContent=`${n}명 기준 — 방 ${Math.ceil(n/2)}개 / 정산 앱(더치트릿·Splitwise) 권장`;}
   else el.style.display='none';
 }
 
-// ─── CARRY ───
+// 기내반입
 const carryData=[
   {cat:"기내 반입 금지",cls:"c-red",items:[{t:"폭발물·화기류",s:"총기, 폭죽, 라이터 연료"},{t:"날카로운 도구",s:"칼, 가위 날 6cm 초과"},{t:"대용량 액체",s:"100ml 초과 액체·젤"},{t:"리튬배터리",s:"160Wh 초과"}]},
   {cat:"위탁 수하물만",cls:"c-amber",items:[{t:"보조배터리 위탁 금지",s:"기내 반입만 (100Wh 이하)"},{t:"라이터 위탁 금지",s:"기내 1개 허용"},{t:"와인·주류",s:"70% 이하 5L 이하"},{t:"스포츠 장비",s:"골프채·스키 폴대"}]},
@@ -1237,40 +997,27 @@ const carryData=[
 ];
 function renderCarry(){
   const el=document.getElementById('carry-c');if(!el)return;let html='';
-  carryData.forEach(cat=>{
-    html+=`<div class="ck-section"><div class="ck-sec-title">${cat.cat}</div>`;
-    cat.items.forEach(i=>{html+=`<div class="carry-item ${cat.cls}"><div class="ci-t">${i.t}</div><div class="ci-s">${i.s}</div></div>`;});
-    html+=`</div>`;
-  });el.innerHTML=html;
+  carryData.forEach(cat=>{html+=`<div class="ck-section"><div class="ck-sec-title">${cat.cat}</div>`;cat.items.forEach(i=>{html+=`<div class="carry-item ${cat.cls}"><div class="ci-t">${i.t}</div><div class="ci-s">${i.s}</div></div>`;});html+=`</div>`;});
+  el.innerHTML=html;
 }
 
-// ─── COMMON ───
 function togCk(k,tid){ckSt[k]=!ckSt[k];save();renderCk(tid);}
 function togComp(k,type){ckSt[k]=!ckSt[k];save();renderComp();}
 
-// ─── INIT ───
-load();
-syncHeader();updateDaySel();
+// 초기화
+load();initTheme();syncHeader();updateDaySel();
 document.getElementById('curr').value=state.currency||'KRW';
 if(state.rate>1)document.getElementById('rate').value=state.rate;
 if(state.totalBudget)document.getElementById('total').value=state.totalBudget;
 if(state.cashBudget)document.getElementById('cash').value=state.cashBudget;
 if(state.cardLimit)document.getElementById('climit').value=state.cardLimit;
 updateCurr();buildBRows();
-if(state.itinerary.length){
-  document.getElementById('upload-section').style.display='none';
-  document.getElementById('upload-toggle').style.display='block';
-}
-renderItinerary();
+renderItinerary();renderTripCard();
 Object.keys(checkData).forEach(t=>renderCk(t));
-renderComp();renderCarry();
-// 드라이브 상태 바 초기 렌더링 (API 로드 전이라 로컬 상태 기준)
-renderDriveStatus(driveMode==='drive');
+renderComp();renderCarry();renderDriveStatus(driveMode==='drive');
 </script>
 
-<!-- Google API — body 끝에 로드 -->
 <script>
-// Service Worker 등록
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('service-worker.js')
@@ -1278,7 +1025,6 @@ if('serviceWorker' in navigator){
       .catch(err=>console.log('SW 등록 실패:',err));
   });
 }
-// initGapi/initGis를 전역으로 명시적으로 노출
 window.initGapi=initGapi;
 window.initGis=initGis;
 </script>
