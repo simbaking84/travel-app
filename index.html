@@ -1034,7 +1034,8 @@ let driveMode=localStorage.getItem('storage_mode')||'local'; // 'local' | 'drive
 
 function initGapi(){
   gapi.load('client',async()=>{
-    await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});
+    await gapi.client.init({});
+    await gapi.client.load('drive','v3');
     gapiReady=true;tryAutoRestore();
   });
 }
@@ -1083,7 +1084,7 @@ function renderDriveStatus(loggedIn){
 }
 async function findDriveFile(){
   if(driveFileId)return driveFileId;
-  const res=await gapi.client.drives.list({q:`name='${DRIVE_FILE}' and trashed=false`,spaces:'drive',fields:'files(id,name)'});
+  const res=await gapi.client.drive.files.list({q:`name='${DRIVE_FILE}' and trashed=false`,spaces:'drive',fields:'files(id,name)'});
   const files=res.result.files||[];
   if(files.length){driveFileId=files[0].id;return driveFileId;}
   return null;
@@ -1111,7 +1112,7 @@ async function loadFromDrive(){
   try{
     const fid=await findDriveFile();
     if(!fid){showSt('<i class="ti ti-info-circle"></i> 드라이브에 저장된 데이터가 없습니다. 로컬 데이터를 사용합니다','i','it-st');return;}
-    const resp=await gapi.client.drives.get({fileId:fid,alt:'media'});
+    const resp=await gapi.client.drive.files.get({fileId:fid,alt:'media'});
     const d=typeof resp.result==='string'?JSON.parse(resp.result):resp.result;
     if(d.state){state={...state,...d.state};}
     if(d.ckSt){ckSt={...d.ckSt};}
