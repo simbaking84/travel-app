@@ -1237,14 +1237,11 @@ if('serviceWorker' in navigator){
       .catch(err=>console.log('SW 등록 실패:',err));
   });
 }
-function gapiLoaded(){if(typeof initGapi==='function')initGapi();}
-function gisLoaded(){if(typeof initGis==='function')initGis();}
-setTimeout(()=>{
-  if(typeof gapi!=='undefined'&&typeof initGapi==='function')initGapi();
-  if(typeof google!=='undefined'&&typeof initGis==='function')initGis();
-},2000);
+// initGapi/initGis를 전역으로 명시적으로 노출
+window.initGapi=initGapi;
+window.initGis=initGis;
 </script>
-<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+<script src="https://apis.google.com/js/api.js" onload="window.initGapi()"></script>
+<script src="https://accounts.google.com/gsi/client" onload="window.initGis()"></script>
 </body>
 </html>
