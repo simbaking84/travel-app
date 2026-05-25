@@ -606,10 +606,10 @@ function renderSettings(){
   const ca=document.getElementById('settings-card-area');
   if(ca){
     if(state.tripCard){
-      ca.innerHTML=`<div class="trip-card-wrap"><div class="trip-card-content" id="s-card-inner"></div><div class="trip-card-actions"><span style="font-size:11px;color:var(--text3);flex:1"><i class="ti ti-check" style="color:var(--green)"></i> 등록됨</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="document.getElementById('card-file').click()"><i class="ti ti-refresh"></i> 교체</button><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--red)" onclick="removeTripCard()"><i class="ti ti-trash"></i></button></div></div><input type="file" id="card-file" accept=".html,.svg" style="display:none" onchange="handleCardFile(event)">`;
+      ca.innerHTML=`<div class="trip-card-wrap"><div class="trip-card-content" id="s-card-inner"></div><div class="trip-card-actions"><span style="font-size:11px;color:var(--text3);flex:1"><i class="ti ti-check" style="color:var(--green)"></i> 등록됨</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="document.getElementById('card-file').click()"><i class="ti ti-refresh"></i> 교체</button><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--red)" onclick="removeTripCard()"><i class="ti ti-trash"></i></button></div></div><input type="file" id="card-file" accept=".html,.svg,.jpg,.jpeg,.png,.webp,.gif" style="display:none" onchange="handleCardFile(event)">`;
       const si=document.getElementById('s-card-inner');if(si)si.innerHTML=state.tripCard;
     } else {
-      ca.innerHTML=`<div class="trip-card-upload" onclick="document.getElementById('card-file').click()"><i class="ti ti-layout-cards"></i><div class="trip-card-upload-title">여행 카드 업로드</div><div class="trip-card-upload-sub">Claude가 만든 HTML 파일을 업로드하세요</div></div><input type="file" id="card-file" accept=".html,.svg" style="display:none" onchange="handleCardFile(event)">`;
+      ca.innerHTML=`<div class="trip-card-upload" onclick="document.getElementById('card-file').click()"><i class="ti ti-layout-cards"></i><div class="trip-card-upload-title">여행 카드 업로드</div><div class="trip-card-upload-sub">HTML · JPG · PNG 파일 업로드</div></div><input type="file" id="card-file" accept=".html,.svg,.jpg,.jpeg,.png,.webp,.gif" style="display:none" onchange="handleCardFile(event)">`;
     }
   }
   // 드라이브
@@ -626,8 +626,18 @@ function renderSettings(){
 function handleCardFile(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=ev=>{state.tripCard=ev.target.result;save();renderTripCard();renderSettings();showSt('<i class="ti ti-check"></i> 여행 카드 등록됨','ok');};
-  reader.readAsText(file,'UTF-8');
+  const isImg=/\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
+  if(isImg){
+    reader.onload=ev=>{
+      const mime=file.type||'image/jpeg';
+      state.tripCard=`<img src="${ev.target.result}" alt="여행 카드" style="width:100%;display:block;border-radius:14px">`;
+      save();renderTripCard();renderSettings();showSt('<i class="ti ti-check"></i> 여행 카드 등록됨','ok');
+    };
+    reader.readAsDataURL(file);
+  } else {
+    reader.onload=ev=>{state.tripCard=ev.target.result;save();renderTripCard();renderSettings();showSt('<i class="ti ti-check"></i> 여행 카드 등록됨','ok');};
+    reader.readAsText(file,'UTF-8');
+  }
 }
 function removeTripCard(){state.tripCard='';save();renderTripCard();renderSettings();}
 
