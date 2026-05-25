@@ -262,6 +262,14 @@ select.fi{cursor:pointer}
   #sidebar{display:none}
 }
 #drive-status-bar{display:flex;align-items:center;gap:8px;padding:.5rem .875rem;border-radius:var(--r);font-size:12px;margin-bottom:.875rem;border:1px solid var(--border);background:var(--surface2);transition:all .3s}
+.trip-card-wrap{border-radius:var(--rl);overflow:hidden;margin-bottom:.875rem;border:1px solid rgba(201,168,76,0.2);background:linear-gradient(135deg,rgba(201,168,76,0.05),transparent)}
+.trip-card-content{width:100%;overflow:hidden}
+.trip-card-actions{display:flex;gap:6px;padding:.5rem .875rem;border-top:1px solid var(--border);background:var(--surface2)}
+.trip-card-upload{border:1.5px dashed var(--border2);border-radius:var(--rl);padding:1.25rem;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:.875rem}
+.trip-card-upload:hover{border-color:var(--accent);background:rgba(201,168,76,0.04)}
+.trip-card-upload i{font-size:24px;color:var(--text3);display:block;margin-bottom:.5rem}
+.trip-card-upload-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:3px}
+.trip-card-upload-sub{font-size:11px;color:var(--text3)}
 </style>
 </head>
 <body>
@@ -334,7 +342,8 @@ select.fi{cursor:pointer}
         </div>
       </div>
 
-      <div id="upload-toggle" style="display:none;margin-bottom:.875rem">
+      <div id="trip-card-section"></div>
+<div id="upload-toggle" style="display:none;margin-bottom:.875rem">
         <button class="btn btn-surface" style="width:100%" onclick="document.getElementById('upload-section').style.display='block';document.getElementById('upload-toggle').style.display='none'">
           <i class="ti ti-upload"></i> 일정 다시 업로드
         </button>
@@ -544,7 +553,7 @@ const MLAB={krw:'원화현금',local:'현지통화','card-loc':'카드·현지',
 
 // ─── STATE ───
 let state={
-  tripName:'',tripStart:'',tripEnd:'',
+  tripName:'',tripStart:'',tripEnd:'',tripCard:'',
   itinerary:[],expenses:[],
   currency:'KRW',rate:1,totalBudget:0,cashBudget:0,cardLimit:0,
   budgetRows:[
@@ -710,6 +719,35 @@ function updateDaySel(){
 }
 
 // ─── TIMELINE RENDER ───
+function renderTripCard(){
+  const el=document.getElementById('trip-card-section');if(!el)return;
+  if(state.tripCard){
+    el.innerHTML=`<div class="trip-card-wrap">
+      <div class="trip-card-content" id="trip-card-inner"></div>
+      <div class="trip-card-actions">
+        <span style="font-size:11px;color:var(--text3);flex:1;display:flex;align-items:center;gap:5px"><i class="ti ti-layout-cards"></i> 여행 카드</span>
+        <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="document.getElementById('card-file').click()"><i class="ti ti-refresh"></i> 교체</button>
+        <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--text3)" onclick="removeTripCard()"><i class="ti ti-x"></i></button>
+      </div></div>
+      <input type="file" id="card-file" accept=".html" style="display:none" onchange="handleCardFile(event)">`;
+    const inner=document.getElementById('trip-card-inner');
+    if(inner)inner.innerHTML=state.tripCard;
+  } else {
+    el.innerHTML=`<div class="trip-card-upload" onclick="document.getElementById('card-file').click()">
+      <i class="ti ti-layout-cards"></i>
+      <div class="trip-card-upload-title">여행 카드 업로드</div>
+      <div class="trip-card-upload-sub">Claude가 만든 HTML 카드 파일을 업로드하세요</div>
+    </div>
+    <input type="file" id="card-file" accept=".html" style="display:none" onchange="handleCardFile(event)">`;
+  }
+}
+function handleCardFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{state.tripCard=ev.target.result;save();renderTripCard();showSt('<i class="ti ti-check"></i> 여행 카드 등록됨','ok');};
+  reader.readAsText(file,'UTF-8');
+}
+function removeTripCard(){state.tripCard='';save();renderTripCard();}
 function renderItinerary(){
   const days=getDays();
   const tabsEl=document.getElementById('day-tabs');
@@ -786,7 +824,8 @@ function switchDay(el,day){
   el.classList.add('on');document.getElementById('dp-'+day)?.classList.add('on');
 }
 function toggleVisit(id){
-  const s=state.itinerary.find(s=>s.id===id);if(s){s.visited=!s.visited;save();renderItinerary();}
+  const s=state.itinerary.find(s=>s.id===id);if(s){s.visited=!s.visited;save();renderItinerary();
+renderTripCard();}
 }
 function confirmExp(sid){
   const nm=(document.getElementById(`me-nm-${sid}`)?.value||'').trim();
