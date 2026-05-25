@@ -317,6 +317,7 @@ select.fi{cursor:pointer}
     <!-- ── 일정표 ── -->
     <div id="itinerary" class="panel on">
       <div id="it-st" class="sb-h"></div>
+<div id="trip-card-section"></div>
 
       <!-- 업로드 -->
       <div id="upload-section">
@@ -342,8 +343,7 @@ select.fi{cursor:pointer}
         </div>
       </div>
 
-      <div id="trip-card-section"></div>
-<div id="upload-toggle" style="display:none;margin-bottom:.875rem">
+      <div id="upload-toggle" style="display:none;margin-bottom:.875rem">
         <button class="btn btn-surface" style="width:100%" onclick="document.getElementById('upload-section').style.display='block';document.getElementById('upload-toggle').style.display='none'">
           <i class="ti ti-upload"></i> 일정 다시 업로드
         </button>
@@ -1035,7 +1035,7 @@ let driveMode=localStorage.getItem('storage_mode')||'local'; // 'local' | 'drive
 function initGapi(){
   gapi.load('client',async()=>{
     await gapi.client.init({});
-    await gapi.client.load('drive','v3');
+    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
     gapiReady=true;tryAutoRestore();
   });
 }
