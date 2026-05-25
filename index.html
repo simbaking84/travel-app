@@ -1031,9 +1031,9 @@ renderComp();renderCarry();renderDriveStatus(driveMode==='drive');
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('service-worker.js')
-      .then(reg=>console.log('SW 등록됨:',reg.scope))
+      .then(reg=>{   console.log('SW 등록됨:',reg.scope);   reg.addEventListener('updatefound',()=>{     const nw=reg.installing;     nw.addEventListener('statechange',()=>{       if(nw.state==='installed'&&navigator.serviceWorker.controller){         nw.postMessage({type:'SKIP_WAITING'});       }     });   }); })
       .catch(err=>console.log('SW 등록 실패:',err));
-  });
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{window.location.reload();});});
 }
 window.initGapi=initGapi;
 window.initGis=initGis;
