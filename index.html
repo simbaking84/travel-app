@@ -1073,10 +1073,29 @@ async function findDriveFile(){
   if(files.length){driveFileId=files[0].id;return driveFileId;}
   return null;
 }
+// ✅ PATCH 7: 토큰 유효성 확인 + 자동 재발급
+function ensureToken(){
+  return new Promise((resolve,reject)=>{
+    const token=gapi.client.getToken();
+    // 토큰 없거나 만료 임박(1분 이내) 시 재발급
+    if(!token||!token.access_token){
+      tokenClient.callback=(resp)=>{
+        if(resp.error){reject(resp.error);return;}
+        driveMode='drive';localStorage.setItem('storage_mode','drive');
+        renderDriveStatus(true);renderSettings();resolve();
+      };
+      tokenClient.requestAccessToken({prompt:''});
+    } else {
+      resolve();
+    }
+  });
+}
 async function saveDrive(){
   if(driveMode!=='drive'||!gapiReady){save();showSt('<i class="ti ti-device-floppy"></i> 로컬에 저장됐습니다','ok','it-st');return;}
   showSt('<i class="ti ti-loader"></i> 드라이브에 저장 중...','i','it-st');
   try{
+    // ✅ 토큰 만료 시 자동 재발급 후 저장
+    await ensureToken();
     const payload=JSON.stringify({state,ckSt,archive:loadArchive(),savedAt:new Date().toISOString()},null,2);
     const fid=await findDriveFile();
     const boundary='boundary_travel_app',meta=JSON.stringify({name:DRIVE_FILE,mimeType:'application/json'});
@@ -1086,8 +1105,7 @@ async function saveDrive(){
     if(!fid)driveFileId=resp.result.id;
     save();showSt('<i class="ti ti-check"></i> 드라이브에 저장됐습니다','ok','it-st');
   }catch(e){
-    // ✅ PATCH 3: Drive 저장 실패 메시지 개선 (undefined 방지)
-    const errMsg = e?.message || e?.result?.error?.message || JSON.stringify(e) || '알 수 없는 오류';
+    const errMsg=e?.message||e?.result?.error?.message||JSON.stringify(e)||'알 수 없는 오류';
     showSt('<i class="ti ti-alert-circle"></i> 드라이브 저장 실패: '+errMsg,'err','it-st');
   }
 }
@@ -1095,6 +1113,7 @@ async function loadFromDrive(){
   if(driveMode!=='drive'||!gapiReady)return;
   showSt('<i class="ti ti-loader"></i> 드라이브에서 불러오는 중...','i','it-st');
   try{
+    await ensureToken();
     const fid=await findDriveFile();
     if(!fid){showSt('<i class="ti ti-info-circle"></i> 드라이브에 저장된 데이터가 없습니다','i','it-st');return;}
     const resp=await gapi.client.drive.files.get({fileId:fid,alt:'media'});
