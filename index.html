@@ -15,6 +15,38 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<!-- ✅ PATCH 1: 카카오 인앱브라우저 감지 -->
+<script>
+(function(){
+  var ua = navigator.userAgent || '';
+  var isKakao = /KAKAOTALK/i.test(ua);
+  if(!isKakao) return;
+  // 카카오 인앱이면 외부 브라우저 유도 배너 삽입
+  document.addEventListener('DOMContentLoaded', function(){
+    var banner = document.createElement('div');
+    banner.id = 'kakao-banner';
+    banner.style.cssText = [
+      'position:fixed','top:0','left:0','right:0','z-index:9999',
+      'background:#FEE500','color:#3C1E1E','font-size:13px',
+      'padding:12px 16px','display:flex','align-items:center','gap:10px',
+      'font-family:sans-serif','box-shadow:0 2px 8px rgba(0,0,0,.2)'
+    ].join(';');
+    banner.innerHTML = [
+      '<i style="font-size:18px">⚠️</i>',
+      '<span style="flex:1">카카오톡 브라우저에서는 일부 기능이 제한됩니다.<br>',
+      '<b>우측 상단 ···메뉴 → 다른 브라우저로 열기</b>를 이용해 주세요.</span>',
+      '<button onclick="document.getElementById(\'kakao-banner\').remove()" ',
+      'style="background:none;border:none;font-size:18px;cursor:pointer;color:#3C1E1E;padding:4px">✕</button>'
+    ].join('');
+    document.body.insertBefore(banner, document.body.firstChild);
+    // 콘텐츠 영역 밀어내기
+    var app = document.getElementById('app');
+    if(app) app.style.paddingTop = banner.offsetHeight + 'px';
+  });
+})();
+</script>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;--r:10px;--rl:16px;--tap:48px}
@@ -372,11 +404,11 @@ select.fi{cursor:pointer}
     <div id="checklist" class="panel">
       <div class="section-title"><i class="ti ti-checkbox"></i> 체크리스트</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('domestic')"><i class="ti ti-home"></i> 국내여행</button>
-        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('japan')"><i class="ti ti-torii"></i> 일본</button>
-        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('europe')"><i class="ti ti-camera"></i> 유럽</button>
-        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('sea')"><i class="ti ti-trekking"></i> 동남아</button>
-        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('usa')"><i class="ti ti-building-skyscraper"></i> 미국</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('domestic')"><i class="ti ti-home"></i> 국내여행</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('japan')"><i class="ti ti-torii"></i> 일본</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('europe')"><i class="ti ti-camera"></i> 유럽</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('sea')"><i class="ti ti-trekking"></i> 동남아</button>
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('usa')"><i class="ti ti-building-skyscraper"></i> 미국</button>
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
       </div>
     </div>
@@ -391,7 +423,8 @@ select.fi{cursor:pointer}
       <div class="section-title"><i class="ti ti-users"></i> 동행 유형</div>
       <div class="r2">
         <div><label class="fl">유형</label>
-          <select class="fi" id="ctype" onchange="renderComp()">
+          <!-- ✅ PATCH 2: 동행 유형 변경 시 자동저장 -->
+          <select class="fi" id="ctype" onchange="onCompTypeChange()">
             <option value="solo">혼자</option><option value="couple">커플</option>
             <option value="friends">지인·친구</option><option value="family">가족 (아이)</option>
           </select>
@@ -399,7 +432,8 @@ select.fi{cursor:pointer}
         <div id="ppwrap" style="display:none">
           <label class="fl">인원</label>
           <div style="display:flex;align-items:center;gap:8px">
-            <input type="number" style="width:72px;border:1px solid var(--border);border-radius:var(--r);padding:0 10px;font-size:16px;font-weight:600;text-align:center;background:var(--surface);color:var(--text);height:var(--tap)" id="pcount" value="2" min="2" max="20" oninput="compInfo()">
+            <!-- ✅ PATCH 2: 인원 변경 시 자동저장 -->
+            <input type="number" style="width:72px;border:1px solid var(--border);border-radius:var(--r);padding:0 10px;font-size:16px;font-weight:600;text-align:center;background:var(--surface);color:var(--text);height:var(--tap)" id="pcount" value="2" min="2" max="20" oninput="onCompCountChange()">
             <span style="color:var(--text2)">명</span>
           </div>
         </div>
@@ -486,7 +520,8 @@ select.fi{cursor:pointer}
     <div id="bottom-nav-inner">
       <button class="nav-item on" onclick="swMob(this,'itinerary')"><i class="ti ti-map-2"></i>일정</button>
       <button class="nav-item" onclick="swMob(this,'budget')"><i class="ti ti-wallet"></i>예산</button>
-      <button class="nav-item" onclick="swMob(this,'checklist')"><i class="ti ti-checkbox"></i>체크</button>
+      <!-- ✅ PATCH 2: 체크 탭 진입 시 마지막 선택 국가로 자동 이동 -->
+      <button class="nav-item" onclick="swMobChecklist(this)"><i class="ti ti-checkbox"></i>체크</button>
       <button class="nav-item" onclick="swMob(this,'companion')"><i class="ti ti-users"></i>동행</button>
       <button class="nav-item" onclick="swMob(this,'archive');renderArchive()"><i class="ti ti-archive"></i>기록</button>
       <button class="nav-item" onclick="swMob(this,'settings');renderSettings()"><i class="ti ti-settings"></i>설정</button>
@@ -526,6 +561,10 @@ let state={
   tripName:'',tripStart:'',tripEnd:'',tripCard:'',
   itinerary:[],expenses:[],
   currency:'KRW',rate:1,totalBudget:0,cashBudget:0,cardLimit:0,
+  // ✅ PATCH 2: 체크리스트/동행 선택 상태 저장용 필드 추가
+  selectedRegion: '',        // 마지막으로 선택한 체크리스트 국가
+  companionType: 'solo',     // 동행 유형
+  companionCount: 2,         // 동행 인원
   budgetRows:[
     {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
     {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
@@ -546,7 +585,12 @@ function getDays(){
 }
 function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({state,ckSt}));}catch{}}
 function load(){
-  try{const raw=localStorage.getItem(LS_KEY);if(!raw)return;const d=JSON.parse(raw);if(d.state)state={...state,...d.state};if(d.ckSt)ckSt={...d.ckSt};}catch{}
+  try{
+    const raw=localStorage.getItem(LS_KEY);if(!raw)return;
+    const d=JSON.parse(raw);
+    if(d.state)state={...state,...d.state};
+    if(d.ckSt)ckSt={...d.ckSt};
+  }catch{}
 }
 function loadArchive(){try{return JSON.parse(localStorage.getItem(LS_ARCH)||'[]');}catch{return[];}}
 function saveArchive(arr){try{localStorage.setItem(LS_ARCH,JSON.stringify(arr));}catch{}}
@@ -559,6 +603,19 @@ function swMob(el,tab){
   if(tab==='settings')renderSettings();
   if(tab==='archive')renderArchive();
 }
+
+// ✅ PATCH 2: 체크 탭 진입 시 마지막 선택 국가 자동 복원
+function swMobChecklist(el){
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  if(state.selectedRegion && document.getElementById(state.selectedRegion)){
+    document.getElementById(state.selectedRegion).classList.add('on');
+  } else {
+    document.getElementById('checklist').classList.add('on');
+  }
+}
+
 function swPC(el,tab){
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
@@ -570,6 +627,14 @@ function swPanel(tab){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.getElementById(tab)?.classList.add('on');
 }
+
+// ✅ PATCH 2: 체크리스트 국가 선택 시 selectedRegion 저장
+function goChecklist(region){
+  state.selectedRegion = region;
+  save();
+  swPanel(region);
+}
+
 function showSt(msg,type,id='it-st'){
   const el=document.getElementById(id);if(!el)return;
   el.className=`sb sb-${type}`;el.innerHTML=msg;
@@ -602,7 +667,6 @@ function renderTripCard(){
   }
 }
 function renderSettings(){
-  // 카드 영역
   const ca=document.getElementById('settings-card-area');
   if(ca){
     if(state.tripCard){
@@ -612,7 +676,6 @@ function renderSettings(){
       ca.innerHTML=`<div class="trip-card-upload" onclick="document.getElementById('card-file').click()"><i class="ti ti-layout-cards"></i><div class="trip-card-upload-title">여행 카드 업로드</div><div class="trip-card-upload-sub">HTML · JPG · PNG 파일 업로드</div></div><input type="file" id="card-file" accept=".html,.svg,.jpg,.jpeg,.png,.webp,.gif" style="display:none" onchange="handleCardFile(event)">`;
     }
   }
-  // 드라이브
   const da=document.getElementById('settings-drive-area');
   if(da){
     const loggedIn=driveMode==='drive';
@@ -666,8 +729,6 @@ function applyCSVContent(csv){
     state.itinerary=slots;state.expenses=[];activeExpSlot=null;
     updateDaySel();syncHeader();renderItinerary();
     showSt(`<i class="ti ti-check"></i> ${slots.length}개 일정 적용됨`,'ok');save();
-    // 일정 탭으로 이동
-    swMob(document.querySelector('.nav-item'),tabs='itinerary');
     document.querySelectorAll('.nav-item').forEach((b,i)=>{b.classList.toggle('on',i===0);});
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
     document.getElementById('itinerary')?.classList.add('on');
@@ -812,6 +873,7 @@ function openFinish(){
   document.getElementById('finish-modal').classList.remove('hidden');
 }
 function closeFinish(){document.getElementById('finish-modal').classList.add('hidden');}
+
 function confirmFinish(){
   const name=document.getElementById('finish-name').value||'이름 없음';
   const start=document.getElementById('finish-start').value||'',end=document.getElementById('finish-end').value||'';
@@ -820,8 +882,43 @@ function confirmFinish(){
   const pct=total?Math.min(Math.round(ts/total*100),100):0;
   const entry={id:Date.now(),name,start,end,days,currency:state.currency,rate:state.rate,totalRaw:total,spentRaw:Math.round(ts),pct,total:fmt(total),spent:fmt(Math.round(ts)),remain:fmt(total-Math.round(ts)),visitedCount:state.itinerary.filter(s=>s.visited).length,slotCount:state.itinerary.length,expCount:state.expenses.length,finishedAt:new Date().toLocaleDateString('ko-KR'),itinerary:state.itinerary,expenses:state.expenses};
   const arr=loadArchive();arr.push(entry);saveArchive(arr);
-  closeFinish();showSt(`<i class="ti ti-check"></i> "${name}" 아카이브에 저장됐습니다`,'ok');
+
+  // ✅ PATCH 4: 여행 마무리 시 state 완전 초기화 (체크리스트·동행 포함)
+  state={
+    tripName:'',tripStart:'',tripEnd:'',tripCard:'',
+    itinerary:[],expenses:[],
+    currency:'KRW',rate:1,totalBudget:0,cashBudget:0,cardLimit:0,
+    selectedRegion:'',      // 체크리스트 국가 선택 초기화
+    companionType:'solo',   // 동행 유형 초기화
+    companionCount:2,       // 동행 인원 초기화
+    budgetRows:[
+      {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
+      {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
+      {ic:'ti-shopping-bag',nm:'쇼핑',plan:0,cat:'쇼핑'},{ic:'ti-dots',nm:'기타',plan:0,cat:'기타'},
+    ]
+  };
+  ckSt={};  // 체크 상태 전체 초기화
+  save();
+
+  // UI 전체 재렌더링
+  document.getElementById('curr').value='KRW';
+  document.getElementById('rate').value='';
+  document.getElementById('total').value='';
+  document.getElementById('cash').value='';
+  document.getElementById('climit').value='';
+  document.getElementById('ctype').value='solo';
+  updateCurr();buildBRows();syncHeader();updateDaySel();
+  renderItinerary();renderTripCard();
+  Object.keys(checkData).forEach(t=>renderCk(t));
+  renderComp();renderDriveStatus(driveMode==='drive');
+
+  closeFinish();
+  showSt(`<i class="ti ti-check"></i> "${name}" 저장 완료 · 새 여행을 시작하세요 ✈️`,'ok');
+
+  // 드라이브 연동 중이면 초기화된 데이터도 저장
+  if(driveMode==='drive')saveDrive();
 }
+
 function renderArchive(){
   const arr=loadArchive(),el=document.getElementById('arch-list');if(!el)return;
   if(!arr.length){el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--text3)"><i class="ti ti-archive" style="font-size:32px;display:block;margin-bottom:.75rem"></i>완료된 여행 없음</div>`;return;}
@@ -921,7 +1018,11 @@ async function saveDrive(){
     const resp=await gapi.client.request({path,method,params:{uploadType:'multipart'},headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body});
     if(!fid)driveFileId=resp.result.id;
     save();showSt('<i class="ti ti-check"></i> 드라이브에 저장됐습니다','ok','it-st');
-  }catch(e){showSt('<i class="ti ti-alert-circle"></i> 드라이브 저장 실패: '+e.message,'err','it-st');}
+  }catch(e){
+    // ✅ PATCH 3: Drive 저장 실패 메시지 개선 (undefined 방지)
+    const errMsg = e?.message || e?.result?.error?.message || JSON.stringify(e) || '알 수 없는 오류';
+    showSt('<i class="ti ti-alert-circle"></i> 드라이브 저장 실패: '+errMsg,'err','it-st');
+  }
 }
 async function loadFromDrive(){
   if(driveMode!=='drive'||!gapiReady)return;
@@ -937,11 +1038,17 @@ async function loadFromDrive(){
     if(state.totalBudget)document.getElementById('total').value=state.totalBudget;
     if(state.cashBudget)document.getElementById('cash').value=state.cashBudget;
     if(state.cardLimit)document.getElementById('climit').value=state.cardLimit;
+    // ✅ PATCH 2: Drive 로드 후 동행 유형·인원 복원
+    if(state.companionType)document.getElementById('ctype').value=state.companionType;
+    if(state.companionCount)document.getElementById('pcount').value=state.companionCount;
     updateCurr();buildBRows();syncHeader();updateDaySel();
     renderItinerary();renderTripCard();
     Object.keys(checkData).forEach(t=>renderCk(t));renderComp();
     showSt('<i class="ti ti-check"></i> 드라이브에서 불러왔습니다','ok','it-st');
-  }catch(e){showSt('<i class="ti ti-alert-circle"></i> 불러오기 실패: '+e.message,'err','it-st');}
+  }catch(e){
+    const errMsg = e?.message || e?.result?.error?.message || JSON.stringify(e) || '알 수 없는 오류';
+    showSt('<i class="ti ti-alert-circle"></i> 불러오기 실패: '+errMsg,'err','it-st');
+  }
 }
 
 // 체크리스트
@@ -958,7 +1065,8 @@ function renderCk(tid){
   secs.forEach((s,si)=>s.items.forEach((_,ii)=>{total++;if(ckSt[gk(tid,si,ii)])checked++;}));
   const pct=total?Math.round(checked/total*100):0;
   const names={domestic:'국내',japan:'일본',europe:'유럽',sea:'동남아',usa:'미국'};
-  let html=`<div class="section-title"><i class="ti ti-checkbox"></i> ${names[tid]||''} 체크리스트</div><div class="prog-txt">${checked} / ${total} 완료 (${pct}%)</div><div class="prog-bar-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>`;
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem"><div class="section-title" style="margin-bottom:0"><i class="ti ti-checkbox"></i> ${names[tid]||''} 체크리스트</div><button class="btn" style="font-size:12px;min-height:34px;padding:0 12px" onclick="swPanel('checklist')"><i class="ti ti-arrow-left"></i> 목록</button></div>`;
+  html+=`<div class="prog-txt">${checked} / ${total} 완료 (${pct}%)</div><div class="prog-bar-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>`;
   secs.forEach((sec,si)=>{
     html+=`<div class="ck-section"><div class="ck-sec-title"><i class="ti ${sec.i}"></i>${sec.t}</div><div class="ck-list">`;
     sec.items.forEach((item,ii)=>{
@@ -967,6 +1075,20 @@ function renderCk(tid){
       html+=`<div class="cki ${on}" onclick="togCk('${k}','${tid}')"><div class="ckbox"></div><span class="ck-lbl">${item.l}</span>${bdg}</div>`;
     });html+=`</div></div>`;
   });panel.innerHTML=html;
+}
+
+// ✅ PATCH 2: 동행 유형 변경 시 자동저장
+function onCompTypeChange(){
+  state.companionType = document.getElementById('ctype').value;
+  save();
+  renderComp();
+}
+
+// ✅ PATCH 2: 동행 인원 변경 시 자동저장
+function onCompCountChange(){
+  state.companionCount = parseInt(document.getElementById('pcount').value) || 2;
+  save();
+  compInfo();
 }
 
 // 동행
@@ -1021,6 +1143,9 @@ if(state.rate>1)document.getElementById('rate').value=state.rate;
 if(state.totalBudget)document.getElementById('total').value=state.totalBudget;
 if(state.cashBudget)document.getElementById('cash').value=state.cashBudget;
 if(state.cardLimit)document.getElementById('climit').value=state.cardLimit;
+// ✅ PATCH 2: 동행 유형·인원 복원
+if(state.companionType)document.getElementById('ctype').value=state.companionType;
+if(state.companionCount)document.getElementById('pcount').value=state.companionCount;
 updateCurr();buildBRows();
 renderItinerary();renderTripCard();
 Object.keys(checkData).forEach(t=>renderCk(t));
@@ -1031,9 +1156,20 @@ renderComp();renderCarry();renderDriveStatus(driveMode==='drive');
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('service-worker.js')
-      .then(reg=>{   console.log('SW 등록됨:',reg.scope);   reg.addEventListener('updatefound',()=>{     const nw=reg.installing;     nw.addEventListener('statechange',()=>{       if(nw.state==='installed'&&navigator.serviceWorker.controller){         nw.postMessage({type:'SKIP_WAITING'});       }     });   }); })
+      .then(reg=>{
+        console.log('SW 등록됨:',reg.scope);
+        reg.addEventListener('updatefound',()=>{
+          const nw=reg.installing;
+          nw.addEventListener('statechange',()=>{
+            if(nw.state==='installed'&&navigator.serviceWorker.controller){
+              nw.postMessage({type:'SKIP_WAITING'});
+            }
+          });
+        });
+      })
       .catch(err=>console.log('SW 등록 실패:',err));
-  navigator.serviceWorker.addEventListener('controllerchange',()=>{window.location.reload();});});
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{window.location.reload();});
+  });
 }
 window.initGapi=initGapi;
 window.initGis=initGis;
