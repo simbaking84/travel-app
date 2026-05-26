@@ -16,14 +16,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
-<!-- ✅ PATCH 1: 카카오 인앱브라우저 감지 -->
+<!-- ✅ PATCH 1: 카카오 인앱브라우저 감지 — 오류 발생 시에만 배너 표시 -->
 <script>
 (function(){
   var ua = navigator.userAgent || '';
   var isKakao = /KAKAOTALK/i.test(ua);
   if(!isKakao) return;
-  // 카카오 인앱이면 외부 브라우저 유도 배너 삽입
-  document.addEventListener('DOMContentLoaded', function(){
+  // 카카오 인앱이지만 일단 정상 동작 시도, JS 오류 감지 시에만 배너 표시
+  window.addEventListener('error', function onErr(e){
+    if(document.getElementById('kakao-banner')) return; // 이미 표시 중
     var banner = document.createElement('div');
     banner.id = 'kakao-banner';
     banner.style.cssText = [
@@ -33,16 +34,13 @@
       'font-family:sans-serif','box-shadow:0 2px 8px rgba(0,0,0,.2)'
     ].join(';');
     banner.innerHTML = [
-      '<i style="font-size:18px">⚠️</i>',
-      '<span style="flex:1">카카오톡 브라우저에서는 일부 기능이 제한됩니다.<br>',
-      '<b>우측 상단 ···메뉴 → 다른 브라우저로 열기</b>를 이용해 주세요.</span>',
+      '<span style="font-size:18px">⚠️</span>',
+      '<span style="flex:1">카카오톡 브라우저에서 일부 기능에 오류가 발생했어요.<br>',
+      '<b>우측 상단 ··· → 다른 브라우저로 열기</b>를 이용해 주세요.</span>',
       '<button onclick="document.getElementById(\'kakao-banner\').remove()" ',
       'style="background:none;border:none;font-size:18px;cursor:pointer;color:#3C1E1E;padding:4px">✕</button>'
     ].join('');
     document.body.insertBefore(banner, document.body.firstChild);
-    // 콘텐츠 영역 밀어내기
-    var app = document.getElementById('app');
-    if(app) app.style.paddingTop = banner.offsetHeight + 'px';
   });
 })();
 </script>
@@ -323,6 +321,20 @@ select.fi{cursor:pointer}
     <div id="itinerary" class="panel on">
       <div id="it-st" class="sb-h"></div>
       <div id="trip-card-section"></div>
+      <!-- ✅ PATCH 5: 여행 메모장 -->
+      <div id="trip-memo-section" style="margin-bottom:.875rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.375rem">
+          <span style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:5px"><i class="ti ti-notes"></i> 여행 메모</span>
+          <span id="memo-saved-badge" style="font-size:11px;color:var(--green);display:none"><i class="ti ti-check"></i> 저장됨</span>
+        </div>
+        <textarea id="trip-memo-input"
+          placeholder="특이사항, 준비물, 현지 팁 등 자유롭게 메모하세요..."
+          oninput="saveMemo()"
+          style="width:100%;min-height:80px;max-height:200px;resize:vertical;border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);line-height:1.6;transition:border-color .15s;outline:none"
+          onfocus="this.style.borderColor='var(--accent)'"
+          onblur="this.style.borderColor='var(--border)'"
+        ></textarea>
+      </div>
       <div class="mcards">
         <div class="mc"><div class="mc-l">방문 완료</div><div class="mc-v" id="it-visited">0곳</div></div>
         <div class="mc"><div class="mc-l">전체 일정</div><div class="mc-v" id="it-total">0곳</div></div>
@@ -565,6 +577,8 @@ let state={
   selectedRegion: '',        // 마지막으로 선택한 체크리스트 국가
   companionType: 'solo',     // 동행 유형
   companionCount: 2,         // 동행 인원
+  // ✅ PATCH 5: 여행 메모
+  tripMemo: '',
   budgetRows:[
     {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
     {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
@@ -778,12 +792,50 @@ function renderItinerary(){
       const expHtml=se.map(e=>`<div class="sexp"><span class="sexp-nm">${e.nm}</span><span class="sexp-amt">${e.method==='local'||e.method==='card-loc'?fmtL(e.amt,state.currency):fmt(e.amt)}</span><button class="sexp-del" onclick="delExp(${e.id})"><i class="ti ti-x"></i></button></div>`).join('');
       const isActive=activeExpSlot===slot.id;
       const mini=isActive?`<div class="mini-form"><div class="mini-form-title"><i class="ti ti-receipt"></i> 지출 추가</div><div class="r2" style="margin-bottom:6px"><div><label class="fl" style="font-size:11px">가게명</label><input class="mini-fi" id="me-nm-${slot.id}" placeholder="예: 이치란"></div><div><label class="fl" style="font-size:11px">금액</label><input type="number" class="mini-fi" id="me-amt-${slot.id}" step="any"></div><div><label class="fl" style="font-size:11px">결제방식</label><select class="mini-fi" id="me-m-${slot.id}">${miniOpts()}</select></div><div><label class="fl" style="font-size:11px">카테고리</label><select class="mini-fi" id="me-cat-${slot.id}"><option>식비</option><option>교통</option><option>숙소</option><option>관광</option><option>쇼핑</option><option>카페</option><option>기타</option></select></div></div><div class="btns"><button class="btn btn-accent" style="flex:1;min-height:40px;font-size:13px" onclick="confirmExp(${slot.id})"><i class="ti ti-check"></i> 추가</button><button class="btn" style="min-height:40px" onclick="activeExpSlot=null;renderItinerary()"><i class="ti ti-x"></i></button></div></div>`:'';
-      return`<div class="slot"><div class="slot-dot" style="background:${TDOT[slot.time]}"></div><div class="slot-card${slot.visited?' visited':''}"><div class="slot-head"><span class="tband ${TCLS[slot.time]}">${TLAB[slot.time]}</span><span class="slot-ttl">${slot.title}</span><button class="del-slot-btn" onclick="delSlot(${slot.id})"><i class="ti ti-x"></i></button></div>${slot.note?`<div class="slot-note"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> ${slot.note}</div>`:''}${st>0?`<div class="slot-exp-sum">지출 <strong>${fmt(Math.round(st))}</strong></div>`:''}${se.length?`<div class="slot-exps">${expHtml}</div>`:''}${mini}<div class="slot-acts"><button class="vis-btn${slot.visited?' on':''}" onclick="toggleVisit(${slot.id})"><i class="ti ti-${slot.visited?'check':'map-pin'}"></i>${slot.visited?'방문 완료':'방문 체크'}</button>${!isActive?`<button class="exp-btn" onclick="activeExpSlot=${slot.id};renderItinerary()"><i class="ti ti-plus"></i> 지출</button>`:''}</div></div></div>`;
+      return`<div class="slot"><div class="slot-dot" style="background:${TDOT[slot.time]}"></div><div class="slot-card${slot.visited?' visited':''}"><div class="slot-head"><span class="tband ${TCLS[slot.time]}">${TLAB[slot.time]}</span><span class="slot-ttl">${slot.title}</span><button class="del-slot-btn" onclick="delSlot(${slot.id})"><i class="ti ti-x"></i></button></div>${slot.note?`<div class="slot-note"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> ${slot.note}</div>`:''}${st>0?`<div class="slot-exp-sum">지출 <strong>${fmt(Math.round(st))}</strong></div>`:''}${se.length?`<div class="slot-exps">${expHtml}</div>`:''}${mini}<div class="slot-acts"><button class="vis-btn${slot.visited?' on':''}" onclick="toggleVisit(${slot.id})"><i class="ti ti-${slot.visited?'check':'map-pin'}"></i>${slot.visited?'방문 완료':'방문 체크'}</button>${!isActive?`<button class="exp-btn" onclick="activeExpSlot=${slot.id};renderItinerary()"><i class="ti ti-plus"></i> 지출</button>`:''}<select onchange="changeSlotTime(${slot.id},this.value)" style="font-size:11px;height:34px;padding:0 6px;border:1px solid var(--border);border-radius:20px;background:var(--surface2);color:var(--text2);font-family:var(--font);cursor:pointer;appearance:none;text-align:center"><option value="morning"${slot.time==='morning'?' selected':''}>오전</option><option value="afternoon"${slot.time==='afternoon'?' selected':''}>오후</option><option value="evening"${slot.time==='evening'?' selected':''}>저녁</option><option value="allday"${slot.time==='allday'?' selected':''}>종일</option></select><button class="vis-btn" onclick="moveSlot(${slot.id},-1)" title="위로"><i class="ti ti-chevron-up"></i></button><button class="vis-btn" onclick="moveSlot(${slot.id},1)" title="아래로"><i class="ti ti-chevron-down"></i></button></div></div></div>`;
     }).join('');
     return`<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="timeline">${slots}</div></div>`;
   }).join('');
   updateItSummary();
 }
+// ✅ PATCH 5: 여행 메모 저장/렌더링
+let memoTimer=null;
+function saveMemo(){
+  state.tripMemo=document.getElementById('trip-memo-input')?.value||'';
+  save();
+  // 저장됨 배지 잠깐 표시
+  clearTimeout(memoTimer);
+  const badge=document.getElementById('memo-saved-badge');
+  if(badge){badge.style.display='inline';memoTimer=setTimeout(()=>badge.style.display='none',1500);}
+}
+function renderMemo(){
+  const el=document.getElementById('trip-memo-input');
+  if(el&&state.tripMemo)el.value=state.tripMemo;
+}
+
+// ✅ PATCH 2: 슬롯 순서 이동 — 위아래 버튼
+function moveSlot(id, dir){
+  const day = state.itinerary.find(s=>s.id===id)?.day;
+  const ORDER={morning:0,afternoon:1,evening:2,allday:3};
+  const ds = state.itinerary
+    .filter(s=>s.day===day)
+    .sort((a,b)=>ORDER[a.time]-ORDER[b.time]);
+  const idx = ds.findIndex(s=>s.id===id);
+  const swapIdx = idx+dir;
+  if(swapIdx<0||swapIdx>=ds.length) return;
+  // 시간대를 서로 교환
+  const tmp=ds[idx].time;
+  ds[idx].time=ds[swapIdx].time;
+  ds[swapIdx].time=tmp;
+  save();renderItinerary();
+}
+
+// ✅ PATCH 2: 슬롯 시간대 직접 변경
+function changeSlotTime(id, newTime){
+  const s=state.itinerary.find(s=>s.id===id);
+  if(s){s.time=newTime;save();renderItinerary();}
+}
+
 function miniOpts(){const c=state.currency,isK=c==='KRW';return isK?`<option value="krw">원화현금</option><option value="card-krw">카드·원화</option>`:`<option value="krw">원화현금</option><option value="local">현지통화(${c})</option><option value="card-loc">카드·현지(${c})</option><option value="card-krw">카드·원화</option>`;}
 function switchDay(el,day){document.querySelectorAll('.day-tab').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.day-panel').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('dp-'+day)?.classList.add('on');}
 function toggleVisit(id){const s=state.itinerary.find(s=>s.id===id);if(s){s.visited=!s.visited;save();renderItinerary();}}
@@ -890,7 +942,7 @@ function confirmFinish(){
     currency:'KRW',rate:1,totalBudget:0,cashBudget:0,cardLimit:0,
     selectedRegion:'',      // 체크리스트 국가 선택 초기화
     companionType:'solo',   // 동행 유형 초기화
-    companionCount:2,       // 동행 인원 초기화
+    tripMemo: '',           // 메모 초기화
     budgetRows:[
       {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
       {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
@@ -908,7 +960,9 @@ function confirmFinish(){
   document.getElementById('climit').value='';
   document.getElementById('ctype').value='solo';
   updateCurr();buildBRows();syncHeader();updateDaySel();
-  renderItinerary();renderTripCard();
+  renderItinerary();renderTripCard();renderMemo();
+  // 메모 textarea 직접 초기화
+  const memoEl=document.getElementById('trip-memo-input');if(memoEl)memoEl.value='';
   Object.keys(checkData).forEach(t=>renderCk(t));
   renderComp();renderDriveStatus(driveMode==='drive');
 
@@ -1042,7 +1096,7 @@ async function loadFromDrive(){
     if(state.companionType)document.getElementById('ctype').value=state.companionType;
     if(state.companionCount)document.getElementById('pcount').value=state.companionCount;
     updateCurr();buildBRows();syncHeader();updateDaySel();
-    renderItinerary();renderTripCard();
+    renderItinerary();renderTripCard();renderMemo();
     Object.keys(checkData).forEach(t=>renderCk(t));renderComp();
     showSt('<i class="ti ti-check"></i> 드라이브에서 불러왔습니다','ok','it-st');
   }catch(e){
@@ -1147,7 +1201,7 @@ if(state.cardLimit)document.getElementById('climit').value=state.cardLimit;
 if(state.companionType)document.getElementById('ctype').value=state.companionType;
 if(state.companionCount)document.getElementById('pcount').value=state.companionCount;
 updateCurr();buildBRows();
-renderItinerary();renderTripCard();
+renderItinerary();renderTripCard();renderMemo();
 Object.keys(checkData).forEach(t=>renderCk(t));
 renderComp();renderCarry();renderDriveStatus(driveMode==='drive');
 </script>
