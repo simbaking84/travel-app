@@ -5,8 +5,8 @@
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#1a3a8f",
-  "theme_color": "#1a3a8f",
+  "background_color": "#1a3466",
+  "theme_color": "#1a3466",
   "lang": "ko",
   "categories": ["travel", "lifestyle", "utilities"],
   "icons": [
@@ -14,13 +14,25 @@
       "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [],
@@ -30,14 +42,20 @@
       "short_name": "일정",
       "description": "여행 일정 확인",
       "url": "./index.html#itinerary",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        { "src": "icon-shortcut-itinerary-96.png", "sizes": "96x96" },
+        { "src": "icon-shortcut-itinerary-192.png", "sizes": "192x192" }
+      ]
     },
     {
       "name": "지출 기록",
       "short_name": "지출",
       "description": "지출 빠르게 추가",
       "url": "./index.html#budget",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        { "src": "icon-shortcut-budget-96.png", "sizes": "96x96" },
+        { "src": "icon-shortcut-budget-192.png", "sizes": "192x192" }
+      ]
     }
   ]
 }
