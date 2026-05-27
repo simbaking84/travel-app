@@ -1,6 +1,6 @@
 self.addEventListener('message',event=>{
   if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting();
-});const CACHE_NAME = 'travel-planner-v7';
+});const CACHE_NAME = 'travel-planner-v8';
 const STATIC_ASSETS = [
   './',
   './index.html',
