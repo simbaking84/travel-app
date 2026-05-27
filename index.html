@@ -68,6 +68,17 @@
   --carry-amber-bg:rgba(251,191,36,.08);--carry-amber-text:#fcd34d;--carry-amber-border:rgba(251,191,36,.2);
   --carry-green-bg:rgba(74,222,128,.08);--carry-green-text:#86efac;--carry-green-border:rgba(74,222,128,.2);
 }}
+/* 밝은 테마 강제 적용 — 다크모드 시스템 설정 무시 */
+[data-theme="light"]{
+  --bg:#f8f7f4 !important;--surface:#ffffff !important;--surface2:#f1f0ec !important;--surface3:#e8e6e0 !important;
+  --border:#e0ddd6 !important;--border2:#ccc9c0 !important;
+  --text:#1a1a1a !important;--text2:#6b6560 !important;--text3:#a09890 !important;
+  --accent:#c8963e !important;--accent2:#a67830 !important;
+  --green:#16a34a !important;--red:#dc2626 !important;--blue:#2563eb !important;--purple:#7c3aed !important;--orange:#ea580c !important;
+  --carry-red-bg:#fee2e2 !important;--carry-red-text:#991b1b !important;--carry-red-border:#fca5a5 !important;
+  --carry-amber-bg:#fef3c7 !important;--carry-amber-text:#92400e !important;--carry-amber-border:#fcd34d !important;
+  --carry-green-bg:#dcfce7 !important;--carry-green-text:#166534 !important;--carry-green-border:#86efac !important;
+}
 [data-theme="dark"]{
   --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
   --border:#333;--border2:#404040;
@@ -306,7 +317,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.13</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.17</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -317,7 +328,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.13</span></div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.17</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -850,7 +861,7 @@ function applyJSON(raw){
 
 // 헤더
 function syncHeader(){
-  const APP_VER='v1.13';
+  const APP_VER='v1.17';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
   document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
@@ -869,7 +880,7 @@ function renderItinerary(){
     const ds=state.itinerary.filter(s=>s.day===i),vc=ds.filter(s=>s.visited).length;
     const badge=ds.length?` <span style="font-size:10px;opacity:.6">${vc}/${ds.length}</span>`:'';
     return`<button class="day-tab${i===activeDay?' on':''}" data-day="${i}" onclick="switchDay(this,${i})">${i+1}일차${badge}</button>`;
-  }).join('')+(state.currency!=='KRW'?`<button class="day-tab" style="background:rgba(96,165,250,.15);color:var(--blue);border-color:rgba(96,165,250,.3)" onclick="openDayRoute(${parseInt(document.querySelector('.day-tab.on')?.dataset.day||'0')})"><i class="ti ti-map-route"></i> 동선 보기</button>`:'');
+  }).join('');
   panelsEl.innerHTML=Array.from({length:days},(_,i)=>{
     const ds=state.itinerary.filter(s=>s.day===i).sort((a,b)=>(a.order??0)-(b.order??0));
     if(!ds.length)return`<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="empty-day"><i class="ti ti-calendar-off"></i>일정 없음<br><span style="font-size:12px">설정 탭에서 CSV를 업로드하세요</span></div></div>`;
@@ -1061,16 +1072,21 @@ function calcBudget(){
   state.rate=getRate();state.totalBudget=parseInt(document.getElementById('total')?.value)||0;
   state.cashBudget=parseFloat(document.getElementById('cash')?.value)||0;state.cardLimit=parseInt(document.getElementById('climit')?.value)||0;
   const total=state.totalBudget,c=state.currency,isK=c==='KRW',r=state.rate;
+  const cashKRW=isK?state.cashBudget:Math.round(state.cashBudget*r); // 현지통화 예산을 원화로 환산
   let planned=0,skrw=0,sloc=0,scloc=0,sckrw=0;
   document.querySelectorAll('.pi').forEach(inp=>planned+=parseInt(inp.value)||0);
   state.expenses.forEach(e=>{const v=parseFloat(e.amt)||0,m=e.method;if(m==='krw')skrw+=v;else if(m==='local')sloc+=v;else if(m==='card-loc')scloc+=v;else if(m==='card-krw')sckrw+=v;});
   const lkrw=isK?0:(sloc+scloc)*r,spent=skrw+sckrw+lkrw,remain=total-spent;
+  // 현지통화 잔액 계산
+  const cashRemain=isK?((state.cashBudget||0)-skrw-sloc):((state.cashBudget||0)-(sloc+scloc));
   document.getElementById('s-total').textContent=fmt(total);document.getElementById('s-plan').textContent=fmt(planned);
   document.getElementById('s-spent').textContent=fmt(Math.round(spent));document.getElementById('s-sub').textContent=state.expenses.length?`${state.expenses.length}건`:'';
   const re=document.getElementById('s-remain');re.textContent=fmt(Math.round(remain));re.className='mc-v'+(remain<0?' over':total>0?' ok':'');
   document.getElementById('v-krw').textContent=fmt(skrw);document.getElementById('v-ckrw').textContent=fmt(sckrw);
   if(!isK){
-    document.getElementById('lbl-loc').textContent=`현지통화(${c})`;document.getElementById('v-loc').textContent=fmtL(sloc,c);document.getElementById('sub-loc').textContent=r?`≈ ${fmt(Math.round(sloc*r))}`:'';
+    document.getElementById('lbl-loc').textContent=`현지통화(${c})`;
+    document.getElementById('v-loc').textContent=fmtL(sloc,c);
+    document.getElementById('sub-loc').textContent=r?`≈ ${fmt(Math.round(sloc*r))}${state.cashBudget?` / 예산 ${fmtL(state.cashBudget,c)} 잔액 ${fmtL(Math.max(0,cashRemain),c)}`:''}`:'' ;
     document.getElementById('lbl-cloc').textContent=`카드·현지(${c})`;document.getElementById('v-cloc').textContent=fmtL(scloc,c);document.getElementById('sub-cloc').textContent=r?`≈ ${fmt(Math.round(scloc*r))}`:'';
   }else{
     document.getElementById('lbl-loc').textContent='원화현금';document.getElementById('v-loc').textContent=fmt(sloc);document.getElementById('sub-loc').textContent='';
@@ -1318,7 +1334,10 @@ function driveLogout(){
 function renderDriveStatus(loggedIn){
   const el=document.getElementById('drive-status-bar');if(!el)return;
   if(loggedIn){
-    el.innerHTML=`<span style="color:var(--green);display:flex;align-items:center;gap:6px"><i class="ti ti-brand-google-drive"></i> 드라이브 연동 중</span><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;margin-left:auto" onclick="saveDrive()"><i class="ti ti-device-floppy"></i> 저장</button><button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--text3)" onclick="driveLogout()">해제</button>`;
+    el.innerHTML=`<span style="color:var(--green);display:flex;align-items:center;gap:6px"><i class="ti ti-brand-google-drive"></i> 드라이브 연동 중</span>
+    <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;margin-left:auto" onclick="loadFromDrive()"><i class="ti ti-cloud-download"></i> 불러오기</button>
+    <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px" onclick="saveDrive()"><i class="ti ti-device-floppy"></i> 저장</button>
+    <button class="btn" style="font-size:11px;min-height:30px;padding:0 10px;color:var(--text3)" onclick="driveLogout()">해제</button>`;
     el.style.background='rgba(74,222,128,.08)';el.style.borderColor='rgba(74,222,128,.2)';
   }else{
     el.innerHTML=`<span style="color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-brand-google-drive"></i> 로컬 저장 중</span><button class="btn btn-accent" style="font-size:11px;min-height:30px;padding:0 12px;margin-left:auto" onclick="driveLogin()"><i class="ti ti-login"></i> 드라이브 연동</button>`;
