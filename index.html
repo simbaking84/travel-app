@@ -277,6 +277,25 @@ select.fi{cursor:pointer}
   /* PC에서 목록 버튼 숨김 */
   .mob-only{display:none !important}
 }
+/* 태블릿 가로모드 (720px~1024px) */
+@media(min-width:720px) and (max-width:1024px){
+  #sidebar{width:180px}
+  .sidebar-logo{font-size:14px;padding:.5rem 1rem 1rem}
+  .sidebar-item{padding:.5rem 1rem;font-size:12px}
+  .sidebar-section{padding:.5rem 1rem .25rem;font-size:10px}
+  .panel{padding:1rem 1.25rem;max-width:100%}
+  .mcards{grid-template-columns:repeat(2,1fr)}
+}
+/* 태블릿 세로모드 — 모바일처럼 하단 탭 */
+@media(min-width:720px) and (max-width:1024px) and (orientation:portrait){
+  #app{flex-direction:column}
+  #header{display:flex}
+  #bottom-nav{display:block}
+  #sidebar{display:none}
+  .mob-only{display:inline-flex !important}
+  .panel{padding:1rem}
+  .mcards{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:719px){#sidebar{display:none}}
 </style>
 </head>
@@ -287,7 +306,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.11</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.12</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -298,7 +317,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.11</span></div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.12</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -831,7 +850,7 @@ function applyJSON(raw){
 
 // 헤더
 function syncHeader(){
-  const APP_VER='v1.11';
+  const APP_VER='v1.12';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
   document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
