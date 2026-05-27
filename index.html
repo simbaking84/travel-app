@@ -287,7 +287,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.10</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.11</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -298,7 +298,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.10</span></div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.11</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -831,7 +831,7 @@ function applyJSON(raw){
 
 // 헤더
 function syncHeader(){
-  const APP_VER='v1.10';
+  const APP_VER='v1.11';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
   document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
@@ -863,7 +863,7 @@ function renderItinerary(){
       // 이동/교통 슬롯 감지 → 지도 아이콘 숨김
       const isTransit=/공항|출발|도착|탑승|이동|환승|버스|기차|지하철|택시|페리|선착장/i.test(slot.title);
       const mapBtn=isTransit?'':` <i class="ti ti-map-pin" onclick="openMap('${slot.title.replace(/'/g,"\\'")}','${(slot.note||'').replace(/'/g,"\\'")}')" style="font-size:16px;color:var(--text3);cursor:pointer;vertical-align:-2px;margin-left:4px" title="지도에서 검색"></i>`;
-      return`<div class="slot"><div class="slot-dot" style="background:${TDOT[slot.time]}"></div><div class="slot-card${slot.visited?' visited':''}"><div class="slot-head"><span class="tband ${TCLS[slot.time]}">${TLAB[slot.time]}</span><span class="slot-ttl" onpointerdown="startSlotEdit(${slot.id},this)" onpointerup="endSlotEdit()" onpointerleave="endSlotEdit()" style="${slot.visited?'text-decoration:line-through;color:var(--text2)':''}">${slot.title}${mapBtn}</span><button class="del-slot-btn" onpointerdown="startPress(()=>delSlot(${slot.id}),this)" onpointerup="endPress()" onpointerleave="endPress()" title="길게 눌러서 삭제"><i class="ti ti-x"></i></button></div>${slot.note?`<div class="slot-note"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> ${slot.note}</div>`:''}${st>0?`<div class="slot-exp-sum">지출 <strong>${fmt(Math.round(st))}</strong></div>`:''}${se.length?`<div class="slot-exps">${expHtml}</div>`:''}${mini}<div class="slot-acts"><button class="vis-btn${slot.visited?' on':''}" onclick="toggleVisit(${slot.id})"><i class="ti ti-${slot.visited?'check':'map-pin'}"></i>${slot.visited?'방문 완료':'방문 체크'}</button>${!isActive?`<button class="exp-btn" onclick="activeExpSlot=${slot.id};renderItinerary()"><i class="ti ti-plus"></i> 지출</button>`:''}<select onchange="changeSlotTime(${slot.id},this.value)" style="font-size:11px;height:34px;padding:0 6px;border:1px solid var(--border);border-radius:20px;background:var(--surface2);color:var(--text2);font-family:var(--font);cursor:pointer;appearance:none;text-align:center"><option value="morning"${slot.time==='morning'?' selected':''}>오전</option><option value="afternoon"${slot.time==='afternoon'?' selected':''}>오후</option><option value="evening"${slot.time==='evening'?' selected':''}>저녁</option><option value="allday"${slot.time==='allday'?' selected':''}>종일</option></select><button class="vis-btn" onclick="moveSlot(${slot.id},-1)" title="위로"><i class="ti ti-chevron-up"></i></button><button class="vis-btn" onclick="moveSlot(${slot.id},1)" title="아래로"><i class="ti ti-chevron-down"></i></button></div></div></div>`;
+      return`<div class="slot"><div class="slot-dot" style="background:${TDOT[slot.time]}"></div><div class="slot-card${slot.visited?' visited':''}"><div class="slot-head"><span class="tband ${TCLS[slot.time]}">${TLAB[slot.time]}</span><span class="slot-ttl" onpointerdown="startSlotEdit(${slot.id},this)" onpointerup="endSlotEdit()" onpointerleave="endSlotEdit()" style="${slot.visited?'text-decoration:line-through;color:var(--text2)':''}">${slot.title}${mapBtn}</span><button class="del-slot-btn" onpointerdown="startPress(()=>delSlot(${slot.id}),this)" onpointerup="endPress()" onpointerleave="endPress()" title="길게 눌러서 삭제"><i class="ti ti-x"></i></button></div>${slot.note?`<div class="slot-note" onpointerdown="startNoteEdit(${slot.id},this)" onpointerup="endSlotEdit()" onpointerleave="endSlotEdit()" style="cursor:pointer" title="길게 눌러서 수정"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> ${slot.note}</div>`:''}${st>0?`<div class="slot-exp-sum">지출 <strong>${fmt(Math.round(st))}</strong></div>`:''}${se.length?`<div class="slot-exps">${expHtml}</div>`:''}${mini}<div class="slot-acts"><button class="vis-btn${slot.visited?' on':''}" onclick="toggleVisit(${slot.id})"><i class="ti ti-${slot.visited?'check':'map-pin'}"></i>${slot.visited?'방문 완료':'방문 체크'}</button>${!isActive?`<button class="exp-btn" onclick="activeExpSlot=${slot.id};renderItinerary()"><i class="ti ti-plus"></i> 지출</button>`:''}<select onchange="changeSlotTime(${slot.id},this.value)" style="font-size:11px;height:34px;padding:0 6px;border:1px solid var(--border);border-radius:20px;background:var(--surface2);color:var(--text2);font-family:var(--font);cursor:pointer;appearance:none;text-align:center"><option value="morning"${slot.time==='morning'?' selected':''}>오전</option><option value="afternoon"${slot.time==='afternoon'?' selected':''}>오후</option><option value="evening"${slot.time==='evening'?' selected':''}>저녁</option><option value="allday"${slot.time==='allday'?' selected':''}>종일</option></select><button class="vis-btn" onclick="moveSlot(${slot.id},-1)" title="위로"><i class="ti ti-chevron-up"></i></button><button class="vis-btn" onclick="moveSlot(${slot.id},1)" title="아래로"><i class="ti ti-chevron-down"></i></button></div></div></div>`;
     }).join('');
     return`<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="timeline">${slots}</div></div>`;
   }).join('');
@@ -894,7 +894,7 @@ function openMap(title, note=''){
   }
 }
 
-// ✅ 장소명 길게 누르기 → 수정
+// ✅ 장소명 길게 누르기 → 제목+메모 동시 수정
 let _slotEditTimer=null;
 function startSlotEdit(id, el){
   _slotEditTimer=setTimeout(()=>{
@@ -909,6 +909,16 @@ function startSlotEdit(id, el){
   },600);
 }
 function endSlotEdit(){clearTimeout(_slotEditTimer);}
+
+// ✅ 메모 부분 길게 누르기 → 메모만 수정
+function startNoteEdit(id, el){
+  _slotEditTimer=setTimeout(()=>{
+    navigator.vibrate&&navigator.vibrate(30);
+    const slot=state.itinerary.find(s=>s.id===id);if(!slot)return;
+    const newNote=prompt('메모 수정', slot.note||'');
+    if(newNote!==null){slot.note=newNote.trim();save();renderItinerary();}
+  },600);
+}
 
 function openDayRoute(day){
   const ORDER={morning:0,afternoon:1,evening:2,allday:3};
