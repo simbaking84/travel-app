@@ -306,7 +306,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.12</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.13</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -317,7 +317,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.12</span></div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.13</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -816,9 +816,9 @@ function applyCSVContent(csv){
     const header=lines[0].split(',').map(h=>h.trim().replace(/^["']|["']$/g,'').toLowerCase());
     const di=header.indexOf('day'),ti=header.indexOf('time'),tli=header.indexOf('title'),ni=header.indexOf('note');
     if(di<0||ti<0||tli<0){showSt('<i class="ti ti-alert-circle"></i> day, time, title 열이 필요합니다','err');return;}
-    const slots=lines.slice(1).map(line=>{
+    const slots=lines.slice(1).map((line,idx)=>{
       const cols=line.split(',').map(c=>c.trim().replace(/^["']|["']$/g,''));
-      return{id:Date.now()+Math.random(),day:parseInt(cols[di])||0,time:cols[ti]||'morning',title:cols[tli]||'',note:ni>=0?cols[ni]||'':'',visited:false};
+      return{id:Date.now()+Math.random(),day:parseInt(cols[di])||0,time:cols[ti]||'morning',title:cols[tli]||'',note:ni>=0?cols[ni]||'':'',visited:false,order:idx};
     }).filter(s=>s.title);
     state.itinerary=slots;state.expenses=[];activeExpSlot=null;
     updateDaySel();syncHeader();renderItinerary();
@@ -850,7 +850,7 @@ function applyJSON(raw){
 
 // 헤더
 function syncHeader(){
-  const APP_VER='v1.12';
+  const APP_VER='v1.13';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
   document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
@@ -871,7 +871,7 @@ function renderItinerary(){
     return`<button class="day-tab${i===activeDay?' on':''}" data-day="${i}" onclick="switchDay(this,${i})">${i+1}일차${badge}</button>`;
   }).join('')+(state.currency!=='KRW'?`<button class="day-tab" style="background:rgba(96,165,250,.15);color:var(--blue);border-color:rgba(96,165,250,.3)" onclick="openDayRoute(${parseInt(document.querySelector('.day-tab.on')?.dataset.day||'0')})"><i class="ti ti-map-route"></i> 동선 보기</button>`:'');
   panelsEl.innerHTML=Array.from({length:days},(_,i)=>{
-    const ds=state.itinerary.filter(s=>s.day===i).sort((a,b)=>({morning:0,afternoon:1,evening:2,allday:3}[a.time]-{morning:0,afternoon:1,evening:2,allday:3}[b.time]));
+    const ds=state.itinerary.filter(s=>s.day===i).sort((a,b)=>(a.order??0)-(b.order??0));
     if(!ds.length)return`<div id="dp-${i}" class="day-panel${i===activeDay?' on':''}"><div class="empty-day"><i class="ti ti-calendar-off"></i>일정 없음<br><span style="font-size:12px">설정 탭에서 CSV를 업로드하세요</span></div></div>`;
     const slots=ds.map(slot=>{
       const se=state.expenses.filter(e=>e.slotId===slot.id);
@@ -972,20 +972,19 @@ function renderMemo(){
   if(el&&state.tripMemo)el.value=state.tripMemo;
 }
 
-// ✅ PATCH 2: 슬롯 순서 이동 — 위아래 버튼
+// ✅ order 필드 기반 순서 이동
 function moveSlot(id, dir){
   const day = state.itinerary.find(s=>s.id===id)?.day;
-  const ORDER={morning:0,afternoon:1,evening:2,allday:3};
   const ds = state.itinerary
     .filter(s=>s.day===day)
-    .sort((a,b)=>ORDER[a.time]-ORDER[b.time]);
+    .sort((a,b)=>(a.order??0)-(b.order??0));
   const idx = ds.findIndex(s=>s.id===id);
   const swapIdx = idx+dir;
   if(swapIdx<0||swapIdx>=ds.length) return;
-  // 시간대를 서로 교환
-  const tmp=ds[idx].time;
-  ds[idx].time=ds[swapIdx].time;
-  ds[swapIdx].time=tmp;
+  // order 값 교환
+  const tmpOrder=ds[idx].order??idx;
+  ds[idx].order=ds[swapIdx].order??swapIdx;
+  ds[swapIdx].order=tmpOrder;
   save();renderItinerary();
 }
 
@@ -1019,7 +1018,8 @@ function delExp(id){state.expenses=state.expenses.filter(e=>e.id!==id);save();re
 function addSlot(){
   const day=parseInt(document.getElementById('nd-day').value)||0;
   const title=(document.getElementById('nd-title').value||'').trim();if(!title)return;
-  state.itinerary.push({id:Date.now(),day,time:document.getElementById('nd-time').value,title,note:document.getElementById('nd-note').value.trim(),visited:false});
+  const maxOrder=Math.max(-1,...state.itinerary.filter(s=>s.day===day).map(s=>s.order??0));
+  state.itinerary.push({id:Date.now(),day,time:document.getElementById('nd-time').value,title,note:document.getElementById('nd-note').value.trim(),visited:false,order:maxOrder+1});
   document.getElementById('nd-title').value='';document.getElementById('nd-note').value='';
   save();renderItinerary();
 }
