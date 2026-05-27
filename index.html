@@ -285,7 +285,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display">일정을 업로드해 주세요</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.8.0</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -296,7 +296,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너</div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.8.0</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -308,7 +308,8 @@ select.fi{cursor:pointer}
     <button class="sidebar-item" onclick="swPC(this,'usa')"><i class="ti ti-building-skyscraper"></i> 미국</button>
     <div class="sidebar-section">특화</div>
     <button class="sidebar-item" onclick="swPC(this,'companion')"><i class="ti ti-users"></i> 동행 유형</button>
-    <button class="sidebar-item" onclick="swPC(this,'carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
+    <button class="sidebar-item" onclick="swPCChecklist(this,'carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
+    <button class="sidebar-item" onclick="swPCChecklist(this,'shopping')"><i class="ti ti-shopping-bag"></i> 쇼핑 리스트</button>
     <div class="sidebar-section">기록</div>
     <button class="sidebar-item" onclick="swPC(this,'archive');renderArchive()"><i class="ti ti-archive"></i> 여행 아카이브</button>
     <div class="sidebar-section">설정</div>
@@ -415,15 +416,37 @@ select.fi{cursor:pointer}
     <!-- 체크리스트 -->
     <div id="checklist" class="panel">
       <div class="section-title"><i class="ti ti-checkbox"></i> 체크리스트</div>
+      <!-- ✅ PATCH 8: 기내반입 안내 상단 고정 -->
+      <div style="background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.25);border-radius:var(--r);padding:.75rem;margin-bottom:.875rem">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><i class="ti ti-luggage" style="color:var(--orange);font-size:16px"></i><span style="font-size:13px;font-weight:600;color:var(--orange)">기내 반입 금지 주요 품목</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px">
+          <span style="background:rgba(248,113,113,.15);color:var(--red);padding:2px 8px;border-radius:10px">100ml 초과 액체</span>
+          <span style="background:rgba(248,113,113,.15);color:var(--red);padding:2px 8px;border-radius:10px">날카로운 도구</span>
+          <span style="background:rgba(248,113,113,.15);color:var(--red);padding:2px 8px;border-radius:10px">160Wh 초과 배터리</span>
+          <span style="background:rgba(251,191,36,.15);color:var(--orange);padding:2px 8px;border-radius:10px">보조배터리 위탁금지</span>
+          <span style="background:rgba(74,222,128,.15);color:var(--green);padding:2px 8px;border-radius:10px">100ml이하 1L지퍼백</span>
+        </div>
+        <button onclick="state.selectedRegion='carry';save();swPanel('carry');renderCarry();" style="margin-top:.5rem;font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;font-family:var(--font)">전체 보기 →</button>
+      </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('domestic')"><i class="ti ti-home"></i> 국내여행</button>
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('japan')"><i class="ti ti-torii"></i> 일본</button>
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('europe')"><i class="ti ti-camera"></i> 유럽</button>
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('sea')"><i class="ti ti-trekking"></i> 동남아</button>
         <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('usa')"><i class="ti ti-building-skyscraper"></i> 미국</button>
-        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="swPanel('carry')"><i class="ti ti-luggage"></i> 기내 반입금지</button>
+        <!-- ✅ PATCH 7: 쇼핑 리스트 버튼 추가 -->
+        <button class="btn btn-surface" style="justify-content:flex-start;gap:12px;font-size:14px" onclick="goChecklist('shopping')"><i class="ti ti-shopping-bag"></i> 쇼핑 리스트</button>
       </div>
     </div>
+    <div id="domestic" class="panel"></div>
+    <div id="japan" class="panel"></div>
+    <div id="europe" class="panel"></div>
+    <div id="sea" class="panel"></div>
+    <div id="usa" class="panel"></div>
+    <!-- ✅ PATCH 7: 쇼핑 리스트 패널 -->
+    <div id="shopping" class="panel"></div>
+    <!-- ✅ PATCH 7: 쇼핑 리스트 패널 -->
+    <div id="shopping" class="panel"></div>
     <div id="domestic" class="panel"></div>
     <div id="japan" class="panel"></div>
     <div id="europe" class="panel"></div>
@@ -456,7 +479,10 @@ select.fi{cursor:pointer}
 
     <!-- 기내반입 -->
     <div id="carry" class="panel">
-      <div class="section-title"><i class="ti ti-luggage"></i> 기내 반입 금지 물품</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+        <div class="section-title" style="margin-bottom:0"><i class="ti ti-luggage"></i> 기내 반입 금지 물품</div>
+        <button class="btn" style="font-size:12px;min-height:34px;padding:0 12px" onclick="swPanel('checklist')"><i class="ti ti-arrow-left"></i> 목록</button>
+      </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:.875rem">항공사·노선마다 다를 수 있습니다. 출발 전 항공사 공식 사이트에서 재확인하세요.</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.875rem">
         <span class="carry-item c-red" style="padding:2px 10px;margin-bottom:0">반입 금지</span>
@@ -465,6 +491,7 @@ select.fi{cursor:pointer}
       </div>
       <div class="carry-grid" id="carry-c"></div>
     </div>
+
 
     <!-- 아카이브 -->
     <div id="archive" class="panel">
@@ -510,13 +537,21 @@ select.fi{cursor:pointer}
       <!-- 일정 CSV -->
       <div class="setting-section">
         <div class="setting-section-title">일정 CSV</div>
+        <!-- ✅ PATCH 6: CSV 양식 다운로드 버튼 추가 -->
+        <button class="btn btn-surface btn-full" onclick="downloadCSVTemplate()"><i class="ti ti-download"></i> 일정 CSV 양식 다운로드</button>
         <div class="upload-zone" onclick="document.getElementById('settings-csv-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleSettingsDrop(event)">
           <i class="ti ti-table-import"></i>
           <div class="upload-title">CSV 파일 업로드</div>
           <div class="upload-sub">day, time, title, note 형식</div>
           <input type="file" id="settings-csv-file" accept=".csv,.json" style="display:none" onchange="handleSettingsFileInput(event)">
         </div>
-        <button class="btn btn-surface btn-full" onclick="exportCurrentCSV()"><i class="ti ti-download"></i> 지출 CSV 내보내기</button>
+      </div>
+
+      <!-- 일정 공유 -->
+      <div class="setting-section">
+        <div class="setting-section-title">일정 공유</div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:.875rem">일정과 여행 카드를 파일로 내보내서 동행자에게 공유하세요. 예산·지출·체크리스트는 포함되지 않습니다.</p>
+        <button class="btn btn-accent btn-full" onclick="exportShareFile()"><i class="ti ti-share"></i> 일정 공유 파일 내보내기</button>
       </div>
 
       <!-- Google Drive -->
@@ -554,6 +589,8 @@ select.fi{cursor:pointer}
       <div><label class="fl">귀국일</label><input type="date" class="fi" id="finish-end"></div>
     </div>
     <div id="finish-summary" style="background:var(--surface2);border-radius:var(--r);padding:.75rem;font-size:13px;color:var(--text2);margin-bottom:1rem"></div>
+    <!-- ✅ PATCH 10: 한줄평 입력 -->
+    <div class="r1"><label class="fl">한줄평 <span style="color:var(--text3)">(선택)</span></label><input class="fi" id="finish-review" placeholder="예: 맥주와 테바사키의 도시, 꼭 다시 오고싶다"></div>
     <div class="btns">
       <button class="btn" style="flex:1" onclick="closeFinish()">취소</button>
       <button class="btn btn-accent" style="flex:2" onclick="confirmFinish()"><i class="ti ti-check"></i> 아카이브에 저장</button>
@@ -579,6 +616,8 @@ let state={
   companionCount: 2,         // 동행 인원
   // ✅ PATCH 5: 여행 메모
   tripMemo: '',
+  // ✅ PATCH 7: 쇼핑 리스트
+  shoppingList: [],
   budgetRows:[
     {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
     {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
@@ -636,6 +675,17 @@ function swPC(el,tab){
   el.classList.add('on');document.getElementById(tab)?.classList.add('on');
   if(tab==='settings')renderSettings();
   if(tab==='archive')renderArchive();
+  // PC에서 체크리스트 국가 직접 클릭 시 렌더링
+  if(['domestic','japan','europe','sea','usa'].includes(tab))renderCk(tab);
+}
+// ✅ PC 사이드바에서 기내반입/쇼핑리스트 직접 접근
+function swPCChecklist(el,tab){
+  document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById(tab)?.classList.add('on');
+  if(tab==='carry')renderCarry();
+  if(tab==='shopping')renderShopping();
 }
 function swPanel(tab){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
@@ -647,6 +697,8 @@ function goChecklist(region){
   state.selectedRegion = region;
   save();
   swPanel(region);
+  if(region==='shopping')renderShopping();
+  if(region==='carry')renderCarry();
 }
 
 function showSt(msg,type,id='it-st'){
@@ -751,22 +803,29 @@ function applyCSVContent(csv){
 function applyJSON(raw){
   try{
     const d=JSON.parse(raw);
-    state.itinerary=(d.itinerary||[]).map(s=>({...s,id:s.id||Date.now()+Math.random(),visited:s.visited||false}));
-    state.expenses=d.expenses||[];
-    if(d.name)state.tripName=d.name;if(d.start)state.tripStart=d.start;if(d.end)state.tripEnd=d.end;
+    // ✅ 공유 파일 처리 (_type: travel_share)
+    const isShare=d._type==='travel_share';
+    state.itinerary=(d.itinerary||[]).map(s=>({...s,id:s.id||Date.now()+Math.random(),visited:false}));
+    state.expenses=isShare?[]:d.expenses||[];
+    if(d.name)state.tripName=d.name;
+    if(d.start)state.tripStart=d.start;
+    if(d.end)state.tripEnd=d.end;
+    if(d.tripCard)state.tripCard=d.tripCard;
     if(d.currency){state.currency=d.currency;document.getElementById('curr').value=d.currency;}
     if(d.rate){state.rate=d.rate;document.getElementById('rate').value=d.rate;}
     if(d.totalRaw){state.totalBudget=d.totalRaw;document.getElementById('total').value=d.totalRaw;}
-    updateCurr();updateDaySel();syncHeader();renderItinerary();
-    showSt(`<i class="ti ti-check"></i> JSON 일정 적용됨`,'ok');save();
+    updateCurr();updateDaySel();syncHeader();renderItinerary();renderTripCard();
+    const msg=isShare?'공유 일정 적용됨 — 방문 체크와 지출은 각자 입력하세요':'JSON 일정 적용됨';
+    showSt(`<i class="ti ti-check"></i> ${msg}`,'ok');save();
   }catch(e){showSt('<i class="ti ti-alert-circle"></i> JSON 오류: '+e.message,'err');}
 }
 
 // 헤더
 function syncHeader(){
+  const APP_VER='v1.8.0';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
-  document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:'일정을 업로드해 주세요';
+  document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
 }
 function updateDaySel(){
   const sel=document.getElementById('nd-day');if(!sel)return;
@@ -942,10 +1001,26 @@ function closeFinish(){document.getElementById('finish-modal').classList.add('hi
 function confirmFinish(){
   const name=document.getElementById('finish-name').value||'이름 없음';
   const start=document.getElementById('finish-start').value||'',end=document.getElementById('finish-end').value||'';
+  const review=document.getElementById('finish-review')?.value||'';
   const ts=state.expenses.reduce((a,e)=>a+toKRW(parseFloat(e.amt)||0,e.method),0),total=state.totalBudget||0;
   const days=start&&end?String(Math.round((new Date(end)-new Date(start))/86400000)):'';
   const pct=total?Math.min(Math.round(ts/total*100),100):0;
-  const entry={id:Date.now(),name,start,end,days,currency:state.currency,rate:state.rate,totalRaw:total,spentRaw:Math.round(ts),pct,total:fmt(total),spent:fmt(Math.round(ts)),remain:fmt(total-Math.round(ts)),visitedCount:state.itinerary.filter(s=>s.visited).length,slotCount:state.itinerary.length,expCount:state.expenses.length,finishedAt:new Date().toLocaleDateString('ko-KR'),itinerary:state.itinerary,expenses:state.expenses};
+  // ✅ PATCH 10/11/17: 한줄평, 여행카드, 동행, 메모, 쇼핑리스트 포함
+  const entry={
+    id:Date.now(),name,start,end,days,review,
+    tripCard:state.tripCard||'',
+    currency:state.currency,rate:state.rate,
+    totalRaw:total,spentRaw:Math.round(ts),pct,
+    total:fmt(total),spent:fmt(Math.round(ts)),remain:fmt(total-Math.round(ts)),
+    visitedCount:state.itinerary.filter(s=>s.visited).length,
+    slotCount:state.itinerary.length,expCount:state.expenses.length,
+    finishedAt:new Date().toLocaleDateString('ko-KR'),
+    companionType:state.companionType||'solo',
+    companionCount:state.companionCount||1,
+    tripMemo:state.tripMemo||'',
+    shoppingList:state.shoppingList||[],
+    itinerary:state.itinerary,expenses:state.expenses
+  };
   const arr=loadArchive();arr.push(entry);saveArchive(arr);
 
   // ✅ PATCH 4: 여행 마무리 시 state 완전 초기화 (체크리스트·동행 포함)
@@ -956,6 +1031,7 @@ function confirmFinish(){
     selectedRegion:'',      // 체크리스트 국가 선택 초기화
     companionType:'solo',   // 동행 유형 초기화
     tripMemo: '',           // 메모 초기화
+    shoppingList: [],       // 쇼핑 리스트 초기화
     budgetRows:[
       {ic:'ti-soup',nm:'식비',plan:0,cat:'식비'},{ic:'ti-building',nm:'숙소',plan:0,cat:'숙소'},
       {ic:'ti-train',nm:'교통',plan:0,cat:'교통'},{ic:'ti-ticket',nm:'관광·입장료',plan:0,cat:'관광'},
@@ -973,9 +1049,10 @@ function confirmFinish(){
   document.getElementById('climit').value='';
   document.getElementById('ctype').value='solo';
   updateCurr();buildBRows();syncHeader();updateDaySel();
-  renderItinerary();renderTripCard();renderMemo();
+  renderItinerary();renderTripCard();renderMemo();renderShopping();
   // 메모 textarea 직접 초기화
   const memoEl=document.getElementById('trip-memo-input');if(memoEl)memoEl.value='';
+  const reviewEl=document.getElementById('finish-review');if(reviewEl)reviewEl.value='';
   Object.keys(checkData).forEach(t=>renderCk(t));
   renderComp();renderDriveStatus(driveMode==='drive');
 
@@ -986,16 +1063,84 @@ function confirmFinish(){
   if(driveMode==='drive')saveDrive();
 }
 
+// ✅ 국가/통화별 국기 이모지
+function getCurrencyFlag(currency){
+  const map={KRW:'🇰🇷',JPY:'🇯🇵',USD:'🇺🇸',EUR:'🇪🇺',THB:'🇹🇭',VND:'🇻🇳',TWD:'🇹🇼',HKD:'🇭🇰',SGD:'🇸🇬',MYR:'🇲🇾'};
+  return map[currency]||'✈️';
+}
+function getCompanionLabel(type,count){
+  const map={solo:'혼자',couple:'커플',friends:'지인·친구',family:'가족(아이)'};
+  const label=map[type]||type;
+  return (type==='friends'||type==='family')&&count>1?`${label} ${count}명`:label;
+}
+
 function renderArchive(){
   const arr=loadArchive(),el=document.getElementById('arch-list');if(!el)return;
   if(!arr.length){el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--text3)"><i class="ti ti-archive" style="font-size:32px;display:block;margin-bottom:.75rem"></i>완료된 여행 없음</div>`;return;}
   el.innerHTML=arr.slice().reverse().map((t,ri)=>{
-    const idx=arr.length-1-ri,pct=t.pct||0,barColor=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--green)';
-    const cb=t.currency&&t.currency!=='KRW'?`<span class="tag tag-loc" style="margin-left:6px">${t.currency} ${(t.rate||1).toLocaleString()}원</span>`:'';
-    return`<div class="arch-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.25rem"><div><div class="arch-name">${t.name||'이름 없음'}${cb}</div><div class="arch-date">${t.start||''}${t.start&&t.end?' → ':''}${t.end||''} ${t.days?`(${t.days}박${parseInt(t.days)+1}일)`:''}</div></div><div class="btns"><button class="icon-btn" style="width:36px;height:36px;font-size:15px" onclick="expTripCSV(${idx})"><i class="ti ti-download"></i></button><button class="icon-btn" style="width:36px;height:36px;font-size:15px;color:var(--red)" onclick="delArchiveItem(${idx})"><i class="ti ti-trash"></i></button></div></div><div class="arch-kv"><span class="arch-kv-l">총 예산</span><span class="arch-kv-v">${t.total||'—'}</span></div><div class="arch-kv"><span class="arch-kv-l">실지출</span><span class="arch-kv-v">${t.spent||'—'}</span></div><div class="arch-kv"><span class="arch-kv-l">잔액</span><span class="arch-kv-v">${t.remain||'—'}</span></div><div class="arch-kv"><span class="arch-kv-l">방문</span><span class="arch-kv-v">${t.visitedCount||0}/${t.slotCount||0}곳</span></div><div class="arch-kv"><span class="arch-kv-l">지출 건수</span><span class="arch-kv-v">${t.expCount||0}건</span></div><div class="arch-kv"><span class="arch-kv-l">완료일</span><span class="arch-kv-v">${t.finishedAt||'—'}</span></div><div class="arch-bar-wrap"><div class="arch-bar" style="width:${pct}%;background:${barColor}"></div></div><div class="arch-pct">예산 소진율 ${pct}%</div></div>`;
+    const idx=arr.length-1-ri;
+    const pct=t.pct||0,barColor=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--green)';
+    const flag=getCurrencyFlag(t.currency);
+    const compLabel=getCompanionLabel(t.companionType,t.companionCount);
+    // 썸네일: 여행카드 있으면 img, 없으면 국기
+    const thumb=t.tripCard
+      ? `<div style="width:56px;height:56px;border-radius:var(--r);overflow:hidden;flex-shrink:0;border:1px solid var(--border)">${t.tripCard.includes('<img')?t.tripCard.replace('style="width:100%;display:block;border-radius:14px"','style="width:56px;height:56px;object-fit:cover"'):`<div style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--surface2)">${flag}</div>`}</div>`
+      : `<div style="width:56px;height:56px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:32px;background:var(--surface2);border:1px solid var(--border);flex-shrink:0">${flag}</div>`;
+    const review=t.review?`<div style="font-size:13px;color:var(--text2);font-style:italic;margin-top:3px">"${t.review}"</div>`:'';
+    // 상세 내용 (펼치기)
+    const shopping=t.shoppingList&&t.shoppingList.length?`<div style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.75rem"><div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">쇼핑 리스트</div>${t.shoppingList.map(i=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:${i.done?'var(--text3)':'var(--text)'};margin-bottom:4px"><i class="ti ti-${i.done?'checkbox':'square'}" style="color:${i.done?'var(--green)':'var(--text3)'}"></i>${i.text}</div>`).join('')}</div>`:'';
+    const memo=t.tripMemo?`<div style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.75rem"><div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">여행 메모</div><div style="font-size:13px;color:var(--text);line-height:1.6">${t.tripMemo}</div></div>`:'';
+    const detail=`
+      <div class="arch-detail" id="arch-detail-${idx}" style="display:none;padding-top:.75rem;margin-top:.75rem;border-top:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.75rem">
+          <div class="mc"><div class="mc-l">총 예산</div><div class="mc-v">${t.total||'—'}</div></div>
+          <div class="mc"><div class="mc-l">실지출</div><div class="mc-v">${t.spent||'—'}</div></div>
+          <div class="mc"><div class="mc-l">잔액</div><div class="mc-v ok">${t.remain||'—'}</div></div>
+          <div class="mc"><div class="mc-l">방문</div><div class="mc-v">${t.visitedCount||0}/${t.slotCount||0}곳</div></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem">
+          <span style="font-size:12px;background:rgba(96,165,250,.15);color:var(--blue);padding:3px 10px;border-radius:10px">${compLabel}</span>
+          ${t.currency!=='KRW'?`<span style="font-size:12px;background:rgba(232,200,122,.15);color:var(--accent);padding:3px 10px;border-radius:10px">${t.currency} ${(t.rate||1).toLocaleString()}원</span>`:''}
+          <span style="font-size:12px;background:var(--surface2);color:var(--text2);padding:3px 10px;border-radius:10px">지출 ${t.expCount||0}건</span>
+        </div>
+        <div style="height:4px;background:var(--surface3);border-radius:2px;margin-bottom:4px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px"></div></div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:.75rem">예산 소진율 ${pct}% · 완료 ${t.finishedAt||''}</div>
+        ${memo}${shopping}
+        <div style="display:flex;gap:6px;margin-top:.75rem">
+          <button class="btn btn-surface" style="flex:1;font-size:12px;min-height:36px" onclick="editReview(${idx})"><i class="ti ti-edit"></i> 한줄평 수정</button>
+          <button class="btn btn-surface" style="font-size:12px;min-height:36px" onclick="expTripCSV(${idx})"><i class="ti ti-download"></i> CSV</button>
+          <button class="btn" style="font-size:12px;min-height:36px;color:var(--red)" onclick="delArchiveItem(${idx})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    return`<div class="arch-card" style="cursor:pointer">
+      <div onclick="toggleArchive(${idx})" style="display:flex;gap:12px;align-items:center">
+        ${thumb}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name||'이름 없음'}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">${t.start||''}${t.start&&t.end?' → ':''}${t.end||''} ${t.days?`(${t.days}박${parseInt(t.days)+1}일)`:''}</div>
+          ${review}
+        </div>
+        <i class="ti ti-chevron-down" id="arch-icon-${idx}" style="color:var(--text3);font-size:16px;flex-shrink:0;transition:transform .2s"></i>
+      </div>
+      ${detail}
+    </div>`;
   }).join('');
 }
-function delArchiveItem(idx){const arr=loadArchive();arr.splice(idx,1);saveArchive(arr);renderArchive();}
+function toggleArchive(idx){
+  const detail=document.getElementById(`arch-detail-${idx}`);
+  const icon=document.getElementById(`arch-icon-${idx}`);
+  if(!detail)return;
+  const isOpen=detail.style.display!=='none';
+  detail.style.display=isOpen?'none':'block';
+  if(icon)icon.style.transform=isOpen?'':'rotate(180deg)';
+}
+// ✅ PATCH 12: 한줄평 수정
+function editReview(idx){
+  const arr=loadArchive();const t=arr[idx];if(!t)return;
+  const newReview=prompt('한줄평 수정',t.review||'');
+  if(newReview===null)return;
+  arr[idx].review=newReview;saveArchive(arr);renderArchive();
+}
 function expTripCSV(idx){
   const t=loadArchive()[idx];if(!t)return;
   let csv=`여행명,${t.name}\n출발일,${t.start}\n귀국일,${t.end}\n통화,${t.currency}\n환율,${t.rate}\n총예산,${t.total}\n실지출,${t.spent}\n잔액,${t.remain}\n\n`;
@@ -1128,7 +1273,7 @@ async function loadFromDrive(){
     if(state.companionType)document.getElementById('ctype').value=state.companionType;
     if(state.companionCount)document.getElementById('pcount').value=state.companionCount;
     updateCurr();buildBRows();syncHeader();updateDaySel();
-    renderItinerary();renderTripCard();renderMemo();
+    renderItinerary();renderTripCard();renderMemo();renderShopping();
     Object.keys(checkData).forEach(t=>renderCk(t));renderComp();
     showSt('<i class="ti ti-check"></i> 드라이브에서 불러왔습니다','ok','it-st');
   }catch(e){
@@ -1219,6 +1364,81 @@ function renderCarry(){
   el.innerHTML=html;
 }
 
+// ✅ PATCH 7: 쇼핑 리스트
+function renderShopping(){
+  const panel=document.getElementById('shopping');if(!panel)return;
+  const list=state.shoppingList||[];
+  const done=list.filter(i=>i.done).length;
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+    <div class="section-title" style="margin-bottom:0"><i class="ti ti-shopping-bag"></i> 쇼핑 리스트</div>
+    <button class="btn" style="font-size:12px;min-height:34px;padding:0 12px" onclick="swPanel('checklist')"><i class="ti ti-arrow-left"></i> 목록</button>
+  </div>`;
+  if(list.length){html+=`<div class="prog-txt">${done} / ${list.length} 완료</div><div class="prog-bar-wrap"><div class="prog-bar" style="width:${list.length?Math.round(done/list.length*100):0}%"></div></div>`;}
+  html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:.875rem" id="shop-list">`;
+  list.forEach((item,i)=>{
+    html+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface)">
+      <div onclick="toggleShop(${i})" style="cursor:pointer;width:18px;height:18px;border-radius:5px;border:1.5px solid ${item.done?'var(--accent)':'var(--border2)'};flex-shrink:0;background:${item.done?'var(--accent)':'transparent'};position:relative">
+        ${item.done?`<span style="position:absolute;top:1px;left:4px;font-size:10px;color:#0f0f0f;font-weight:700">✓</span>`:''}
+      </div>
+      <span style="flex:1;font-size:13px;${item.done?'text-decoration:line-through;color:var(--text3)':''}">${item.text}</span>
+      <button onclick="delShop(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center"><i class="ti ti-x"></i></button>
+    </div>`;
+  });
+  html+=`</div>
+  <div style="display:flex;gap:8px">
+    <input class="fi" id="shop-input" placeholder="예: 네스프레소 캡슐" style="flex:1" onkeydown="if(event.key==='Enter')addShop()">
+    <button class="btn btn-accent" onclick="addShop()" style="min-width:var(--tap)"><i class="ti ti-plus"></i></button>
+  </div>`;
+  panel.innerHTML=html;
+}
+function addShop(){
+  const inp=document.getElementById('shop-input');
+  const text=(inp?.value||'').trim();if(!text)return;
+  state.shoppingList.push({text,done:false});
+  inp.value='';save();renderShopping();
+}
+function toggleShop(i){state.shoppingList[i].done=!state.shoppingList[i].done;save();renderShopping();}
+function delShop(i){state.shoppingList.splice(i,1);save();renderShopping();}
+
+// ✅ 일정 공유 파일 내보내기 (예산 제외, 일정+여행카드만)
+function exportShareFile(){
+  if(!state.itinerary.length){
+    showSt('<i class="ti ti-alert-circle"></i> 공유할 일정이 없습니다','err','it-st');
+    swMob(document.querySelector('.nav-item'),  'itinerary');
+    document.querySelectorAll('.nav-item').forEach((b,i)=>b.classList.toggle('on',i===0));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    document.getElementById('itinerary')?.classList.add('on');
+    return;
+  }
+  const shareData={
+    _type:'travel_share',
+    _version:'1.8.0',
+    _note:'모리의 여행플래너 공유 파일 — 설정 탭에서 업로드하세요',
+    name:state.tripName||'',
+    start:state.tripStart||'',
+    end:state.tripEnd||'',
+    currency:state.currency||'KRW',
+    rate:state.rate||1,
+    tripCard:state.tripCard||'',
+    itinerary:state.itinerary.map(s=>({
+      id:s.id,day:s.day,time:s.time,
+      title:s.title,note:s.note,visited:false
+    }))
+  };
+  const json=JSON.stringify(shareData,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`${state.tripName||'여행'}_공유일정.json`;
+  a.click();
+  showSt('<i class="ti ti-check"></i> 공유 파일이 저장됐습니다 — 카톡으로 전송하세요','ok','it-st');
+}
+
+function downloadCSVTemplate(){
+  const csv=`day,time,title,note\n0,morning,공항 출발,항공편 번호·출발시간\n0,afternoon,첫 번째 장소,입장료·오픈시간·예약여부\n0,evening,저녁 맛집,예약 필요 여부\n1,morning,오전 관광지,이동수단·소요시간\n1,afternoon,점심 식당,메모\n1,evening,야경 명소,메모\n2,morning,마지막 일정,메모\n2,afternoon,공항 출발,체크인 마감 시간 확인`;
+  dlCSV(csv,'일정_양식.csv');
+}
+
 function togCk(k,tid){ckSt[k]=!ckSt[k];save();renderCk(tid);}
 function togComp(k,type){ckSt[k]=!ckSt[k];save();renderComp();}
 
@@ -1233,7 +1453,7 @@ if(state.cardLimit)document.getElementById('climit').value=state.cardLimit;
 if(state.companionType)document.getElementById('ctype').value=state.companionType;
 if(state.companionCount)document.getElementById('pcount').value=state.companionCount;
 updateCurr();buildBRows();
-renderItinerary();renderTripCard();renderMemo();
+renderItinerary();renderTripCard();renderMemo();renderShopping();
 Object.keys(checkData).forEach(t=>renderCk(t));
 renderComp();renderCarry();renderDriveStatus(driveMode==='drive');
 </script>
