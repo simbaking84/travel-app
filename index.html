@@ -287,7 +287,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.7</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.10</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -298,7 +298,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.7</span></div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.10</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -831,7 +831,7 @@ function applyJSON(raw){
 
 // 헤더
 function syncHeader(){
-  const APP_VER='v1.7';
+  const APP_VER='v1.10';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
   document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
@@ -867,18 +867,27 @@ function renderItinerary(){
   updateItSummary();
 }
 // ✅ 지도앱 연동
+function cleanPlaceName(title){
+  // 괄호 내용, 특수문자, 설명문 제거 → 순수 장소명만 추출
+  return title
+    .replace(/\(.*?\)/g, '')     // (괄호 내용) 제거
+    .replace(/\[.*?\]/g, '')     // [대괄호] 제거
+    .replace(/→.*$/g, '')        // → 이후 제거
+    .replace(/[—–\-]+.*$/g, '') // — 이후 제거
+    .replace(/[·,·]+.*/g, '')   // · 이후 제거
+    .trim();
+}
 function openMap(title){
+  const place = cleanPlaceName(title);
+  if(!place) return;
   const isKRW = state.currency === 'KRW';
-  const query = encodeURIComponent(title);
+  const query = encodeURIComponent(place);
   if(isKRW){
-    // 국내 → 네이버맵
     window.open(`nmap://search?query=${query}&appname=travel.planner`, '_blank');
-    // 앱 미설치 시 웹으로 폴백
     setTimeout(()=>{
       window.open(`https://map.naver.com/v5/search/${query}`, '_blank');
     }, 1500);
   } else {
-    // 해외 → 구글맵
     window.open(`https://www.google.com/maps/search/${query}`, '_blank');
   }
 }
@@ -888,16 +897,15 @@ function openDayRoute(day){
   const slots = state.itinerary
     .filter(s => s.day === day && !s.visited)
     .sort((a,b) => ORDER[a.time] - ORDER[b.time]);
-  if(!slots.length){
-    alert('방문하지 않은 일정이 없습니다.');return;
+  if(!slots.length){alert('방문하지 않은 일정이 없습니다.');return;}
+  // 장소명 정제
+  const places = slots.map(s=>cleanPlaceName(s.title)).filter(Boolean);
+  if(places.length===1){
+    window.open(`https://www.google.com/maps/search/${encodeURIComponent(places[0])}`, '_blank');return;
   }
-  if(slots.length === 1){
-    openMap(slots[0].title);return;
-  }
-  // 구글맵 경유지 URL 생성
-  const origin = encodeURIComponent(slots[0].title);
-  const destination = encodeURIComponent(slots[slots.length-1].title);
-  const waypoints = slots.slice(1,-1).map(s=>encodeURIComponent(s.title)).join('|');
+  const origin = encodeURIComponent(places[0]);
+  const destination = encodeURIComponent(places[places.length-1]);
+  const waypoints = places.slice(1,-1).map(p=>encodeURIComponent(p)).join('|');
   const url = waypoints
     ? `https://www.google.com/maps/dir/${origin}/${waypoints}/${destination}`
     : `https://www.google.com/maps/dir/${origin}/${destination}`;
