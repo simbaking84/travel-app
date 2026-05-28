@@ -317,7 +317,7 @@ select.fi{cursor:pointer}
     <div id="header-inner">
       <div id="trip-display">
         <div id="trip-name-display">여행 플래너</div>
-        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.17</div>
+        <div id="trip-date-display" style="font-family:var(--mono);font-size:11px;color:var(--text3)">v1.18</div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="swMob(document.querySelector('.nav-item:last-child'),'settings')" title="설정"><i class="ti ti-settings"></i></button>
@@ -328,7 +328,7 @@ select.fi{cursor:pointer}
   </div>
 
   <div id="sidebar">
-    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.17</span></div>
+    <div class="sidebar-logo"><i class="ti ti-plane-tilt"></i> 여행 플래너<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px;font-weight:400">v1.18</span></div>
     <div class="sidebar-section">일정·예산</div>
     <button class="sidebar-item on" onclick="swPC(this,'itinerary')"><i class="ti ti-map-2"></i> 일정표</button>
     <button class="sidebar-item" onclick="swPC(this,'budget')"><i class="ti ti-wallet"></i> 예산·지출</button>
@@ -861,7 +861,7 @@ function applyJSON(raw){
 
 // 헤더
 function syncHeader(){
-  const APP_VER='v1.17';
+  const APP_VER='v1.18';
   document.getElementById('trip-name-display').textContent=state.tripName||'여행 플래너';
   const days=getDays();
   document.getElementById('trip-date-display').textContent=state.tripStart&&state.tripEnd?`${state.tripStart} ~ ${state.tripEnd} (${days-1}박${days}일)`:APP_VER;
@@ -1535,27 +1535,29 @@ function delShop(i){state.shoppingList.splice(i,1);save();renderShopping();}
 
 // ✅ 일정 공유 파일 내보내기 (예산 제외, 일정+여행카드만)
 function exportShareFile(){
+  // localStorage에서 최신 state 반영
+  const raw=localStorage.getItem(LS_KEY);
+  if(raw){try{const d=JSON.parse(raw);if(d.state)state={...state,...d.state};}catch{}}
   if(!state.itinerary.length){
-    showSt('<i class="ti ti-alert-circle"></i> 공유할 일정이 없습니다','err','it-st');
-    swMob(document.querySelector('.nav-item'),  'itinerary');
-    document.querySelectorAll('.nav-item').forEach((b,i)=>b.classList.toggle('on',i===0));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-    document.getElementById('itinerary')?.classList.add('on');
-    return;
+    showSt('<i class="ti ti-alert-circle"></i> 공유할 일정이 없습니다','err','it-st');return;
   }
+  // 이미지 카드는 용량 문제로 제외, HTML 카드만 포함
+  const isImg=state.tripCard&&state.tripCard.includes('<img');
   const shareData={
     _type:'travel_share',
-    _version:'1.7',
+    _version:'1.17',
     _note:'모리의 여행플래너 공유 파일 — 설정 탭에서 업로드하세요',
     name:state.tripName||'',
     start:state.tripStart||'',
     end:state.tripEnd||'',
     currency:state.currency||'KRW',
     rate:state.rate||1,
-    tripCard:state.tripCard||'',
+    tripCard:isImg?'':state.tripCard||'', // 이미지는 제외, HTML만 포함
     itinerary:state.itinerary.map(s=>({
       id:s.id,day:s.day,time:s.time,
-      title:s.title,note:s.note,visited:false
+      title:s.title,note:s.note,
+      visited:false,
+      order:s.order??0  // ✅ order 필드 포함
     }))
   };
   const json=JSON.stringify(shareData,null,2);
@@ -1564,7 +1566,10 @@ function exportShareFile(){
   a.href=URL.createObjectURL(blob);
   a.download=`${state.tripName||'여행'}_공유일정.json`;
   a.click();
-  showSt('<i class="ti ti-check"></i> 공유 파일이 저장됐습니다 — 카톡으로 전송하세요','ok','it-st');
+  const msg=isImg
+    ? '<i class="ti ti-check"></i> 공유 파일 저장됨 (이미지 카드는 용량 문제로 제외됩니다)'
+    : '<i class="ti ti-check"></i> 공유 파일이 저장됐습니다 — 카톡으로 전송하세요';
+  showSt(msg,'ok','it-st');
 }
 
 function downloadCSVTemplate(){
