@@ -1,10 +1,10 @@
 // ⚠️ 배포할 때마다 버전 번호를 올려주세요 (캐시 갱신을 위해 필수)
-const CACHE_NAME = 'travel-planner-v21';
+const CACHE_NAME = 'travel-planner-v22';
 
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/site.webmanifest',
 ];
 
 const BACKGROUND_ASSETS = [
