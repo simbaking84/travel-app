@@ -3,13 +3,13 @@
   "short_name": "모여플",
   "icons": [
     {
-      "src": "/travel-app/web-app-manifest-192x192.png?v=v2.0",
+      "src": "/travel-app/web-app-manifest-192x192.png?v=v2.15",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/travel-app/web-app-manifest-512x512.png?v=v2.0",
+      "src": "/travel-app/web-app-manifest-512x512.png?v=v2.15",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
