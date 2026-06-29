@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import * as XLSX from 'xlsx';
 
 // ─── Constants ───
+// ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
+const APP_VERSION = "v2.14";
+
 const STORAGE_KEY = "travel_app_v2";
 const ARCHIVE_KEY = "travel_archive_v2";
 
@@ -47,8 +50,75 @@ const CURRENCIES = [
   { code: "PHP", name: "필리핀 페소", symbol: "₱", defaultRate: 24 },
   { code: "SGD", name: "싱가포르 달러", symbol: "S$", defaultRate: 1030 },
   { code: "MYR", name: "말레이시아 링깃", symbol: "RM", defaultRate: 310 },
+  { code: "AUD", name: "호주 달러", symbol: "A$", defaultRate: 910 },
   { code: "KRW", name: "원화 (국내여행)", symbol: "₩", defaultRate: 1 },
 ];
+
+// ─── 9개 여행 지역 (도시 추천 + 통화 자동 설정) ───
+const TRIP_REGIONS = [
+  { id: "domestic", label: "국내", icon: "🇰🇷", currency: "KRW",
+    cities: ["제주", "부산", "강릉", "여수", "경주", "서울"],
+    accomPlaceholder: "예: 제주시 노형동, 부산 해운대" },
+  { id: "japan", label: "일본", icon: "🇯🇵", currency: "JPY",
+    cities: ["도쿄", "오사카", "후쿠오카", "삿포로", "나고야", "오키나와"],
+    accomPlaceholder: "예: 신주쿠, 난바, 하카타" },
+  { id: "china", label: "중국", icon: "🇨🇳", currency: "CNY",
+    cities: ["상하이", "베이징", "청도", "광저우", "선전", "시안"],
+    accomPlaceholder: "예: 와이탄, 왕푸징" },
+  { id: "southeast_asia", label: "동남아", icon: "🌴", currency: "THB",
+    cities: ["방콕", "다낭", "발리", "세부", "싱가포르", "코타키나발루"],
+    accomPlaceholder: "예: 카오산로드, 누사두아" },
+  { id: "europe", label: "유럽", icon: "🇪🇺", currency: "EUR",
+    cities: ["파리", "로마", "런던", "바르셀로나", "프라하", "암스테르담"],
+    accomPlaceholder: "예: 몽마르트, 트라스테베레" },
+  { id: "north_america", label: "북미", icon: "🗽", currency: "USD",
+    cities: ["뉴욕", "LA", "라스베가스", "샌프란시스코", "토론토", "하와이"],
+    accomPlaceholder: "예: 맨해튼, 할리우드" },
+  { id: "latin_america", label: "중남미", icon: "🌎", currency: "USD",
+    cities: ["칸쿤", "리오데자네이루", "부에노스아이레스", "멕시코시티"],
+    accomPlaceholder: "예: 칸쿤 호텔존" },
+  { id: "africa", label: "아프리카", icon: "🌍", currency: "USD",
+    cities: ["카이로", "케이프타운", "마라케시", "나이로비"],
+    accomPlaceholder: "예: 마라케시 메디나" },
+  { id: "oceania", label: "오세아니아", icon: "🇦🇺", currency: "AUD",
+    cities: ["시드니", "멜버른", "오클랜드", "골드코스트"],
+    accomPlaceholder: "예: 서큘러키, CBD" },
+];
+
+// ─── 실시간 환율 조회 ───
+async function fetchExchangeRate(currencyCode) {
+  if (!currencyCode || currencyCode === "KRW") return 1;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`https://open.er-api.com/v6/latest/${currencyCode}`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error("환율 응답 오류");
+    const data = await res.json();
+    const krwRate = data?.rates?.KRW;
+    if (typeof krwRate !== "number" || !isFinite(krwRate)) throw new Error("환율 데이터 없음");
+    return krwRate;
+  } catch (e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
+}
+
+function roundRate(value) {
+  if (!isFinite(value)) return value;
+  if (Math.abs(value) < 1) return Math.round(value * 10000) / 10000;
+  if (Math.abs(value) < 100) return Math.round(value * 100) / 100;
+  return Math.round(value);
+}
+
+function formatRateLabel(value) {
+  const num = parseFloat(value);
+  if (value === "" || value == null || isNaN(num)) return "?원";
+  let digits = 0;
+  if (Math.abs(num) < 1) digits = 4;
+  else if (Math.abs(num) < 100) digits = 2;
+  return `${num.toLocaleString(undefined, { maximumFractionDigits: digits })}원`;
+}
 
 // ─── Utility Functions ───
 function getTabOrder(tripStart, tripEnd) {
@@ -240,7 +310,7 @@ applyTheme(localStorage.getItem("theme_mode") || "system");
 // ─── Components ───
 
 // Welcome Screen
-function WelcomeScreen({ onNewTrip, onImport, onViewArchive, hasArchive, activeTripName, onGoToActiveTrip }) {
+function WelcomeScreen({ bgMode, onNewTrip, onImport, onViewArchive, hasArchive, activeTripName, onGoToActiveTrip, onOpenSettings }) {
   return (
     <div style={{
       minHeight: "100dvh",
@@ -248,25 +318,33 @@ function WelcomeScreen({ onNewTrip, onImport, onViewArchive, hasArchive, activeT
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      background: `linear-gradient(165deg, #EFF6FF 0%, ${theme.bg} 40%, #FEF9EF 100%)`,
+      background: "transparent",
       padding: "24px",
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+      position: "relative",
     }}>
+      <AppBackground mode={bgMode || "light"} />
+      <button onClick={onOpenSettings} aria-label="설정" style={{
+        position: "absolute", top: "16px", right: "16px",
+        width: "40px", height: "40px", borderRadius: "50%",
+        background: theme.bgCard, border: `1px solid ${theme.border}`,
+        fontSize: "18px", cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: theme.shadow,
+      }}>⚙️</button>
       {activeTripName && (
         <button onClick={onGoToActiveTrip} style={{
-          width: "100%", maxWidth: "340px",
-          padding: "12px 16px", marginBottom: "20px",
-          background: theme.bgCard, border: `1.5px solid ${theme.primary}`,
-          borderRadius: theme.radius, cursor: "pointer",
-          display: "flex", alignItems: "center", gap: "10px",
+          position: "absolute", top: "16px", left: "16px", right: "68px",
+          maxWidth: "280px",
+          padding: "10px 16px",
+          background: theme.primary, color: theme.textWhite,
+          border: "none", borderRadius: theme.radiusFull,
+          fontSize: "13px", fontWeight: "700", cursor: "pointer",
+          boxShadow: theme.shadow,
           textAlign: "left",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
-          <span style={{ fontSize: "20px" }}>✈️</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "12px", color: theme.textSub, fontWeight: "600" }}>진행중인 여행으로 돌아가기</div>
-            <div style={{ fontSize: "15px", color: theme.text, fontWeight: "700" }}>{activeTripName}</div>
-          </div>
-          <span style={{ fontSize: "16px", color: theme.textLight }}>›</span>
+          ✈️ "{activeTripName}"으로 돌아가기
         </button>
       )}
       <div style={{
@@ -302,7 +380,7 @@ function WelcomeScreen({ onNewTrip, onImport, onViewArchive, hasArchive, activeT
           fontSize: "12px",
           color: theme.textLight,
           fontWeight: "500",
-        }}>v2.0</div>
+        }}>{APP_VERSION}</div>
       </div>
 
       <div style={{
@@ -368,34 +446,80 @@ function WelcomeScreen({ onNewTrip, onImport, onViewArchive, hasArchive, activeT
 }
 
 // Trip Setup Form
-function TripSetupForm({ onComplete, onBack }) {
+function TripSetupForm({ bgMode, onComplete, onBack }) {
   const [form, setForm] = useState({
     tripName: "",
     tripStart: "",
     tripEnd: "",
-    tripRegion: "overseas",
     accommodation: "",
     currency: "JPY",
     rate: 9.2,
   });
+  const [selectedRegionId, setSelectedRegionId] = useState(null);
+  const [nameEdited, setNameEdited] = useState(false);
 
   const update = (key, val) => {
-    if (key === "currency") {
-      const cur = CURRENCIES.find(c => c.code === val);
-      setForm(prev => ({ ...prev, currency: val, rate: cur?.defaultRate || "" }));
-    } else {
-      setForm(prev => ({ ...prev, [key]: val }));
+    if (key === "tripName") {
+      setNameEdited(val.trim().length > 0);
+      setForm(prev => ({ ...prev, tripName: val }));
+      return;
     }
+    if (key === "tripStart") {
+      setForm(prev => {
+        let newEnd = prev.tripEnd;
+        if (val && (!prev.tripEnd || prev.tripEnd < val)) {
+          const d = new Date(val + "T00:00:00");
+          d.setDate(d.getDate() + 3);
+          newEnd = d.toISOString().slice(0, 10);
+        }
+        return { ...prev, tripStart: val, tripEnd: newEnd };
+      });
+      return;
+    }
+    if (key === "tripEnd") {
+      setForm(prev => (prev.tripStart && val && val < prev.tripStart) ? prev : { ...prev, tripEnd: val });
+      return;
+    }
+    setForm(prev => ({ ...prev, [key]: val }));
   };
 
-  const isValid = form.tripName && form.tripStart && form.tripEnd;
+  const selectedRegionObj = TRIP_REGIONS.find(r => r.id === selectedRegionId);
+
+  const handleSelectRegion = (region) => {
+    if (selectedRegionId === region.id) {
+      setSelectedRegionId(null);
+      setForm(prev => ({ ...prev, accommodation: "" }));
+      return;
+    }
+    setSelectedRegionId(region.id);
+    setForm(prev => ({ ...prev, accommodation: "", currency: region.currency }));
+  };
+
+  const handleSelectCity = (city) => {
+    if (form.accommodation === city) {
+      setForm(prev => ({ ...prev, accommodation: "" }));
+      return;
+    }
+    setForm(prev => {
+      if (nameEdited) return { ...prev, accommodation: city };
+      const year = prev.tripStart ? new Date(prev.tripStart).getFullYear() : new Date().getFullYear();
+      return { ...prev, accommodation: city, tripName: `${year} ${city} 여행` };
+    });
+  };
+
+  const isValid = form.tripName && form.tripStart && form.tripEnd && selectedRegionId;
 
   const handleSubmit = () => {
     if (!isValid) return;
+    const tripRegion = selectedRegionId === "domestic" ? "domestic" : "overseas";
+    const cur = CURRENCIES.find(c => c.code === (selectedRegionObj?.currency || form.currency));
     onComplete({
       ...DEFAULT_STATE,
       ...form,
-      rate: parseFloat(form.rate) || 0,
+      tripRegion,
+      selectedRegion: selectedRegionId,
+      currency: selectedRegionObj?.currency || form.currency,
+      rate: cur?.defaultRate || parseFloat(form.rate) || 0,
       lastSaved: new Date().toISOString(),
     });
   };
@@ -427,9 +551,11 @@ function TripSetupForm({ onComplete, onBack }) {
   return (
     <div style={{
       minHeight: "100dvh",
-      background: theme.bg,
+      background: "transparent",
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+      position: "relative",
     }}>
+      <AppBackground mode={bgMode || "light"} />
       {/* Header */}
       <div style={{
         display: "flex",
@@ -489,86 +615,100 @@ function TripSetupForm({ onComplete, onBack }) {
               <input
                 type="date"
                 value={form.tripEnd}
+                min={form.tripStart || undefined}
                 onChange={e => update("tripEnd", e.target.value)}
                 style={inputStyle}
               />
             </div>
           </div>
 
-          {/* Region */}
+          {/* Region (9개) */}
           <div>
-            <label style={labelStyle}>여행 지역</label>
-            <div style={{ display: "flex", gap: "8px" }}>
-              {[
-                { val: "domestic", label: "🇰🇷 국내" },
-                { val: "overseas", label: "🌏 해외" },
-              ].map(opt => (
-                <button key={opt.val} onClick={() => update("tripRegion", opt.val)} style={{
-                  flex: 1,
-                  padding: "12px",
-                  border: `1.5px solid ${form.tripRegion === opt.val ? theme.primary : theme.border}`,
-                  borderRadius: theme.radiusSm,
-                  background: form.tripRegion === opt.val ? theme.primaryLight : theme.bgCard,
-                  color: form.tripRegion === opt.val ? theme.primary : theme.text,
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}>
-                  {opt.label}
-                </button>
-              ))}
+            <label style={labelStyle}>여행 지역 *</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+              {TRIP_REGIONS.map(r => {
+                const isActive = selectedRegionId === r.id;
+                return (
+                  <button key={r.id} onClick={() => handleSelectRegion(r)} style={{
+                    padding: "12px 4px",
+                    border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
+                    borderRadius: theme.radiusSm,
+                    background: isActive ? theme.primaryLight : theme.bgCard,
+                    color: isActive ? theme.primary : theme.text,
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}>
+                    <span style={{ fontSize: "20px" }}>{r.icon}</span>
+                    {r.label}
+                  </button>
+                );
+              })}
             </div>
+            {!selectedRegionId && (
+              <div style={{ fontSize: "12px", color: theme.textLight, marginTop: "6px" }}>
+                지역을 선택하면 통화·숙소 도시 추천이 자동으로 채워집니다
+              </div>
+            )}
           </div>
 
-          {/* Accommodation */}
+          {/* Accommodation + City suggestions */}
           <div>
-            <label style={labelStyle}>숙소 지역</label>
+            <label style={labelStyle}>
+              주요도시 <span style={{ color: theme.textLight, fontWeight: "500" }}>(선택)</span>
+            </label>
+            {selectedRegionObj && selectedRegionObj.cities.length > 0 && (
+              <>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "6px" }}>
+                  {selectedRegionObj.cities.map(city => (
+                    <button key={city} onClick={() => handleSelectCity(city)} style={{
+                      padding: "6px 12px",
+                      border: `1px solid ${form.accommodation === city ? theme.primary : theme.border}`,
+                      borderRadius: theme.radiusFull,
+                      background: form.accommodation === city ? theme.primaryLight : theme.bgInput,
+                      color: form.accommodation === city ? theme.primary : theme.textSub,
+                      fontSize: "12.5px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                    }}>{city}</button>
+                  ))}
+                </div>
+                <div style={{ fontSize: "11px", color: theme.textLight, marginBottom: "8px" }}>
+                  추천 도시일 뿐이에요 — 다른 곳으로 간다면 아래에 직접 입력해도 됩니다
+                </div>
+              </>
+            )}
             <input
               type="text"
               value={form.accommodation}
               onChange={e => update("accommodation", e.target.value)}
-              placeholder="예: 신주쿠, 사카에"
+              placeholder={selectedRegionObj?.accomPlaceholder || "예: 신주쿠, 사카에 (안 적어도 됩니다)"}
               style={inputStyle}
             />
           </div>
 
-          {/* Currency */}
-          {form.tripRegion === "overseas" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <div>
-                <label style={labelStyle}>통화</label>
-                <select
-                  value={form.currency}
-                  onChange={e => update("currency", e.target.value)}
-                  style={{ ...inputStyle, appearance: "auto" }}
-                >
-                  {CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>환율 (1{form.currency} = ?원)</label>
-                <input
-                  type="number"
-                  value={form.rate}
-                  onChange={e => update("rate", e.target.value)}
-                  placeholder="예: 9.2"
-                  style={inputStyle}
-                />
-                <div style={{ fontSize: "11px", color: theme.textLight, marginTop: "4px" }}>
-                  📌 참고 환율 자동입력 · 직접 수정 가능
-                </div>
-              </div>
+          {selectedRegionObj && (
+            <div style={{ fontSize: "12px", color: theme.textLight, marginTop: "-4px" }}>
+              💱 통화는 {selectedRegionObj.label}의 대표 통화({form.currency})로 자동 설정됩니다 — 지출 탭에서 언제든 바꿀 수 있어요
             </div>
           )}
         </div>
 
+        {!isValid && (form.tripName || form.tripStart || selectedRegionId) && (
+          <div style={{ fontSize: "12.5px", color: theme.textLight, marginTop: "10px", textAlign: "center" }}>
+            여행 이름 · 출발일 · 도착일 · 여행 지역을 모두 입력해주세요
+          </div>
+        )}
+
         {/* Submit */}
         <button onClick={handleSubmit} disabled={!isValid} style={{
           width: "100%",
-          marginTop: "32px",
+          marginTop: "24px",
           padding: "16px",
           background: isValid ? theme.primary : theme.bgInput,
           color: isValid ? theme.textWhite : theme.textLight,
@@ -588,13 +728,18 @@ function TripSetupForm({ onComplete, onBack }) {
 }
 
 // Import Screen
-function ImportScreen({ onBack, onImportV1, onImportDrive }) {
+function ImportScreen({ bgMode, onBack, onImportDrive, onImportFile, driveStatus, driveMessage }) {
+  const fileRef = useRef(null);
+  const isLoading = driveStatus === "loading";
+
   return (
     <div style={{
       minHeight: "100dvh",
-      background: theme.bg,
+      background: "transparent",
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+      position: "relative",
     }}>
+      <AppBackground mode={bgMode || "light"} />
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -619,46 +764,37 @@ function ImportScreen({ onBack, onImportV1, onImportDrive }) {
       </div>
 
       <div style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
+        {driveMessage && (
+          <div style={{
+            padding: "10px 14px", marginBottom: "12px", borderRadius: theme.radiusSm,
+            background: driveStatus === "error" ? "#FEE2E2" : "#DCFCE7",
+            color: driveStatus === "error" ? "#991B1B" : "#166534",
+            fontSize: "13px", fontWeight: "600",
+          }}>{driveMessage}</div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <button onClick={onImportDrive} style={{
+          <button onClick={onImportDrive} disabled={isLoading} style={{
             width: "100%",
             padding: "20px",
             background: theme.bgCard,
             border: `1.5px solid ${theme.border}`,
             borderRadius: theme.radius,
-            cursor: "pointer",
+            cursor: isLoading ? "default" : "pointer",
             textAlign: "left",
             transition: "all 0.2s",
+            opacity: isLoading ? 0.6 : 1,
           }}>
             <div style={{ fontSize: "24px", marginBottom: "8px" }}>☁️</div>
             <div style={{ fontSize: "16px", fontWeight: "700", color: theme.text, marginBottom: "4px" }}>
-              Google Drive에서 불러오기
+              {isLoading ? "불러오는 중..." : "Google Drive에서 불러오기"}
             </div>
             <div style={{ fontSize: "13px", color: theme.textSub }}>
-              Drive에 백업한 여행 데이터를 복원합니다
+              Drive에 백업한 여행 데이터를 복원합니다 (최초 1회 로그인 필요)
             </div>
           </button>
 
-          <button onClick={onImportV1} style={{
-            width: "100%",
-            padding: "20px",
-            background: theme.bgCard,
-            border: `1.5px solid ${theme.border}`,
-            borderRadius: theme.radius,
-            cursor: "pointer",
-            textAlign: "left",
-            transition: "all 0.2s",
-          }}>
-            <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔄</div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: theme.text, marginBottom: "4px" }}>
-              v1 데이터 변환
-            </div>
-            <div style={{ fontSize: "13px", color: theme.textSub }}>
-              이전 버전의 데이터를 v2.0 형식으로 변환합니다
-            </div>
-          </button>
-
-          <button onClick={() => {}} style={{
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.json" onChange={onImportFile} style={{ display: "none" }} />
+          <button onClick={() => fileRef.current?.click()} style={{
             width: "100%",
             padding: "20px",
             background: theme.bgCard,
@@ -670,7 +806,7 @@ function ImportScreen({ onBack, onImportV1, onImportDrive }) {
           }}>
             <div style={{ fontSize: "24px", marginBottom: "8px" }}>📄</div>
             <div style={{ fontSize: "16px", fontWeight: "700", color: theme.text, marginBottom: "4px" }}>
-              JSON/CSV 파일 업로드
+              JSON/CSV/엑셀 파일 업로드
             </div>
             <div style={{ fontSize: "13px", color: theme.textSub }}>
               공유받은 일정 파일을 불러옵니다
@@ -683,16 +819,300 @@ function ImportScreen({ onBack, onImportV1, onImportDrive }) {
 }
 
 // Archive Screen
-function ArchiveScreen({ onBack, archives }) {
+// ─── 여행기록 PDF(인쇄) 내보내기 ───
+function exportArchiveAsPDF(archive) {
+  const rate = archive.rate || 1;
+  const totalKRW = (archive.expenses || []).reduce((s, e) => s + (e.currency === "KRW" ? (e.amount || 0) : (e.amount || 0) * rate), 0);
+  const itineraryRows = [...(archive.itinerary || [])]
+    .sort((a, b) => a.day - b.day || ((a.startTime || "") < (b.startTime || "") ? -1 : 1))
+    .map(s => `<tr>
+      <td>D${(s.day || 0) + 1}</td>
+      <td>${s.startTime || ""}</td>
+      <td>${s.title || ""}</td>
+      <td>${s.place || ""}</td>
+      <td>${s.note || ""}</td>
+    </tr>`).join("");
+  const expenseRows = (archive.expenses || []).map(e => `<tr>
+      <td>${e.title || e.category || ""}</td>
+      <td>${e.category || ""}</td>
+      <td style="text-align:right">${(e.amount || 0).toLocaleString()} ${e.currency || ""}</td>
+    </tr>`).join("");
+  const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+  <title>${archive.tripName || "여행"} 기록</title>
+  <style>
+    body{font-family:'Noto Sans KR','Pretendard',sans-serif;padding:32px;color:#1a1a1a;max-width:800px;margin:0 auto;}
+    h1{font-size:22px;margin:0 0 4px 0;}
+    .sub{color:#666;font-size:13px;margin-bottom:20px;}
+    h3{font-size:15px;margin:20px 0 8px 0;border-bottom:2px solid #333;padding-bottom:4px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12.5px;}
+    th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;}
+    th{background:#f5f5f5;}
+    .total{font-weight:700;text-align:right;margin-top:4px;font-size:14px;}
+    .tripcard{max-width:100%;border-radius:8px;margin-bottom:16px;display:block;}
+    .review{font-style:italic;color:#555;margin-top:4px;}
+    @media print { body{padding:12px;} }
+  </style></head>
+  <body>
+    ${archive.tripCard ? `<img class="tripcard" src="${archive.tripCard}" />` : ""}
+    <h1>${archive.tripName || "여행"}</h1>
+    <div class="sub">
+      ${archive.tripStart ? formatDate(archive.tripStart) : ""} ~ ${archive.tripEnd ? formatDate(archive.tripEnd) : ""}
+      ${archive.companionType ? ` · 동행: ${archive.companionType} ${archive.companionCount || ""}명` : ""}
+    </div>
+    ${archive.review ? `<div class="review">"${archive.review}"</div>` : ""}
+
+    <h3>📅 일정 (${(archive.itinerary || []).length}개)</h3>
+    <table>
+      <thead><tr><th>일차</th><th>시간</th><th>제목</th><th>장소</th><th>메모</th></tr></thead>
+      <tbody>${itineraryRows || '<tr><td colspan="5" style="text-align:center;color:#999">일정 없음</td></tr>'}</tbody>
+    </table>
+
+    <h3>💰 지출 (${(archive.expenses || []).length}건)</h3>
+    <table>
+      <thead><tr><th>항목</th><th>카테고리</th><th>금액</th></tr></thead>
+      <tbody>${expenseRows || '<tr><td colspan="3" style="text-align:center;color:#999">지출 없음</td></tr>'}</tbody>
+    </table>
+    <div class="total">총 지출(원화 환산): ${Math.round(totalKRW).toLocaleString()}원</div>
+    ${archive.tripMemo ? `<h3>📝 메모</h3><p style="font-size:13px;white-space:pre-wrap;">${archive.tripMemo}</p>` : ""}
+  </body></html>`;
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
+  } else {
+    alert("팝업이 차단되어 인쇄 화면을 열 수 없습니다.\n브라우저의 팝업 차단을 허용한 후 다시 시도해 주세요.");
+  }
+}
+
+// ─── 여행기록 수정 모달 ───
+function ArchiveEditModal({ archive, onSave, onClose }) {
+  const [tripName, setTripName] = useState(archive.tripName || "");
+  const [review, setReview] = useState(archive.review || "");
+  const [itinerary, setItinerary] = useState(archive.itinerary || []);
+  const [expenses, setExpenses] = useState(archive.expenses || []);
+
+  const removeSlot = (id) => setItinerary(prev => prev.filter(s => s.id !== id));
+  const removeExpense = (id) => setExpenses(prev => prev.filter(e => e.id !== id));
+
+  const rowStyle = {
+    display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px",
+    background: theme.bgInput, borderRadius: theme.radiusSm, marginBottom: "6px", fontSize: "12.5px",
+  };
+  const removeBtnStyle = { background: "none", border: "none", cursor: "pointer", fontSize: "14px", padding: "4px 6px", color: theme.textLight };
+
+  return (
+    <ModalWrapper onClose={onClose}>
+      <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", fontWeight: "800", color: theme.text }}>
+        ✏️ 여행 기록 수정
+      </h3>
+
+      <div style={{ marginBottom: "14px" }}>
+        <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: theme.textSub, marginBottom: "6px" }}>여행명</label>
+        <input value={tripName} onChange={e => setTripName(e.target.value)} style={{
+          width: "100%", padding: "12px 14px", border: `1.5px solid ${theme.border}`,
+          borderRadius: theme.radiusSm, fontSize: "15px", color: theme.text,
+          background: theme.bgCard, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+        }} />
+      </div>
+
+      <div style={{ marginBottom: "14px" }}>
+        <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: theme.textSub, marginBottom: "6px" }}>한줄평</label>
+        <input value={review} onChange={e => setReview(e.target.value)} style={{
+          width: "100%", padding: "12px 14px", border: `1.5px solid ${theme.border}`,
+          borderRadius: theme.radiusSm, fontSize: "15px", color: theme.text,
+          background: theme.bgCard, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+        }} />
+      </div>
+
+      <div style={{ fontSize: "13px", fontWeight: "700", color: theme.textSub, margin: "20px 0 8px 0" }}>
+        📅 일정 ({itinerary.length}개)
+      </div>
+      {itinerary.length === 0 ? (
+        <div style={{ fontSize: "12.5px", color: theme.textLight, marginBottom: "10px" }}>일정 없음</div>
+      ) : itinerary.map(s => (
+        <div key={s.id} style={rowStyle}>
+          <span style={{ flex: 1 }}>D{(s.day || 0) + 1} {s.startTime} — {s.title}{s.place ? ` (${s.place})` : ""}</span>
+          <button onClick={() => removeSlot(s.id)} style={removeBtnStyle}>🗑️</button>
+        </div>
+      ))}
+
+      <div style={{ fontSize: "13px", fontWeight: "700", color: theme.textSub, margin: "20px 0 8px 0" }}>
+        💰 지출 ({expenses.length}건)
+      </div>
+      {expenses.length === 0 ? (
+        <div style={{ fontSize: "12.5px", color: theme.textLight, marginBottom: "10px" }}>지출 없음</div>
+      ) : expenses.map(e => (
+        <div key={e.id} style={rowStyle}>
+          <span style={{ flex: 1 }}>{e.title} — {(e.amount || 0).toLocaleString()} {e.currency}</span>
+          <button onClick={() => removeExpense(e.id)} style={removeBtnStyle}>🗑️</button>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+        <button onClick={onClose} style={{
+          flex: 1, padding: "13px", background: theme.bgInput, color: theme.textSub,
+          border: "none", borderRadius: theme.radius, fontSize: "14px", fontWeight: "600", cursor: "pointer",
+        }}>취소</button>
+        <button onClick={() => onSave({ ...archive, tripName, review, itinerary, expenses })} style={{
+          flex: 2, padding: "13px", background: theme.primary, color: theme.textWhite,
+          border: "none", borderRadius: theme.radius, fontSize: "14px", fontWeight: "700", cursor: "pointer",
+        }}>저장하기</button>
+      </div>
+    </ModalWrapper>
+  );
+}
+
+// ─── 전역 설정 화면 (여행 시작 전에도 접근 가능: Drive 미리연결 + 테마 + 엑셀양식) ───
+function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack }) {
+  const [driveStatus, setDriveStatus] = useState("idle"); // idle | connecting | connected | error
+  const [driveMessage, setDriveMessage] = useState("");
+
+  const themeBtnStyle = (id) => ({
+    flex: 1, padding: "9px 4px",
+    background: appThemeMode === id ? theme.text : "transparent",
+    color: appThemeMode === id ? theme.textWhite : theme.textSub,
+    border: `1px solid ${appThemeMode === id ? theme.text : theme.border}`,
+    borderRadius: theme.radiusSm, fontSize: "11px", fontWeight: "600", cursor: "pointer",
+  });
+
+  const sectionStyle = {
+    background: theme.bgCard, borderRadius: theme.radius,
+    border: `1px solid ${theme.borderLight}`, marginBottom: "12px",
+    overflow: "hidden", boxShadow: theme.shadow,
+  };
+
+  const handleConnectDrive = async () => {
+    setDriveStatus("connecting");
+    setDriveMessage("");
+    try {
+      await ensureDriveToken();
+      setDriveStatus("connected");
+      setDriveMessage("Google 계정이 연결되었습니다. 같은 세션에서는 다시 로그인하지 않아도 Drive 저장/불러오기를 쓸 수 있습니다.");
+    } catch (e) {
+      setDriveStatus("error");
+      setDriveMessage(e.message || "연결에 실패했습니다.");
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: "100dvh",
+      background: "transparent",
+      fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+      position: "relative",
+    }}>
+      <AppBackground mode={bgMode || "light"} />
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        padding: "12px 16px",
+        borderBottom: `1px solid ${theme.borderLight}`,
+        background: theme.bgCard,
+      }}>
+        <button onClick={onBack} style={{
+          background: "none", border: "none", fontSize: "24px",
+          cursor: "pointer", padding: "4px 8px 4px 0", color: theme.text,
+        }}>←</button>
+        <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: theme.text }}>설정</h2>
+      </div>
+
+      <div style={{ padding: "16px 20px 100px", maxWidth: "480px", margin: "0 auto" }}>
+        {/* Google Drive 미리 연결 */}
+        <div style={sectionStyle}>
+          <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>
+            Google Drive
+          </div>
+          <div style={{ padding: "0 16px 14px" }}>
+            <button onClick={handleConnectDrive} disabled={driveStatus === "connecting"} style={{
+              width: "100%", padding: "14px",
+              background: driveStatus === "connected" ? theme.success : theme.bgCard,
+              color: driveStatus === "connected" ? theme.textWhite : theme.text,
+              border: `1.5px solid ${driveStatus === "connected" ? theme.success : theme.border}`,
+              borderRadius: theme.radiusSm, fontSize: "14px", fontWeight: "700",
+              cursor: "pointer", opacity: driveStatus === "connecting" ? 0.6 : 1,
+            }}>
+              {driveStatus === "connecting" ? "연결 중..." : driveStatus === "connected" ? "✅ 연결됨" : "☁️ Google 계정 연결하기"}
+            </button>
+            {driveMessage && (
+              <div style={{ marginTop: "8px", fontSize: "12px", color: driveStatus === "error" ? theme.danger : theme.textSub, lineHeight: 1.5 }}>
+                {driveMessage}
+              </div>
+            )}
+            <div style={{ marginTop: "8px", fontSize: "11px", color: theme.textLight, lineHeight: 1.5 }}>
+              여행을 시작하기 전에 미리 로그인해두면, 나중에 "데이터 가져오기"에서 Drive 백업을 바로 불러올 수 있습니다.
+            </div>
+          </div>
+        </div>
+
+        {/* 테마 */}
+        <div style={sectionStyle}>
+          <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>
+            테마
+          </div>
+          <div style={{ padding: "8px 16px 14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {[
+                { id: "system", label: "🌐 시스템" },
+                { id: "light", label: "☀️ 밝음" },
+                { id: "dark", label: "🌙 다크" },
+                { id: "seasonal", label: `🍂 계절 (${getSeason() === "spring" ? "봄" : getSeason() === "summer" ? "여름" : getSeason() === "fall" ? "가을" : "겨울"})` },
+              ].map(t => (
+                <button key={t.id} onClick={() => onThemeChange(t.id)} style={themeBtnStyle(t.id)}>{t.label}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {[
+                { id: "spring", label: "🌸 봄" },
+                { id: "summer", label: "🌊 여름" },
+                { id: "fall", label: "🍁 가을" },
+                { id: "winter", label: "❄️ 겨울" },
+              ].map(t => (
+                <button key={t.id} onClick={() => onThemeChange(t.id)} style={themeBtnStyle(t.id)}>{t.label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 데이터 관리 */}
+        <div style={sectionStyle}>
+          <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>
+            데이터 관리
+          </div>
+          <button onClick={() => downloadExcelTemplate("", "")} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: "12px",
+            padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left",
+          }}>
+            <span style={{ fontSize: "20px" }}>📥</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>엑셀 양식 다운로드</div>
+              <div style={{ fontSize: "12px", color: theme.textSub }}>일정 입력 템플릿 (.xlsx)</div>
+            </div>
+          </button>
+        </div>
+
+        <div style={{ textAlign: "center", padding: "20px 0 8px", fontSize: "12px", color: theme.textLight }}>
+          모리의 여행플래너 {APP_VERSION}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ArchiveScreen({ bgMode, onBack, archives, onDeleteArchive, onEditArchive }) {
   const [expanded, setExpanded] = useState(null);
+  const [deleteIdx, setDeleteIdx] = useState(null);
+  const [editIdx, setEditIdx] = useState(null);
 
   if (archives.length === 0) {
     return (
       <div style={{
         minHeight: "100dvh",
-        background: theme.bg,
+        background: "transparent",
         fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+        position: "relative",
       }}>
+        <AppBackground mode={bgMode || "light"} />
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -730,9 +1150,11 @@ function ArchiveScreen({ onBack, archives }) {
   return (
     <div style={{
       minHeight: "100dvh",
-      background: theme.bg,
+      background: "transparent",
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+      position: "relative",
     }}>
+      <AppBackground mode={bgMode || "light"} />
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -773,7 +1195,21 @@ function ArchiveScreen({ onBack, archives }) {
               cursor: "pointer",
               textAlign: "left",
             }}>
-              <div style={{ fontSize: "28px" }}>🧳</div>
+              {arc.tripCard ? (
+                <img src={arc.tripCard} alt="trip" style={{
+                  width: "44px", height: "44px", borderRadius: "8px",
+                  objectFit: "cover", flexShrink: 0,
+                }} />
+              ) : (
+                <div style={{
+                  width: "44px", height: "44px", borderRadius: "8px",
+                  background: theme.bgInput, display: "flex", alignItems: "center",
+                  justifyContent: "center", fontSize: "24px", flexShrink: 0,
+                }}>
+                  {TRIP_REGIONS.find(r => r.id === arc.selectedRegion)?.icon
+                    || (arc.tripRegion === "domestic" ? "🇰🇷" : "🌏")}
+                </div>
+              )}
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "15px", fontWeight: "700", color: theme.text }}>
                   {arc.tripName || "여행"}
@@ -799,7 +1235,24 @@ function ArchiveScreen({ onBack, archives }) {
                 padding: "0 16px 16px",
                 borderTop: `1px solid ${theme.borderLight}`,
               }}>
-                <div style={{ paddingTop: "12px", fontSize: "14px", color: theme.textSub }}>
+                <div style={{ display: "flex", gap: "8px", paddingTop: "12px", marginBottom: "12px" }}>
+                  <button onClick={() => setEditIdx(i)} style={{
+                    flex: 1, padding: "9px", fontSize: "12.5px", fontWeight: "600",
+                    background: theme.bgInput, color: theme.text, border: "none",
+                    borderRadius: theme.radiusSm, cursor: "pointer",
+                  }}>✏️ 수정</button>
+                  <button onClick={() => exportArchiveAsPDF(arc)} style={{
+                    flex: 1, padding: "9px", fontSize: "12.5px", fontWeight: "600",
+                    background: theme.bgInput, color: theme.text, border: "none",
+                    borderRadius: theme.radiusSm, cursor: "pointer",
+                  }}>📄 PDF 내보내기</button>
+                  <button onClick={() => setDeleteIdx(i)} style={{
+                    flex: 1, padding: "9px", fontSize: "12.5px", fontWeight: "600",
+                    background: "#FEE2E2", color: "#B91C1C", border: "none",
+                    borderRadius: theme.radiusSm, cursor: "pointer",
+                  }}>🗑️ 삭제</button>
+                </div>
+                <div style={{ fontSize: "14px", color: theme.textSub }}>
                   <p>일정 {arc.itinerary?.length || 0}개 · 지출 {arc.expenses?.length || 0}건</p>
                 </div>
               </div>
@@ -807,6 +1260,21 @@ function ArchiveScreen({ onBack, archives }) {
           </div>
         ))}
       </div>
+
+      {deleteIdx !== null && (
+        <ConfirmDialog
+          message={`"${archives[deleteIdx].tripName || "이 여행 기록"}"을 삭제할까요? 되돌릴 수 없습니다.`}
+          onConfirm={() => { onDeleteArchive(deleteIdx); setDeleteIdx(null); }}
+          onCancel={() => setDeleteIdx(null)}
+        />
+      )}
+      {editIdx !== null && (
+        <ArchiveEditModal
+          archive={archives[editIdx]}
+          onSave={(updated) => { onEditArchive(editIdx, updated); setEditIdx(null); }}
+          onClose={() => setEditIdx(null)}
+        />
+      )}
     </div>
   );
 }
@@ -840,7 +1308,7 @@ function TabBar({ tabs, activeTab, onTabChange, isMobile, tripPhase }) {
             color: "rgba(255,255,255,0.4)",
             marginTop: "4px",
             fontWeight: "500",
-          }}>v2.0 · {phaseLabel[tripPhase]}</div>
+          }}>{APP_VERSION} · {phaseLabel[tripPhase]}</div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "12px" }}>
@@ -1114,131 +1582,116 @@ function generateId() {
   return `it_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// ─── Seasonal Background + Particle Canvas ───
+
+// ─── 이미지 기반 배경 시스템 (테마별 WEBP 배경) ───
 const SEASONAL_THEMES = new Set(["spring", "summer", "fall", "winter", "seasonal"]);
 
-function SeasonalBackground({ season }) {
-  const configs = {
-    spring: {
-      gradient: "linear-gradient(180deg, #FFB7D5 0%, #FFD6EA 25%, #FFF5F8 60%, #FFF8FC 100%)",
-      deco: (
-        <svg style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", opacity:0.18, pointerEvents:"none" }} viewBox="0 0 400 600" preserveAspectRatio="xMaxYMin meet">
-          {/* 벚꽃 가지 우측 상단 */}
-          <path d="M400 0 Q340 80 300 160 Q260 220 220 280" stroke="#C2185B" strokeWidth="6" fill="none" strokeLinecap="round"/>
-          <path d="M300 160 Q270 130 240 150" stroke="#C2185B" strokeWidth="4" fill="none" strokeLinecap="round"/>
-          <path d="M340 100 Q310 80 285 95" stroke="#C2185B" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-          <path d="M260 220 Q230 200 205 215" stroke="#C2185B" strokeWidth="3" fill="none" strokeLinecap="round"/>
-          {/* 꽃송이들 */}
-          {[[390,30],[350,70],[300,155],[268,185],[245,148],[312,90],[260,218],[225,212],[208,100]].map(([cx,cy],i)=>(
-            <g key={i} transform={`translate(${cx},${cy})`}>
-              {[0,72,144,216,288].map((a,j)=>(
-                <ellipse key={j} cx={Math.cos(a*Math.PI/180)*8} cy={Math.sin(a*Math.PI/180)*8} rx="5" ry="8"
-                  fill={i%2===0?"#F8BBD9":"#F48FB1"} transform={`rotate(${a})`} opacity="0.9"/>
-              ))}
-              <circle cx="0" cy="0" r="3" fill="#FFCA28" opacity="0.8"/>
-            </g>
-          ))}
-          {/* 좌측 하단 가지 */}
-          <path d="M0 500 Q60 420 120 360 Q160 310 200 260" stroke="#C2185B" strokeWidth="5" fill="none" strokeLinecap="round"/>
-          <path d="M120 360 Q150 330 170 345" stroke="#C2185B" strokeWidth="3" fill="none" strokeLinecap="round"/>
-          {[[0,500],[55,430],[125,360],[165,342],[200,260]].map(([cx,cy],i)=>(
-            <g key={i+20} transform={`translate(${cx},${cy})`}>
-              {[0,72,144,216,288].map((a,j)=>(
-                <ellipse key={j} cx={Math.cos(a*Math.PI/180)*7} cy={Math.sin(a*Math.PI/180)*7} rx="4.5" ry="7"
-                  fill={i%2===0?"#F48FB1":"#F8BBD9"} transform={`rotate(${a})`} opacity="0.85"/>
-              ))}
-              <circle cx="0" cy="0" r="2.5" fill="#FFCA28" opacity="0.8"/>
-            </g>
-          ))}
-        </svg>
-      ),
-    },
-    summer: {
-      gradient: "linear-gradient(180deg, #1565C0 0%, #42A5F5 30%, #90CAF9 55%, #E3F2FD 75%, #FFFDE7 100%)",
-      deco: (
-        <svg style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", pointerEvents:"none" }} viewBox="0 0 400 600" preserveAspectRatio="none">
-          {/* 구름 */}
-          {[[80,80],[60,90],[100,90],[120,85],[45,88],[140,78]].map(([cx,cy],i)=>(
-            <ellipse key={i} cx={cx} cy={cy} rx={[28,22,26,20,18,24][i]} ry={[16,14,15,12,13,14][i]} fill="white" opacity="0.22"/>
-          ))}
-          {[[250,140],[230,152],[270,148],[285,143],[310,135]].map(([cx,cy],i)=>(
-            <ellipse key={i+10} cx={cx} cy={cy} rx={[24,18,20,15,16][i]} ry={[14,11,12,9,10][i]} fill="white" opacity="0.18"/>
-          ))}
-          {[[60,200],[90,210],[40,215],[115,205]].map(([cx,cy],i)=>(
-            <ellipse key={i+20} cx={cx} cy={cy} rx={[20,16,14,18][i]} ry={[11,10,9,10][i]} fill="white" opacity="0.12"/>
-          ))}
-          {/* 파도 */}
-          <path d="M0 520 Q50 495 100 515 Q150 535 200 510 Q250 488 300 510 Q350 530 400 510 L400 600 L0 600 Z" fill="#1565C0" opacity="0.14"/>
-          <path d="M0 540 Q60 518 120 538 Q180 558 240 535 Q300 514 360 538 Q390 548 400 540 L400 600 L0 600 Z" fill="#0D47A1" opacity="0.11"/>
-          <path d="M0 558 Q70 540 140 558 Q210 576 280 555 Q340 536 400 558 L400 600 L0 600 Z" fill="#1976D2" opacity="0.14"/>
-        </svg>
-      ),
-    },
-    fall: {
-      gradient: "linear-gradient(180deg, #4A1500 0%, #B71C00 15%, #E64A19 35%, #FF8C00 55%, #FFC04D 75%, #FFF3D0 100%)",
-      deco: (
-        <svg style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", opacity:0.15, pointerEvents:"none" }} viewBox="0 0 400 600" preserveAspectRatio="none">
-          {/* 나무 줄기 */}
-          <rect x="185" y="200" width="30" height="400" fill="#3E2000" rx="8"/>
-          <rect x="178" y="280" width="44" height="320" fill="#2D1500" rx="6"/>
-          {/* 나뭇가지 */}
-          <path d="M200 280 Q140 230 80 260" stroke="#3E2000" strokeWidth="12" fill="none" strokeLinecap="round"/>
-          <path d="M200 320 Q260 270 330 290" stroke="#3E2000" strokeWidth="10" fill="none" strokeLinecap="round"/>
-          <path d="M200 250 Q170 180 140 150" stroke="#3E2000" strokeWidth="8" fill="none" strokeLinecap="round"/>
-          <path d="M200 250 Q230 170 260 140" stroke="#3E2000" strokeWidth="8" fill="none" strokeLinecap="round"/>
-          {/* 단풍 나뭇잎 군집 */}
-          {[
-            [80,200,70,60,"#E64A19"],[120,170,80,65,"#FF6D00"],[160,140,90,70,"#BF360C"],
-            [200,120,85,68,"#F57C00"],[240,140,88,65,"#E64A19"],[280,165,75,60,"#D84315"],
-            [320,190,80,62,"#FF8F00"],[60,240,65,55,"#C62828"],[350,220,70,58,"#F57C00"],
-            [130,220,78,63,"#FF6D00"],[270,225,72,60,"#E65100"],[200,200,95,75,"#BF360C"],
-          ].map(([cx,cy,rx,ry,color],i)=>(
-            <ellipse key={i} cx={cx} cy={cy} rx={rx} ry={ry} fill={color} opacity="0.88"/>
-          ))}
-        </svg>
-      ),
-    },
-    winter: {
-      gradient: "linear-gradient(180deg, #90A4AE 0%, #B0BEC5 20%, #CFD8DC 45%, #ECEFF1 65%, #F5F8FA 80%, #FFFFFF 100%)",
-      deco: (
-        <svg style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", pointerEvents:"none" }} viewBox="0 0 400 600" preserveAspectRatio="none">
-          {/* 눈 덮인 산 */}
-          <path d="M-20 400 L120 200 L220 320 L280 240 L420 400 Z" fill="#CFD8DC" opacity="0.25"/>
-          <path d="M80 230 L120 200 L165 250 Z" fill="white" opacity="0.55"/>
-          <path d="M245 265 L280 240 L318 275 Z" fill="white" opacity="0.5"/>
-          {/* 눈 언덕 */}
-          <path d="M-20 500 Q80 460 200 475 Q320 490 420 460 L420 600 L-20 600 Z" fill="white" opacity="0.35"/>
-          <path d="M-20 530 Q100 500 220 515 Q340 530 420 505 L420 600 L-20 600 Z" fill="white" opacity="0.45"/>
-          <path d="M-20 560 Q120 535 250 548 Q360 558 420 540 L420 600 L-20 600 Z" fill="white" opacity="0.6"/>
-          {/* 앙상한 나뭇가지 */}
-          <path d="M30 580 Q35 480 40 380 Q42 340 50 300" stroke="#78909C" strokeWidth="3" fill="none" opacity="0.3" strokeLinecap="round"/>
-          <path d="M40 380 Q20 350 5 330" stroke="#78909C" strokeWidth="2" fill="none" opacity="0.25" strokeLinecap="round"/>
-          <path d="M42 340 Q62 315 75 295" stroke="#78909C" strokeWidth="2" fill="none" opacity="0.25" strokeLinecap="round"/>
-          <path d="M370 600 Q365 490 360 380 Q358 340 350 295" stroke="#78909C" strokeWidth="3" fill="none" opacity="0.28" strokeLinecap="round"/>
-          <path d="M360 380 Q380 350 395 325" stroke="#78909C" strokeWidth="2" fill="none" opacity="0.22" strokeLinecap="round"/>
-          <path d="M355 335 Q335 310 322 290" stroke="#78909C" strokeWidth="2" fill="none" opacity="0.22" strokeLinecap="round"/>
-          {/* 달 */}
-          <circle cx="340" cy="70" r="28" fill="#ECEFF1" opacity="0.3"/>
-          <circle cx="352" cy="62" r="24" fill="#90A4AE" opacity="0.28"/>
-        </svg>
-      ),
-    },
-  };
-  const cfg = configs[season];
-  if (!cfg) return null;
+const BG_MODES = {
+  light: {
+    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light.webp`,
+    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light-mobile.webp`,
+    colorPc: "#f6fafd", colorMobile: "#f4f7fd",
+  },
+  dark: {
+    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark.webp`,
+    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark-mobile.webp`,
+    colorPc: "#122143", colorMobile: "#122346",
+  },
+  spring: {
+    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring.webp`,
+    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring-mobile.webp`,
+    colorPc: "#f3e7f8", colorMobile: "#f3e7f8",
+  },
+  summer: {
+    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer.webp`,
+    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer-mobile.webp`,
+    colorPc: "#e4f1ff", colorMobile: "#e5f0ff",
+  },
+  fall: {
+    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall.webp`,
+    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall-mobile.webp`,
+    colorPc: "#fce6c5", colorMobile: "#fde8c2",
+  },
+  winter: {
+    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter.webp`,
+    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter-mobile.webp`,
+    colorPc: "#e7f4fd", colorMobile: "#e6f2fe",
+  },
+};
+
+// themeMode("system"/"seasonal"/light/dark/spring/summer/fall/winter) -> 실제 배경 모드로 변환
+function resolveBgMode(themeMode) {
+  if (themeMode === "system") return "light";
+  if (themeMode === "seasonal") return getSeason();
+  return BG_MODES[themeMode] ? themeMode : "light";
+}
+
+// 화면 전체 고정 배경 (모바일/PC 별도 이미지 + 색상 fallback)
+function AppBackground({ mode }) {
+  const cfg = BG_MODES[mode] || BG_MODES.light;
+  useEffect(() => {
+    let styleEl = document.getElementById("app-bg-style");
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "app-bg-style";
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      .app-bg-fixed {
+        background-image: url('${cfg.mobile}');
+        background-color: ${cfg.colorMobile};
+      }
+      @media (min-width: 768px) {
+        .app-bg-fixed {
+          background-image: url('${cfg.pc}');
+          background-color: ${cfg.colorPc};
+        }
+      }
+    `;
+  }, [cfg.mobile, cfg.pc, cfg.colorMobile, cfg.colorPc]);
+
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:-1, background:cfg.gradient, pointerEvents:"none", overflow:"hidden" }}>
-      {cfg.deco}
-    </div>
+    <div className="app-bg-fixed" style={{
+      position: "fixed", inset: 0, zIndex: -1,
+      backgroundSize: "contain",
+      backgroundPosition: "right bottom",
+      backgroundRepeat: "no-repeat",
+      pointerEvents: "none",
+    }} />
   );
 }
+
+// ─── 계절 파티클 (실제 PNG 이미지 사용) ───
+const PARTICLE_IMAGES = {
+  spring: [
+    `${process.env.PUBLIC_URL}/assets/particles/particle-spring-1-flower.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-spring-2-petal.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-spring-3-heart.png`,
+  ],
+  summer: [
+    `${process.env.PUBLIC_URL}/assets/particles/particle-summer-1-watermelon.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-summer-2-sun.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-summer-3-crab.png`,
+  ],
+  fall: [
+    `${process.env.PUBLIC_URL}/assets/particles/particle-fall-1-maple.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-fall-2-ginkgo.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-fall-3-chestnut.png`,
+  ],
+  winter: [
+    `${process.env.PUBLIC_URL}/assets/particles/particle-winter-1.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-winter-2.png`,
+    `${process.env.PUBLIC_URL}/assets/particles/particle-winter-3.png`,
+  ],
+};
+const particleImageCache = {};
 
 function ParticleCanvas({ themeMode, enabled }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
 
   const resolvedSeason = themeMode === "seasonal" ? getSeason() : themeMode;
-  const isActive = SEASONAL_THEMES.has(themeMode) && ["spring","summer","fall","winter"].includes(resolvedSeason);
+  const isActive = SEASONAL_THEMES.has(themeMode) && ["spring", "summer", "fall", "winter"].includes(resolvedSeason);
 
   useEffect(() => {
     if (!isActive || !enabled || !canvasRef.current) return;
@@ -1253,152 +1706,26 @@ function ParticleCanvas({ themeMode, enabled }) {
     };
     window.addEventListener("resize", onResize);
 
-    // ── 봄: 벚꽃 5장 꽃잎 ──
-    const drawCherryBlossom = (x, y, size, rot, opacity) => {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      for (let i = 0; i < 5; i++) {
-        ctx.save();
-        ctx.rotate((i * 2 * Math.PI) / 5);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.bezierCurveTo(
-          size * 0.3, -size * 0.2,
-          size * 0.35, -size * 0.85,
-          0, -size
-        );
-        ctx.bezierCurveTo(
-          -size * 0.35, -size * 0.85,
-          -size * 0.3, -size * 0.2,
-          0, 0
-        );
-        const hue = 340 + (i * 4);
-        ctx.fillStyle = `hsla(${hue}, 85%, 78%, 0.92)`;
-        ctx.fill();
-        // 꽃잎 중심선
-        ctx.beginPath();
-        ctx.moveTo(0, -size * 0.1);
-        ctx.lineTo(0, -size * 0.85);
-        ctx.strokeStyle = `rgba(219, 112, 147, 0.25)`;
-        ctx.lineWidth = 0.6;
-        ctx.stroke();
-        ctx.restore();
-      }
-      // 수술 (중앙 노란점)
-      ctx.beginPath();
-      ctx.arc(0, 0, size * 0.13, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255, 210, 80, 0.95)";
-      ctx.fill();
-      ctx.restore();
+    const loadImages = (season) => {
+      if (particleImageCache[season]) return particleImageCache[season];
+      const imgs = PARTICLE_IMAGES[season].map(src => {
+        const img = new Image();
+        img.src = src;
+        return img;
+      });
+      particleImageCache[season] = imgs;
+      return imgs;
     };
-
-    // ── 여름: 햇살 반짝임 ──
-    const drawSparkle = (x, y, size, rot, opacity) => {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.translate(x, y);
-      ctx.strokeStyle = `rgba(255, 200, 30, 0.9)`;
-      ctx.lineWidth = Math.max(0.8, size * 0.1);
-      ctx.lineCap = "round";
-      for (let i = 0; i < 6; i++) {
-        ctx.save();
-        ctx.rotate(rot + (i * Math.PI) / 3);
-        ctx.beginPath();
-        ctx.moveTo(0, -size * 0.25);
-        ctx.lineTo(0, -size);
-        ctx.stroke();
-        ctx.restore();
-      }
-      ctx.beginPath();
-      ctx.arc(0, 0, size * 0.22, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,215,0,${opacity})`;
-      ctx.fill();
-      ctx.restore();
-    };
-
-    // ── 가을: 사실적 단풍잎 (참고 이미지 기반) ──
-    const FALL_COLORS = ["#C62828","#E64A19","#BF360C","#D84315","#FF6D00","#E53935","#B71C1C"];
-    const drawMapleLeaf = (x, y, size, rot, opacity, color) => {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      const s = size;
-
-      ctx.beginPath();
-      // 상단 중앙 로브 (꼭대기)
-      ctx.moveTo(0, -s);
-      // 상단→우상 사이 홈
-      ctx.quadraticCurveTo(0.18*s, -0.72*s, 0.32*s, -0.52*s);
-      // 우상 로브
-      ctx.quadraticCurveTo(0.62*s, -0.82*s, 0.82*s, -0.7*s);
-      ctx.quadraticCurveTo(0.92*s, -0.44*s, 0.62*s, -0.08*s);
-      // 우하 로브
-      ctx.quadraticCurveTo(0.82*s, 0.04*s, 0.88*s, 0.22*s);
-      ctx.quadraticCurveTo(0.72*s, 0.42*s, 0.38*s, 0.32*s);
-      // 줄기 우측
-      ctx.lineTo(0.14*s, 0.48*s);
-      ctx.lineTo(0, 0.68*s);
-      ctx.lineTo(-0.14*s, 0.48*s);
-      // 좌하 로브 (대칭)
-      ctx.lineTo(-0.38*s, 0.32*s);
-      ctx.quadraticCurveTo(-0.72*s, 0.42*s, -0.88*s, 0.22*s);
-      ctx.quadraticCurveTo(-0.82*s, 0.04*s, -0.62*s, -0.08*s);
-      // 좌상 로브
-      ctx.quadraticCurveTo(-0.92*s, -0.44*s, -0.82*s, -0.7*s);
-      ctx.quadraticCurveTo(-0.62*s, -0.82*s, -0.32*s, -0.52*s);
-      // 좌상→상단 홈
-      ctx.quadraticCurveTo(-0.18*s, -0.72*s, 0, -s);
-      ctx.closePath();
-
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      // 잎맥 5개
-      ctx.beginPath();
-      ctx.moveTo(0, 0.48*s); ctx.lineTo(0, -s);            // 중앙
-      ctx.moveTo(0, -0.1*s); ctx.lineTo(0.7*s, -0.68*s);   // 우상
-      ctx.moveTo(0, -0.1*s); ctx.lineTo(-0.7*s, -0.68*s);  // 좌상
-      ctx.moveTo(0, 0.22*s); ctx.lineTo(0.72*s, 0.18*s);   // 우하
-      ctx.moveTo(0, 0.22*s); ctx.lineTo(-0.72*s, 0.18*s);  // 좌하
-      ctx.strokeStyle = "rgba(0,0,0,0.14)";
-      ctx.lineWidth = Math.max(0.4, size * 0.035);
-      ctx.lineCap = "round";
-      ctx.stroke();
-
-      ctx.restore();
-    };
-
-    // ── 겨울: 눈송이 ──
-    const drawSnowflake = (x, y, size, rot, opacity) => {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.translate(x, y);
-      ctx.strokeStyle = "#FFFFFF";
-      ctx.lineWidth = Math.max(0.8, size * 0.1);
-      ctx.lineCap = "round";
-      for (let i = 0; i < 6; i++) {
-        ctx.save();
-        ctx.rotate(rot + (i * Math.PI) / 3);
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -size); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, -size * 0.4); ctx.lineTo(size * 0.25, -size * 0.62); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, -size * 0.4); ctx.lineTo(-size * 0.25, -size * 0.62); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, -size * 0.65); ctx.lineTo(size * 0.16, -size * 0.82); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, -size * 0.65); ctx.lineTo(-size * 0.16, -size * 0.82); ctx.stroke();
-        ctx.restore();
-      }
-      ctx.restore();
-    };
+    const images = loadImages(resolvedSeason);
 
     const COUNT = resolvedSeason === "winter" ? 28 : resolvedSeason === "summer" ? 16 : 22;
     const particles = Array.from({ length: COUNT }, (_, i) => ({
       x: Math.random() * W,
       y: Math.random() * H,
-      size: resolvedSeason === "winter" ? 6 + Math.random() * 10
-          : resolvedSeason === "summer" ? 5 + Math.random() * 9
-          : 9 + Math.random() * 13,
+      size: resolvedSeason === "winter" ? 18.2 + Math.random() * 23.4
+          : resolvedSeason === "summer" ? 19.2 + Math.random() * 24
+          : resolvedSeason === "spring" ? 9 + Math.random() * 10.8
+          : 20 + Math.random() * 24,
       speed: resolvedSeason === "winter" ? 0.06 + Math.random() * 0.14
            : resolvedSeason === "summer" ? 0
            : resolvedSeason === "spring" ? 0.12 + Math.random() * 0.22
@@ -1410,10 +1737,20 @@ function ParticleCanvas({ themeMode, enabled }) {
       opacity: resolvedSeason === "winter" ? 0.55 + Math.random() * 0.35
              : resolvedSeason === "summer" ? 0.35 + Math.random() * 0.45
              : 0.45 + Math.random() * 0.4,
-      color: FALL_COLORS[i % FALL_COLORS.length],
+      imgIndex: i % 3,
       twinklePhase: Math.random() * Math.PI * 2,
       twinkleSpeed: 0.02 + Math.random() * 0.025,
     }));
+
+    const drawImg = (img, x, y, size, rot, opacity) => {
+      if (!img.complete || img.naturalWidth === 0) return;
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    };
 
     let frame = 0;
     const draw = () => {
@@ -1424,10 +1761,7 @@ function ParticleCanvas({ themeMode, enabled }) {
           ? p.opacity * (0.5 + 0.5 * Math.sin(frame * p.twinkleSpeed + p.twinklePhase))
           : p.opacity;
 
-        if (resolvedSeason === "spring") drawCherryBlossom(p.x, p.y, p.size, p.rot, twinkle);
-        else if (resolvedSeason === "summer") drawSparkle(p.x, p.y, p.size, p.rot, twinkle);
-        else if (resolvedSeason === "fall") drawMapleLeaf(p.x, p.y, p.size, p.rot, twinkle, p.color);
-        else if (resolvedSeason === "winter") drawSnowflake(p.x, p.y, p.size, p.rot, twinkle);
+        drawImg(images[p.imgIndex], p.x, p.y, p.size, p.rot, twinkle);
 
         if (resolvedSeason !== "summer") {
           p.y += p.speed;
@@ -1450,21 +1784,16 @@ function ParticleCanvas({ themeMode, enabled }) {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener("resize", onResize);
     };
-  }, [themeMode, enabled]);
+  }, [themeMode, enabled, resolvedSeason, isActive]);
 
-  if (!isActive) return null;
+  if (!isActive || !enabled) return null;
 
   return (
-    <>
-      <SeasonalBackground season={resolvedSeason} />
-      {enabled && (
-        <canvas ref={canvasRef} style={{
-          position: "fixed", inset: 0,
-          width: "100vw", height: "100vh",
-          pointerEvents: "none", zIndex: 99,
-        }} />
-      )}
-    </>
+    <canvas ref={canvasRef} style={{
+      position: "fixed", inset: 0,
+      width: "100vw", height: "100vh",
+      pointerEvents: "none", zIndex: 99,
+    }} />
   );
 }
 
@@ -1525,24 +1854,29 @@ function ModalWrapper({ onClose, children }) {
 
 // ─── Slot Editor Modal ───
 // ─── Slot Editor Modal ───
-function TripInProgressModal({ tripName, onClose }) {
+function TripInProgressModal({ tripName, onClose, onGoToTrip }) {
   return (
     <ModalWrapper onClose={onClose}>
-      <div style={{ textAlign: "center", padding: "12px 4px" }}>
+      <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: "40px", marginBottom: "12px" }}>✈️</div>
-        <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: "800", color: theme.text }}>
-          지금은 여행중이예요
+        <h3 style={{ margin: "0 0 8px 0", fontSize: "17px", fontWeight: "800", color: theme.text }}>
+          지금은 여행중이에요
         </h3>
-        <p style={{ margin: 0, fontSize: "14px", color: theme.textSub, lineHeight: 1.6 }}>
-          진행중인 여행 <strong>"{tripName || "내 여행"}"</strong>이 있어요.<br/>
-          새 여행은 현재 여행을 마무리한 후 만들 수 있어요.
+        <p style={{ fontSize: "14px", color: theme.textSub, margin: "0 0 20px", lineHeight: 1.6 }}>
+          "{tripName || "진행중인 여행"}"이 아직 진행 중입니다.<br/>
+          새 여행을 만들려면 먼저 현재 여행을 마무리해주세요.
         </p>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={onClose} style={{
+            flex: 1, padding: "12px", background: theme.bgInput, color: theme.textSub,
+            border: "none", borderRadius: theme.radiusSm, fontSize: "14px", fontWeight: "600", cursor: "pointer",
+          }}>닫기</button>
+          <button onClick={onGoToTrip} style={{
+            flex: 1.4, padding: "12px", background: theme.primary, color: theme.textWhite,
+            border: "none", borderRadius: theme.radiusSm, fontSize: "14px", fontWeight: "700", cursor: "pointer",
+          }}>진행중 여행 보러가기</button>
+        </div>
       </div>
-      <button onClick={onClose} style={{
-        width: "100%", marginTop: "20px", padding: "14px",
-        background: theme.primary, color: theme.textWhite,
-        border: "none", borderRadius: theme.radius, fontSize: "15px", fontWeight: "700", cursor: "pointer",
-      }}>확인</button>
     </ModalWrapper>
   );
 }
@@ -1918,6 +2252,122 @@ function BulkInputModal({ day, totalDays, onSave, onClose }) {
   );
 }
 
+// ─── AI 추천 프롬프트 모달 ───
+function AIPromptModal({ state, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const regionLabel = TRIP_REGIONS.find(r => r.id === state.selectedRegion)?.label || "";
+  const destination = state.accommodation || regionLabel || state.tripName || "여행지";
+
+  let nights = 0;
+  if (state.tripStart && state.tripEnd) {
+    const s = new Date(state.tripStart + "T00:00:00");
+    const e = new Date(state.tripEnd + "T00:00:00");
+    nights = Math.round((e - s) / (1000 * 60 * 60 * 24));
+  }
+  const days = nights + 1;
+  const companionText = state.companionType ? `${state.companionType} ${state.companionCount || ""}명` : "";
+
+  const prompt = `나는 "${destination}"으로 ${nights}박 ${days}일 여행을 가.${companionText ? ` (동행: ${companionText})` : ""}
+하루 일정을 짜줘. 아래 마크다운 표 형식 그대로, 다른 설명 없이 표만 줘.
+
+| 일차 | 시간 | 일정명 | 장소 | 메모 |
+|---|---|---|---|---|
+| 1 | 오전 | (예시) | (예시) | (예시) |
+
+- 일차는 1, 2, 3 ... 숫자로
+- 시간은 오전/오후/저녁 중 하나로
+- 장소는 실제 지명·상호명으로 (지도 검색에 쓸 거야)
+- 메모에는 입장료·예약 필요 여부·운영시간 등 참고할 내용을 적어줘`;
+
+  return (
+    <ModalWrapper onClose={onClose}>
+      <h3 style={{ margin: "0 0 8px 0", fontSize: "17px", fontWeight: "800", color: theme.text }}>
+        🤖 AI에게 일정 추천받기
+      </h3>
+      <p style={{ fontSize: "13px", color: theme.textSub, margin: "0 0 14px", lineHeight: 1.6 }}>
+        아래 글을 복사해서, 평소 쓰시는 ChatGPT나 Claude 앱에 붙여넣어 보세요. AI가 답해준 표를 그대로 복사해서, 다음 화면에서 "텍스트로 가져오기"로 붙여넣으면 일정에 바로 추가됩니다.
+      </p>
+      <textarea readOnly value={prompt} rows={10} style={{
+        width: "100%", padding: "12px 14px", border: `1.5px solid ${theme.border}`,
+        borderRadius: theme.radiusSm, fontSize: "13px", color: theme.text,
+        background: theme.bgInput, outline: "none", boxSizing: "border-box",
+        resize: "vertical", fontFamily: "inherit", lineHeight: 1.6, marginBottom: "14px",
+      }} />
+      <button onClick={() => {
+        navigator.clipboard.writeText(prompt).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => alert("복사에 실패했습니다. 위 글을 직접 선택해서 복사해 주세요."));
+      }} style={{
+        width: "100%", padding: "14px",
+        background: copied ? theme.success : theme.primary,
+        color: theme.textWhite, border: "none", borderRadius: theme.radius,
+        fontSize: "15px", fontWeight: "700", cursor: "pointer",
+      }}>
+        {copied ? "✅ 복사됨!" : "📋 복사하기"}
+      </button>
+    </ModalWrapper>
+  );
+}
+
+// ─── 텍스트로 일정 가져오기 모달 ───
+function TextImportModal({ onImport, onClose }) {
+  const [text, setText] = useState("");
+
+  const parsed = (() => {
+    const raw = text;
+    if (!raw || !raw.trim()) return [];
+    const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+    const pipeLines = lines.filter(l => l.includes("|"));
+    if (pipeLines.length >= 2) {
+      const rows = pipeLines
+        .filter(l => !/^[\s|:-]+$/.test(l))
+        .map(l => l.replace(/^\||\|$/g, "").split("|").map(c => c.trim()));
+      if (rows.length < 2) return [];
+      const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+      return parseCSV(csv);
+    }
+    return parseCSV(raw.replace(/\t/g, ","));
+  })();
+
+  return (
+    <ModalWrapper onClose={onClose}>
+      <h3 style={{ margin: "0 0 8px 0", fontSize: "17px", fontWeight: "800", color: theme.text }}>
+        📋 텍스트로 일정 가져오기
+      </h3>
+      <p style={{ fontSize: "13px", color: theme.textSub, margin: "0 0 14px", lineHeight: 1.6 }}>
+        AI가 답해준 표(또는 줄글로 정리된 일정)를 그대로 복사해서 아래에 붙여넣어 주세요.
+      </p>
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder={"여기에 붙여넣기 (Ctrl+V)\n\n예:\n| 일차 | 시간 | 일정명 | 장소 | 메모 |\n|---|---|---|---|---|\n| 1 | 오전 | 공항 도착 | 나리타공항 | ... |"}
+        rows={10}
+        style={{
+          width: "100%", padding: "12px 14px", border: `1.5px solid ${theme.border}`,
+          borderRadius: theme.radiusSm, fontSize: "13px", color: theme.text,
+          background: theme.bgCard, outline: "none", boxSizing: "border-box",
+          resize: "vertical", fontFamily: "inherit", lineHeight: 1.6, marginBottom: "10px",
+        }}
+      />
+      <div style={{ fontSize: "12.5px", color: parsed.length > 0 ? theme.success : theme.textLight, marginBottom: "14px" }}>
+        {text.trim() === "" ? "붙여넣으면 자동으로 인식됩니다" :
+          parsed.length > 0 ? `✅ ${parsed.length}개 일정을 인식했습니다` :
+          "⚠️ 일정을 인식하지 못했습니다 — 표 형식인지 확인해 주세요"}
+      </div>
+      <button onClick={() => onImport(parsed)} disabled={parsed.length === 0} style={{
+        width: "100%", padding: "14px",
+        background: parsed.length > 0 ? theme.primary : theme.bgInput,
+        color: parsed.length > 0 ? theme.textWhite : theme.textLight,
+        border: "none", borderRadius: theme.radius,
+        fontSize: "15px", fontWeight: "700", cursor: parsed.length > 0 ? "pointer" : "default",
+      }}>
+        {parsed.length > 0 ? `${parsed.length}개 일정 추가하기` : "일정 추가하기"}
+      </button>
+    </ModalWrapper>
+  );
+}
+
 // ─── Tab Content Components ───
 
 function ItineraryTab({ state, setState }) {
@@ -1938,6 +2388,8 @@ function ItineraryTab({ state, setState }) {
   const [editingSlot, setEditingSlot] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkInputOpen, setBulkInputOpen] = useState(false);
+  const [aiPromptOpen, setAiPromptOpen] = useState(false);
+  const [textImportOpen, setTextImportOpen] = useState(false);
   const fileRef = useRef(null);
 
   const isOverseas = state.tripRegion === "overseas";
@@ -2036,6 +2488,15 @@ function ItineraryTab({ state, setState }) {
       itinerary: [...prev.itinerary, ...slots],
     }));
     setBulkInputOpen(false);
+    alert(`${slots.length}개 일정을 추가했습니다.`);
+  };
+
+  const handleTextImport = (slots) => {
+    setState(prev => ({
+      ...prev,
+      itinerary: [...prev.itinerary, ...slots.map(s => ({ ...s, id: generateId() }))],
+    }));
+    setTextImportOpen(false);
     alert(`${slots.length}개 일정을 추가했습니다.`);
   };
 
@@ -2328,6 +2789,24 @@ function ItineraryTab({ state, setState }) {
               ⚡ 빠른 입력 (여러 일정 한 번에)
             </button>
             <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={() => setAiPromptOpen(true)} style={{
+                flex: 1, padding: "12px", background: theme.bgCard,
+                border: `1px solid ${theme.border}`, borderRadius: theme.radiusSm,
+                color: theme.textSub, fontSize: "12px", fontWeight: "600", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+              }}>
+                🤖 AI 추천받기
+              </button>
+              <button onClick={() => setTextImportOpen(true)} style={{
+                flex: 1, padding: "12px", background: theme.bgCard,
+                border: `1px solid ${theme.border}`, borderRadius: theme.radiusSm,
+                color: theme.textSub, fontSize: "12px", fontWeight: "600", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+              }}>
+                📋 텍스트로 가져오기
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
               <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileUpload}
                 style={{ display: "none" }} />
               <button onClick={() => fileRef.current?.click()} style={{
@@ -2367,6 +2846,7 @@ function ItineraryTab({ state, setState }) {
             </div>
           </div>
         )}
+
 
         {/* Trip Memo */}
         <div style={{ marginTop: "24px" }}>
@@ -2421,6 +2901,12 @@ function ItineraryTab({ state, setState }) {
           onSave={handleBulkSave}
           onClose={() => setBulkInputOpen(false)}
         />
+      )}
+      {aiPromptOpen && (
+        <AIPromptModal state={state} onClose={() => setAiPromptOpen(false)} />
+      )}
+      {textImportOpen && (
+        <TextImportModal onImport={handleTextImport} onClose={() => setTextImportOpen(false)} />
       )}
     </div>
   );
@@ -3083,6 +3569,20 @@ function ExpenseTab({ state, setState }) {
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [budgetOpen, setBudgetOpen] = useState(false);
+  const [currencyBarOpen, setCurrencyBarOpen] = useState(false);
+  const [rateStatus, setRateStatus] = useState("idle"); // idle | loading | live | error
+
+  const refreshRate = async (currencyCode) => {
+    if (!currencyCode || currencyCode === "KRW") return;
+    setRateStatus("loading");
+    try {
+      const r = await fetchExchangeRate(currencyCode);
+      setState(prev => ({ ...prev, rate: roundRate(r) }));
+      setRateStatus("live");
+    } catch (e) {
+      setRateStatus("error");
+    }
+  };
 
   const METHOD_ICONS = { cash_krw: "💵", cash_local: "💴", card_local: "💳", card_krw: "🏦" };
   const rate = state.rate || 1;
@@ -3126,6 +3626,59 @@ function ExpenseTab({ state, setState }) {
 
   return (
     <div>
+      {/* 통화 바 (해외여행만) */}
+      {state.tripRegion === "overseas" && (
+        <div style={{ margin: "16px 20px 0" }}>
+          <button onClick={() => setCurrencyBarOpen(v => !v)} style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 14px", background: theme.bgCard, border: `1px solid ${theme.borderLight}`,
+            borderRadius: theme.radius, cursor: "pointer",
+          }}>
+            <span style={{ fontSize: "13px", fontWeight: "600", color: theme.text }}>
+              💱 {state.currency} · 1{state.currency} = {formatRateLabel(state.rate)}
+            </span>
+            <span style={{ fontSize: "12px", color: theme.textLight }}>
+              {currencyBarOpen ? "닫기 ▲" : "변경 ▼"}
+            </span>
+          </button>
+          {currencyBarOpen && (
+            <div style={{
+              padding: "12px 14px", background: theme.bgCard, border: `1px solid ${theme.borderLight}`,
+              borderTop: "none", borderRadius: `0 0 ${theme.radius} ${theme.radius}`, display: "flex", gap: "8px",
+            }}>
+              <select value={state.currency} onChange={e => {
+                const code = e.target.value;
+                const cur = CURRENCIES.find(c => c.code === code);
+                setState(prev => ({ ...prev, currency: code, rate: cur?.defaultRate || prev.rate }));
+                setRateStatus("idle");
+                if (code !== "KRW") refreshRate(code);
+              }} style={{
+                flex: 1, padding: "10px", border: `1.5px solid ${theme.border}`, borderRadius: theme.radiusSm,
+                fontSize: "13px", background: theme.bgCard, color: theme.text, appearance: "auto",
+              }}>
+                {CURRENCIES.map(c => (
+                  <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
+                ))}
+              </select>
+              <input type="number" value={state.rate}
+                onChange={e => setState(prev => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))}
+                style={{
+                  width: "90px", padding: "10px", border: `1.5px solid ${theme.border}`,
+                  borderRadius: theme.radiusSm, fontSize: "13px", background: theme.bgCard, color: theme.text,
+                }} />
+              <button onClick={() => refreshRate(state.currency)} disabled={rateStatus === "loading"}
+                title="실시간 환율 새로고침" style={{
+                  width: "40px", border: `1.5px solid ${theme.border}`, borderRadius: theme.radiusSm,
+                  background: theme.bgCard, cursor: rateStatus === "loading" ? "default" : "pointer",
+                  fontSize: "15px", opacity: rateStatus === "loading" ? 0.5 : 1,
+                }}>
+                {rateStatus === "loading" ? "⏳" : "🔄"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary Bar */}
       <button onClick={() => setBudgetOpen(true)} style={{
         display: "block", width: "calc(100% - 40px)", textAlign: "left",
@@ -3177,7 +3730,7 @@ function ExpenseTab({ state, setState }) {
 
       {/* Day Sub Tabs */}
       <div style={{
-        display: "flex", gap: "6px", padding: "0 20px 12px",
+        display: "flex", gap: "10px", padding: "0 20px 12px",
         overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
         {days.map(d => {
@@ -3197,10 +3750,11 @@ function ExpenseTab({ state, setState }) {
               {label}
               {count > 0 && !isActive && (
                 <span style={{
-                  position: "absolute", top: "-5px", right: "-5px",
+                  position: "absolute", top: "-4px", right: "-4px",
                   width: "16px", height: "16px", background: theme.primary,
                   color: theme.textWhite, borderRadius: "50%", fontSize: "10px",
                   fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center",
+                  border: `1.5px solid ${theme.bg}`, zIndex: 1,
                 }}>{count}</span>
               )}
             </button>
@@ -3312,10 +3866,10 @@ function ExpenseTab({ state, setState }) {
             {/* Add Button */}
             <button onClick={handleAdd} style={{
               width: "100%", marginTop: "12px", padding: "14px",
-              background: selectedDay === -1 && dayExpenses.length === 0 ? theme.primary : "none",
-              color: selectedDay === -1 && dayExpenses.length === 0 ? theme.textWhite : theme.textSub,
-              border: selectedDay === -1 && dayExpenses.length === 0 ? "none" : `1.5px dashed ${theme.border}`,
-              borderRadius: theme.radius, fontSize: "14px", fontWeight: "600", cursor: "pointer",
+              background: selectedDay === -1 && dayExpenses.length === 0 ? theme.primary : theme.primaryLight,
+              color: selectedDay === -1 && dayExpenses.length === 0 ? theme.textWhite : theme.primary,
+              border: selectedDay === -1 && dayExpenses.length === 0 ? "none" : `1.5px solid ${theme.primary}30`,
+              borderRadius: theme.radius, fontSize: "14px", fontWeight: "700", cursor: "pointer",
             }}>+ 지출 추가</button>
           </>
         )}
@@ -3359,18 +3913,31 @@ const PHASES = [
 const PHASE_ITEMS = {
   plan: {
     common: [
-      { id: "pl1", text: "여권 유효기간 확인 (6개월 이상 남아야 함)" },
-      { id: "pl2", text: "비자 필요 여부 조회" },
       { id: "pl3", text: "여행 날짜·기간 결정" },
       { id: "pl4", text: "예산 계획 수립" },
-      { id: "pl5", text: "항공권 가격 비교·예약" },
+      { id: "pl5", text: "항공권 가격 비교·예약 (또는 교통편 예약)" },
       { id: "pl6", text: "숙소 예약" },
       { id: "pl7", text: "여행자 보험 가입 검토" },
+    ],
+    overseas: [
+      { id: "pl1", text: "여권 유효기간 확인 (6개월 이상 남아야 함)" },
+      { id: "pl2", text: "비자 필요 여부 조회" },
     ],
     japan: [{ id: "plj1", text: "Visit Japan Web 사전 등록 확인" }],
     europe: [{ id: "ple1", text: "ETIAS 입국 신청 필요 여부 확인" }],
     usa: [{ id: "plu1", text: "ESTA 신청 (출발 72시간 전까지 필수)" }],
     southeast_asia: [{ id: "pls1", text: "국가별 비자 발급 방법 확인" }],
+    china: [{ id: "plc1", text: "중국 비자·무비자 정책 확인 (정책 변동 잦음)" }],
+    north_america: [{ id: "plna1", text: "ESTA(미국) 또는 eTA(캐나다) 신청 확인" }],
+    latin_america: [
+      { id: "plla1", text: "국가별 비자 필요 여부 확인" },
+      { id: "plla2", text: "황열병 등 필수 예방접종 확인" },
+    ],
+    africa: [
+      { id: "plaf1", text: "국가별 비자 필요 여부 확인" },
+      { id: "plaf2", text: "황열병·말라리아 예방접종/약 확인" },
+    ],
+    oceania: [{ id: "plo1", text: "ETA(호주) 또는 NZeTA(뉴질랜드) 신청 확인" }],
     domestic: [],
     solo: [{ id: "plso1", text: "긴급연락처 가족에게 일정 공유" }],
     friends: [{ id: "plf1", text: "동행자와 예산·일정 사전 조율" }],
@@ -3379,12 +3946,14 @@ const PHASE_ITEMS = {
   confirm: {
     common: [
       { id: "cf1", text: "여행자 보험 가입 완료" },
-      { id: "cf2", text: "포켓와이파이 또는 유심 예약" },
       { id: "cf3", text: "현지 교통패스 예약 (필요 시)" },
       { id: "cf4", text: "인기 맛집·관광지 예약" },
-      { id: "cf5", text: "환전 계획 수립 (환율 좋은 날 환전)" },
       { id: "cf6", text: "짐 목록 작성" },
       { id: "cf7", text: "상비약 준비 목록 작성" },
+    ],
+    overseas: [
+      { id: "cf2", text: "포켓와이파이 또는 유심 예약" },
+      { id: "cf5", text: "환전 계획 수립 (환율 좋은 날 환전)" },
     ],
     japan: [
       { id: "cfj1", text: "Suica·ICOCA 교통카드 준비" },
@@ -3402,6 +3971,17 @@ const PHASE_ITEMS = {
       { id: "cfs1", text: "자외선 차단제·모기 기피제 구매" },
       { id: "cfs2", text: "사원 방문 시 복장 규정 확인" },
     ],
+    china: [
+      { id: "cfc1", text: "위챗페이·알리페이 외국인 결제 등록" },
+      { id: "cfc2", text: "VPN 준비 (구글·SNS 접속 제한 대비)" },
+    ],
+    north_america: [
+      { id: "cfna1", text: "국제운전면허증 발급 (렌터카 시)" },
+      { id: "cfna2", text: "팁 문화 대비 현금 준비" },
+    ],
+    latin_america: [{ id: "cfla1", text: "치안 위험지역 사전 확인" }],
+    africa: [{ id: "cfaf1", text: "식수 안전 대비 (정수 필터·생수)" }],
+    oceania: [{ id: "cfo1", text: "자외선 차단제 준비 (자외선 강도 매우 높음)" }],
     domestic: [{ id: "cfd1", text: "교통카드 충전 (KTX·버스 등)" }],
     solo: [],
     friends: [{ id: "cff1", text: "더치페이 앱 설치 (트리비·스플리트와이즈)" }],
@@ -3412,22 +3992,29 @@ const PHASE_ITEMS = {
   },
   depart: {
     common: [
-      { id: "dp1", text: "여권 위치 확인" },
-      { id: "dp2", text: "항공권 e-티켓 저장·출력" },
-      { id: "dp3", text: "환전 완료" },
+      { id: "dp2", text: "항공권·승차권 e-티켓 저장·출력" },
       { id: "dp4", text: "신용카드·체크카드 챙기기" },
       { id: "dp5", text: "보조배터리 충전 완료 — 2개 이내, 기내 반입만 가능, 단자 보호 필수 (기내 사용 금지)" },
       { id: "dp6", text: "짐 패킹 완료" },
       { id: "dp7", text: "상비약 챙기기" },
       { id: "dp8", text: "숙소 주소 오프라인 저장" },
+      { id: "dp10", text: "액체류 100ml 이하 지퍼백에 정리 (항공편 이용 시)" },
+    ],
+    overseas: [
+      { id: "dp1", text: "여권 위치 확인" },
+      { id: "dp3", text: "환전 완료" },
       { id: "dp9", text: "멀티 어댑터 챙기기" },
-      { id: "dp10", text: "액체류 100ml 이하 지퍼백에 정리" },
     ],
     japan: [{ id: "dpj1", text: "일본 입국 심사 서류 준비" }],
     europe: [{ id: "dpe1", text: "여행 경비 분산 보관" }],
     usa: [{ id: "dpu1", text: "입국 신고서 사전 작성" }],
     southeast_asia: [{ id: "dps1", text: "위장약·정장제 챙기기" }],
-    domestic: [],
+    china: [{ id: "dpc1", text: "건강신고 앱 등 입국절차 사전 확인" }],
+    north_america: [{ id: "dpna1", text: "입국 신고서(세관신고) 사전 작성" }],
+    latin_america: [{ id: "dpla1", text: "여행 경비 분산 보관" }],
+    africa: [{ id: "dpaf1", text: "위장약·정장제 챙기기" }],
+    oceania: [{ id: "dpo1", text: "검역 신고 — 음식물·식물류 반입 제한 확인" }],
+    domestic: [{ id: "dpd1", text: "신분증(주민등록증·운전면허증) 챙기기 — 항공권 발권·렌터카 시 필수" }],
     solo: [{ id: "dpso1", text: "대사관 긴급연락처 저장" }],
     friends: [],
     family: [
@@ -3499,11 +4086,15 @@ const CARRY_ON_PROHIBITED = [
 ];
 
 const REGIONS = [
-  { id: "japan", label: "일본", icon: "🇯🇵" },
-  { id: "europe", label: "유럽", icon: "🇪🇺" },
-  { id: "southeast_asia", label: "동남아", icon: "🌴" },
-  { id: "usa", label: "미국", icon: "🇺🇸" },
   { id: "domestic", label: "국내", icon: "🇰🇷" },
+  { id: "japan", label: "일본", icon: "🇯🇵" },
+  { id: "china", label: "중국", icon: "🇨🇳" },
+  { id: "southeast_asia", label: "동남아", icon: "🌴" },
+  { id: "europe", label: "유럽", icon: "🇪🇺" },
+  { id: "north_america", label: "북미", icon: "🗽" },
+  { id: "latin_america", label: "중남미", icon: "🌎" },
+  { id: "africa", label: "아프리카", icon: "🌍" },
+  { id: "oceania", label: "오세아니아", icon: "🇦🇺" },
 ];
 
 // ─── CheckItem Component ───
@@ -3568,6 +4159,7 @@ function CheckTab({ state, setState }) {
     const data = PHASE_ITEMS[phaseId];
     if (!data) return [];
     const items = [...data.common];
+    if (selectedRegion !== "domestic" && data.overseas) items.push(...data.overseas);
     if (selectedRegion && selectedRegion !== "none" && data[selectedRegion]) items.push(...data[selectedRegion]);
     if (companionType && data[companionType]) items.push(...data[companionType]);
     return items;
@@ -3720,20 +4312,29 @@ function CheckTab({ state, setState }) {
               }}>
                 💡 선택하면 지역별 추가 준비물이 표시됩니다 (공통 항목은 항상 포함)
               </div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              <div style={{
+                display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px",
+              }}>
                 {REGIONS.map(r => {
                   const isActive = selectedRegion === r.id;
                   return (
                     <button key={r.id} onClick={() => setRegion(isActive ? "" : r.id)} style={{
-                      padding: "7px 12px", display: "flex", alignItems: "center", gap: "4px",
-                      background: isActive ? theme.text : theme.bgCard,
-                      color: isActive ? theme.textWhite : theme.text,
-                      border: `1.5px solid ${isActive ? theme.text : theme.border}`,
-                      borderRadius: theme.radiusFull, fontSize: "13px",
-                      fontWeight: isActive ? "700" : "600", cursor: "pointer",
-                      boxShadow: isActive ? "none" : theme.shadow,
+                      padding: "12px 4px",
+                      border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
+                      borderRadius: theme.radiusSm,
+                      background: isActive ? theme.primaryLight : theme.bgCard,
+                      color: isActive ? theme.primary : theme.text,
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "4px",
                     }}>
-                      <span>{r.icon}</span><span>{r.label}</span>
+                      <span style={{ fontSize: "20px" }}>{r.icon}</span>
+                      {r.label}
                     </button>
                   );
                 })}
@@ -4526,11 +5127,23 @@ function TripEditModal({ state, onSave, onClose }) {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>환율 (1{form.currency} = ?원)</label>
-              <input type="text" inputMode="numeric" value={form.rate}
-                onChange={e => update("rate", e.target.value.replace(/[^0-9.]/g, ""))}
-                placeholder="예: 9.2" style={inputStyle} />
-              <div style={{ fontSize: "11px", color: theme.textLight, marginTop: "3px" }}>📌 참고 환율 자동입력</div>
+              <label style={labelStyle}>환율 (1{form.currency} = {formatRateLabel(form.rate)})</label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input type="text" inputMode="numeric" value={form.rate}
+                  onChange={e => update("rate", e.target.value.replace(/[^0-9.]/g, ""))}
+                  placeholder="예: 9.2" style={inputStyle} />
+                <button type="button" onClick={async () => {
+                  if (form.currency === "KRW") return;
+                  try {
+                    const r = await fetchExchangeRate(form.currency);
+                    setForm(p => ({ ...p, rate: String(roundRate(r)) }));
+                  } catch (e) { /* ignore */ }
+                }} title="실시간 환율 새로고침" style={{
+                  width: "40px", flexShrink: 0, border: `1.5px solid ${theme.border}`, borderRadius: theme.radiusSm,
+                  background: theme.bgCard, cursor: "pointer", fontSize: "15px",
+                }}>🔄</button>
+              </div>
+              <div style={{ fontSize: "11px", color: theme.textLight, marginTop: "3px" }}>📌 참고 환율 자동입력 · 🔄로 실시간 갱신</div>
             </div>
           </div>
         )}
@@ -4589,8 +5202,10 @@ function FinishTripModal({ onConfirm, onClose }) {
 }
 
 // ─── Archive View Modal ───
-function ArchiveModal({ archives, onClose }) {
+function ArchiveModal({ archives, onClose, onDeleteArchive, onEditArchive }) {
   const [expanded, setExpanded] = useState(null);
+  const [deleteIdx, setDeleteIdx] = useState(null);
+  const [editIdx, setEditIdx] = useState(null);
   return (
     <ModalWrapper onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -4631,7 +5246,8 @@ function ArchiveModal({ archives, onClose }) {
                       background: theme.bgInput, display: "flex", alignItems: "center",
                       justifyContent: "center", fontSize: "26px", flexShrink: 0,
                     }}>
-                      {REGION_FLAGS[arc.selectedRegion] || REGION_FLAGS[arc.tripRegion === "domestic" ? "domestic" : "overseas"]}
+                      {TRIP_REGIONS.find(r => r.id === arc.selectedRegion)?.icon
+                        || (arc.tripRegion === "domestic" ? "🇰🇷" : "🌏")}
                     </div>
                   )}
                   <div style={{ flex: 1 }}>
@@ -4651,18 +5267,37 @@ function ArchiveModal({ archives, onClose }) {
                   }}>▼</span>
                 </button>
                 {expanded === i && (
-                  <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme.borderLight}`, display: "flex", flexDirection: "column", gap: "6px" }}>
-                    {[
-                      { label: "일정", value: `${(arc.itinerary || []).length}개` },
-                      { label: "지출", value: `${(arc.expenses || []).length}건 · ${Math.round(totalSpent).toLocaleString()}원` },
-                      { label: "동행", value: arc.companionType ? `${arc.companionType} ${arc.companionCount || ""}명` : "-" },
-                      { label: "메모", value: arc.tripMemo || "-" },
-                    ].map((row, j) => (
-                      <div key={j} style={{ display: "flex", gap: "12px", fontSize: "13px" }}>
-                        <span style={{ color: theme.textSub, fontWeight: "600", minWidth: "36px" }}>{row.label}</span>
-                        <span style={{ color: theme.text }}>{row.value}</span>
-                      </div>
-                    ))}
+                  <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme.borderLight}`, display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => setEditIdx(i)} style={{
+                        flex: 1, padding: "9px", fontSize: "12.5px", fontWeight: "600",
+                        background: theme.bgInput, color: theme.text, border: "none",
+                        borderRadius: theme.radiusSm, cursor: "pointer",
+                      }}>✏️ 수정</button>
+                      <button onClick={() => exportArchiveAsPDF(arc)} style={{
+                        flex: 1, padding: "9px", fontSize: "12.5px", fontWeight: "600",
+                        background: theme.bgInput, color: theme.text, border: "none",
+                        borderRadius: theme.radiusSm, cursor: "pointer",
+                      }}>📄 PDF 내보내기</button>
+                      <button onClick={() => setDeleteIdx(i)} style={{
+                        flex: 1, padding: "9px", fontSize: "12.5px", fontWeight: "600",
+                        background: "#FEE2E2", color: "#B91C1C", border: "none",
+                        borderRadius: theme.radiusSm, cursor: "pointer",
+                      }}>🗑️ 삭제</button>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {[
+                        { label: "일정", value: `${(arc.itinerary || []).length}개` },
+                        { label: "지출", value: `${(arc.expenses || []).length}건 · ${Math.round(totalSpent).toLocaleString()}원` },
+                        { label: "동행", value: arc.companionType ? `${arc.companionType} ${arc.companionCount || ""}명` : "-" },
+                        { label: "메모", value: arc.tripMemo || "-" },
+                      ].map((row, j) => (
+                        <div key={j} style={{ display: "flex", gap: "12px", fontSize: "13px" }}>
+                          <span style={{ color: theme.textSub, fontWeight: "600", minWidth: "36px" }}>{row.label}</span>
+                          <span style={{ color: theme.text }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -4670,11 +5305,25 @@ function ArchiveModal({ archives, onClose }) {
           })}
         </div>
       )}
+      {deleteIdx !== null && (
+        <ConfirmDialog
+          message={`"${archives[deleteIdx].tripName || "이 여행 기록"}"을 삭제할까요?\n삭제하면 복구할 수 없습니다.`}
+          onConfirm={() => { onDeleteArchive(deleteIdx); setDeleteIdx(null); }}
+          onCancel={() => setDeleteIdx(null)}
+        />
+      )}
+      {editIdx !== null && (
+        <ArchiveEditModal
+          archive={archives[editIdx]}
+          onSave={(updated) => { onEditArchive(editIdx, updated); setEditIdx(null); }}
+          onClose={() => setEditIdx(null)}
+        />
+      )}
     </ModalWrapper>
   );
 }
 
-function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, onThemeChange }) {
+function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, onThemeChange, driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle, onDeleteArchive, onEditArchive }) {
   const [editOpen, setEditOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -4684,13 +5333,19 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
   const [editingTheme, setEditingTheme] = useState(null);
   const cardRef = useRef(null);
   const fileRef = useRef(null);
-  const { driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle } = useDrive(state, setState);
 
   const handleTheme = (mode) => {
     setThemeMode(mode);
     localStorage.setItem("theme_mode", mode);
     applyTheme(mode);
+    // 커스텀 테마가 켜져 있으면 해제 (기본 테마와 동시 적용 방지)
+    if (customThemes.some(t => t.isActive)) {
+      const updated = customThemes.map(t => ({ ...t, isActive: false }));
+      setCustomThemes(updated);
+      saveCustomThemes(updated);
+    }
     onThemeChange?.(mode);
+    onThemeChange?.("__custom_updated__");
   };
 
   const handleSaveCustomTheme = (ct) => {
@@ -5121,7 +5776,7 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
       }}>🏁 여행 마무리</button>
 
       <div style={{ textAlign: "center", marginTop: "28px", fontSize: "12px", color: theme.textLight }}>
-        모리의 여행플래너 v2.0
+        모리의 여행플래너 {APP_VERSION}
         {state.lastSaved && (
           <div style={{ marginTop: "4px" }}>
             마지막 저장: {new Date(state.lastSaved).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -5137,11 +5792,22 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
       )}
       {finishOpen && (
         <FinishTripModal
-          onConfirm={(review) => { setFinishOpen(false); onFinishTrip(review); }}
+          onConfirm={async (review) => {
+            setFinishOpen(false);
+            if (window.confirm("Google Drive에도 백업하시겠습니까?\n\n여행카드 이미지 등 큰 데이터는 브라우저 저장공간보다 Drive가 훨씬 안전합니다.\n(이 기기에 데이터가 남아있더라도, 다른 기기에서 보거나 나중에 복구하려면 Drive 백업을 권장합니다)")) {
+              try {
+                await driveSave({ ...state, archives: loadArchive(), savedAt: new Date().toISOString(), appVersion: "2.0" });
+                alert("✅ Drive 백업 완료! 여행을 마무리합니다.");
+              } catch (e) {
+                if (!window.confirm(`⚠️ Drive 백업에 실패했습니다 (${e.message || "오류"}).\n그래도 마무리(아카이브 저장)를 진행할까요?`)) return;
+              }
+            }
+            onFinishTrip(review);
+          }}
           onClose={() => setFinishOpen(false)} />
       )}
       {archiveOpen && (
-        <ArchiveModal archives={archives} onClose={() => setArchiveOpen(false)} />
+        <ArchiveModal archives={archives} onClose={() => setArchiveOpen(false)} onDeleteArchive={onDeleteArchive} onEditArchive={onEditArchive} />
       )}
       {themeEditorOpen && (
         <CustomThemeEditorModal
@@ -5169,6 +5835,87 @@ export default function App() {
     const next = !particlesEnabled;
     setParticlesEnabled(next);
     localStorage.setItem("particles_enabled", String(next));
+  };
+
+  const { driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle } = useDrive(state, setState);
+
+  // Drive에서 가져오기 성공 시 자동으로 메인 화면 전환
+  useEffect(() => {
+    if (screen === "import" && driveStatus === "success") {
+      const order = getTabOrder(state?.tripStart, state?.tripEnd);
+      setActiveTab(order[0]);
+      setScreen("main");
+    }
+  }, [driveStatus]);
+
+  // ─── 가져온 일정으로 새 임시 여행 생성 ───
+  const createTripFromImport = (itinerary, extra = {}) => {
+    const newState = {
+      ...DEFAULT_STATE,
+      tripName: "가져온 일정",
+      tripStart: new Date().toISOString().slice(0, 10),
+      tripEnd: new Date().toISOString().slice(0, 10),
+      ...extra,
+      itinerary,
+      lastSaved: new Date().toISOString(),
+    };
+    setState(newState);
+    saveState(newState);
+    const order = getTabOrder(newState.tripStart, newState.tripEnd);
+    setActiveTab(order[0]);
+    setScreen("main");
+  };
+
+  // ─── 데이터 가져오기 화면: 통합 파일 업로드 (JSON/CSV/엑셀) ───
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    const isJSON = file.name.endsWith(".json");
+    if (isExcel) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const data = new Uint8Array(ev.target.result);
+        const parsed = parseExcel(data);
+        const wb = XLSX.read(data, { type: "array" });
+        const bucket = parseExcelBucket(wb);
+        const budget = parseExcelBudget(wb);
+        if (parsed.length === 0 && bucket.length === 0 && !budget) { alert("엑셀 파싱 실패"); return; }
+        createTripFromImport(
+          parsed.map(s => ({ ...s, id: generateId() })),
+          { ...(bucket.length > 0 ? { shoppingList: bucket } : {}), ...(budget ? { budget } : {}) }
+        );
+      };
+      reader.readAsArrayBuffer(file);
+    } else if (isJSON) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.tripStart && data.tripEnd) {
+            const { archives: _a, savedAt: _s, appVersion: _v, ...tripData } = data;
+            const merged = { ...DEFAULT_STATE, ...tripData };
+            createTripFromImport((merged.itinerary || []).map(s => ({ ...s, id: s.id || generateId() })), merged);
+          } else if (Array.isArray(data.itinerary)) {
+            createTripFromImport(data.itinerary.map(s => ({ ...s, id: generateId() })));
+          } else {
+            alert("지원하지 않는 JSON 형식입니다.");
+          }
+        } catch {
+          alert("JSON 파일 형식이 올바르지 않습니다.");
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const parsed = parseCSV(ev.target.result);
+        if (parsed.length === 0) { alert("CSV 파싱 실패"); return; }
+        createTripFromImport(parsed.map(s => ({ ...s, id: generateId() })));
+      };
+      reader.readAsText(file);
+    }
+    e.target.value = "";
   };
 
   // Load initial data
@@ -5228,6 +5975,18 @@ export default function App() {
     setScreen("welcome");
   };
 
+  const handleDeleteArchive = (idx) => {
+    const newArchives = archives.filter((_, i) => i !== idx);
+    setArchives(newArchives);
+    saveArchive(newArchives);
+  };
+
+  const handleEditArchive = (idx, updated) => {
+    const newArchives = archives.map((a, i) => i === idx ? updated : a);
+    setArchives(newArchives);
+    saveArchive(newArchives);
+  };
+
   // Tab
   const tabOrder = state ? getTabOrder(state.tripStart, state.tripEnd) : [];
   const tripPhase = state ? getTripPhase(state.tripStart, state.tripEnd) : "before";
@@ -5269,40 +6028,60 @@ export default function App() {
     );
   }
 
+  if (screen === "globalSettings") {
+    return (
+      <GlobalSettingsScreen
+        bgMode={resolveBgMode(appThemeMode)}
+        appThemeMode={appThemeMode}
+        onThemeChange={(mode) => {
+          setAppThemeMode(mode);
+          localStorage.setItem("theme_mode", mode);
+          applyTheme(mode);
+        }}
+        onBack={() => setScreen("welcome")}
+      />
+    );
+  }
+
   if (screen === "welcome") {
     return (
       <>
         <WelcomeScreen
+          bgMode={resolveBgMode(appThemeMode)}
           onNewTrip={handleNewTrip}
           onImport={handleImport}
           onViewArchive={handleViewArchive}
           hasArchive={archives.length > 0}
           activeTripName={state?.tripName || null}
           onGoToActiveTrip={() => setScreen("main")}
+          onOpenSettings={() => setScreen("globalSettings")}
         />
         {showTripInProgress && (
-          <TripInProgressModal tripName={state?.tripName} onClose={() => setShowTripInProgress(false)} />
+          <TripInProgressModal tripName={state?.tripName} onClose={() => setShowTripInProgress(false)} onGoToTrip={() => { setShowTripInProgress(false); setScreen("main"); }} />
         )}
       </>
     );
   }
 
   if (screen === "setup") {
-    return <TripSetupForm onComplete={handleSetupComplete} onBack={() => setScreen("welcome")} />;
+    return <TripSetupForm bgMode={resolveBgMode(appThemeMode)} onComplete={handleSetupComplete} onBack={() => setScreen("welcome")} />;
   }
 
   if (screen === "import") {
     return (
       <ImportScreen
+        bgMode={resolveBgMode(appThemeMode)}
         onBack={() => setScreen("welcome")}
-        onImportV1={() => alert("v1 데이터 변환 기능은 Phase 1 완성 후 구현됩니다")}
-        onImportDrive={() => alert("Drive 연동은 Phase 1 완성 후 구현됩니다")}
+        onImportDrive={handleDriveLoad}
+        onImportFile={handleImportFile}
+        driveStatus={driveStatus}
+        driveMessage={driveMessage}
       />
     );
   }
 
   if (screen === "archive") {
-    return <ArchiveScreen onBack={() => setScreen("welcome")} archives={archives} />;
+    return <ArchiveScreen bgMode={resolveBgMode(appThemeMode)} onBack={() => setScreen("welcome")} archives={archives} onDeleteArchive={handleDeleteArchive} onEditArchive={handleEditArchive} />;
   }
 
   // Main Screen
@@ -5320,7 +6099,10 @@ export default function App() {
       case "check":
         return <CheckTab state={state} setState={setState} />;
       case "settings":
-        return <SettingsTab state={state} setState={setState} onFinishTrip={handleFinishTrip} archives={archives} onThemeChange={handleThemeChange} />;
+        return <SettingsTab state={state} setState={setState} onFinishTrip={handleFinishTrip} archives={archives} onThemeChange={handleThemeChange}
+          driveStatus={driveStatus} driveMessage={driveMessage} lastSynced={lastSynced}
+          handleDriveSave={handleDriveSave} handleDriveLoad={handleDriveLoad} resetToIdle={resetToIdle}
+          onDeleteArchive={handleDeleteArchive} onEditArchive={handleEditArchive} />;
       default:
         return null;
     }
@@ -5334,13 +6116,20 @@ export default function App() {
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
       position: "relative",
     }}>
-      <ParticleCanvas themeMode={appThemeMode} enabled={particlesEnabled} />
+      {!activeCustomTheme && <AppBackground mode={resolveBgMode(appThemeMode)} />}
+      {!activeCustomTheme && <ParticleCanvas themeMode={appThemeMode} enabled={particlesEnabled} />}
       {/* 커스텀 테마 배경 + 파티클 */}
       {activeCustomTheme?.bgImage && (
         <div style={{
           position:"fixed", inset:0, zIndex:-1, pointerEvents:"none",
           backgroundImage:`url(${activeCustomTheme.bgImage})`,
           backgroundSize:"cover", backgroundPosition:"center",
+        }} />
+      )}
+      {!activeCustomTheme?.bgImage && activeCustomTheme && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none",
+          background: activeCustomTheme.bgColor || theme.bg,
         }} />
       )}
       {activeCustomTheme && particlesEnabled && (
