@@ -1091,6 +1091,19 @@ function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack }) {
           </button>
         </div>
 
+        <div style={sectionStyle}>
+          <a href={`${process.env.PUBLIC_URL}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{
+            width: "100%", display: "flex", alignItems: "center", gap: "12px",
+            padding: "14px 16px", textDecoration: "none",
+          }}>
+            <span style={{ fontSize: "20px" }}>📜</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>개인정보처리방침</div>
+            </div>
+            <span style={{ fontSize: "16px", color: theme.textLight }}>↗</span>
+          </a>
+        </div>
+
         <div style={{ textAlign: "center", padding: "20px 0 8px", fontSize: "12px", color: theme.textLight }}>
           모리의 여행플래너 {APP_VERSION}
         </div>
@@ -5766,6 +5779,20 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
         </div>
         <span style={{ fontSize: "16px", color: theme.textLight }}>›</span>
       </button>
+
+      <a href={`${process.env.PUBLIC_URL}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{
+        width: "100%", display: "flex", alignItems: "center", gap: "12px",
+        padding: "14px 16px", background: theme.bgCard,
+        border: `1px solid ${theme.borderLight}`, borderRadius: theme.radius,
+        textAlign: "left", boxShadow: theme.shadow, marginBottom: "12px",
+        textDecoration: "none", boxSizing: "border-box",
+      }}>
+        <span style={{ fontSize: "20px" }}>📜</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>개인정보처리방침</div>
+        </div>
+        <span style={{ fontSize: "16px", color: theme.textLight }}>↗</span>
+      </a>
 
       {/* 여행 마무리 */}
       <button onClick={() => setFinishOpen(true)} style={{
