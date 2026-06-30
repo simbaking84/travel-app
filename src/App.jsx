@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.15";
+const APP_VERSION = "v2.01.04";
 
 const STORAGE_KEY = "travel_app_v2";
 const ARCHIVE_KEY = "travel_archive_v2";
@@ -310,6 +310,133 @@ applyTheme(localStorage.getItem("theme_mode") || "system");
 // ─── Components ───
 
 // Welcome Screen
+// ─── 첫 실행 온보딩 (4장 슬라이드) ───
+const ONBOARDING_KEY = "onboarding_seen_v1";
+
+const ONBOARDING_SLIDES = [
+  {
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-1-itinerary.png`,
+    title: "여행을 계획하고\n일정을 정리해요",
+    desc: "일정, 메모, 지도까지\n한 곳에서 관리하세요.",
+  },
+  {
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-2-ai.png`,
+    title: "AI와 함께 여행을\n더 스마트하게",
+    desc: "AI에게 추천받고,\n일정도 쉽게 가져오세요.",
+  },
+  {
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-3-expense.png`,
+    title: "지출을 기록하고\n예산을 관리해요",
+    desc: "환율 계산과 예산 관리로\n여행 경비를 똑똑하게!",
+  },
+  {
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-4-checklist.png`,
+    title: "체크리스트와 함께\n완벽한 여행 준비",
+    desc: "준비물 체크부터 출발까지\n모든 것을 챙겨드려요.",
+  },
+];
+
+function OnboardingModal({ onClose }) {
+  const [step, setStep] = useState(0);
+  const isLast = step === ONBOARDING_SLIDES.length - 1;
+  const slide = ONBOARDING_SLIDES[step];
+
+  const finish = () => {
+    try { localStorage.setItem(ONBOARDING_KEY, "1"); } catch (e) { /* ignore */ }
+    onClose();
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 300,
+      background: theme.bg,
+      display: "flex", flexDirection: "column",
+      fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+    }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 20px" }}>
+        <button onClick={finish} style={{
+          background: "none", border: "none", fontSize: "14px",
+          color: theme.textLight, cursor: "pointer", fontWeight: "600",
+        }}>건너뛰기</button>
+      </div>
+
+      <div style={{
+        flex: 1, display: "flex", flexDirection: "column",
+        alignItems: "center", overflow: "hidden",
+      }}>
+        {/* 이미지 */}
+        <div style={{
+          flex: 1, width: "100%", display: "flex",
+          alignItems: "center", justifyContent: "center",
+          padding: "0 24px", overflow: "hidden",
+        }}>
+          <img
+            src={slide.img}
+            alt={slide.title}
+            style={{
+              maxHeight: "520px",
+              maxWidth: "100%",
+              objectFit: "contain",
+              borderRadius: theme.radius,
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: "6px", margin: "16px 0" }}>
+        {ONBOARDING_SLIDES.map((_, i) => (
+          <div key={i} style={{
+            width: i === step ? "20px" : "6px", height: "6px", borderRadius: "3px",
+            background: i === step ? theme.primary : theme.border,
+            transition: "all 0.2s",
+          }} />
+        ))}
+      </div>
+
+      <div style={{ padding: "0 20px 32px", maxWidth: "480px", width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+        <button onClick={() => isLast ? finish() : setStep(s => s + 1)} style={{
+          width: "100%", padding: "16px",
+          background: theme.primary, color: theme.textWhite,
+          border: "none", borderRadius: theme.radius,
+          fontSize: "16px", fontWeight: "700", cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(37,99,235,0.3)",
+        }}>
+          {isLast ? "시작하기 ✈️" : "다음"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 튜토리얼 다시보기 — 전체 이미지 한 장으로 보기 ───
+function TutorialReviewModal({ onClose }) {
+  return (
+    <ModalWrapper onClose={onClose}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <h3 style={{ margin: 0, fontSize: "17px", fontWeight: "800", color: theme.text }}>
+          🧳 모리의 여행플래너
+        </h3>
+        <button onClick={onClose} style={{
+          background: "none", border: "none", fontSize: "22px",
+          cursor: "pointer", color: theme.textLight, padding: "4px",
+        }}>✕</button>
+      </div>
+      <img
+        src={`${process.env.PUBLIC_URL}/assets/onboarding/onboarding-all.png`}
+        alt="튜토리얼"
+        style={{ width: "100%", borderRadius: theme.radius }}
+      />
+      <button onClick={onClose} style={{
+        width: "100%", marginTop: "14px", padding: "14px",
+        background: theme.primary, color: theme.textWhite,
+        border: "none", borderRadius: theme.radius,
+        fontSize: "15px", fontWeight: "700", cursor: "pointer",
+      }}>확인</button>
+    </ModalWrapper>
+  );
+}
+
+
 function WelcomeScreen({ bgMode, onNewTrip, onImport, onViewArchive, hasArchive, activeTripName, onGoToActiveTrip, onOpenSettings }) {
   return (
     <div style={{
@@ -964,15 +1091,15 @@ function ArchiveEditModal({ archive, onSave, onClose }) {
 }
 
 // ─── 전역 설정 화면 (여행 시작 전에도 접근 가능: Drive 미리연결 + 테마 + 엑셀양식) ───
-function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack }) {
+function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onShowOnboarding }) {
   const [driveStatus, setDriveStatus] = useState("idle"); // idle | connecting | connected | error
   const [driveMessage, setDriveMessage] = useState("");
 
   const themeBtnStyle = (id) => ({
     flex: 1, padding: "9px 4px",
-    background: appThemeMode === id ? theme.text : "transparent",
+    background: appThemeMode === id ? theme.primary : theme.bgCard,
     color: appThemeMode === id ? theme.textWhite : theme.textSub,
-    border: `1px solid ${appThemeMode === id ? theme.text : theme.border}`,
+    border: `1px solid ${appThemeMode === id ? theme.primary : theme.border}`,
     borderRadius: theme.radiusSm, fontSize: "11px", fontWeight: "600", cursor: "pointer",
   });
 
@@ -1087,6 +1214,22 @@ function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>엑셀 양식 다운로드</div>
               <div style={{ fontSize: "12px", color: theme.textSub }}>일정 입력 템플릿 (.xlsx)</div>
+            </div>
+          </button>
+        </div>
+
+        <div style={sectionStyle}>
+          <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>
+            도움말
+          </div>
+          <button onClick={onShowOnboarding} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: "12px",
+            padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left",
+          }}>
+            <span style={{ fontSize: "20px" }}>🧳</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>튜토리얼 다시 보기</div>
+              <div style={{ fontSize: "12px", color: theme.textSub }}>앱 소개를 처음부터 다시 봅니다</div>
             </div>
           </button>
         </div>
@@ -2736,11 +2879,16 @@ function ItineraryTab({ state, setState }) {
             color: theme.textLight,
           }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>📋</div>
-            <p style={{ fontSize: "15px", margin: "0 0 16px", fontWeight: "500" }}>
-              {days.length > 0 ? "아직 일정이 없습니다" : "여행 날짜를 먼저 설정해 주세요"}
+            <p style={{ fontSize: "15px", margin: "0 0 6px", fontWeight: "700", color: theme.text }}>
+              {days.length > 0 ? "아직 일정이 없어요" : "여행 날짜를 먼저 설정해 주세요"}
             </p>
             {days.length > 0 && (
-              <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+              <p style={{ fontSize: "13px", margin: "0 0 16px", color: theme.textLight }}>
+                AI 추천을 받아보거나, 직접 일정을 추가해보세요
+              </p>
+            )}
+            {days.length > 0 && (
+              <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
                 <button onClick={handleAddSlot} style={{
                   padding: "10px 20px",
                   background: theme.primary,
@@ -2751,16 +2899,6 @@ function ItineraryTab({ state, setState }) {
                   fontWeight: "700",
                   cursor: "pointer",
                 }}>+ 일정 추가</button>
-                <button onClick={() => setBulkInputOpen(true)} style={{
-                  padding: "10px 20px",
-                  background: theme.bgCard,
-                  color: theme.primary,
-                  border: `1.5px solid ${theme.primary}`,
-                  borderRadius: theme.radiusFull,
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                }}>⚡ 빠른 입력</button>
               </div>
             )}
           </div>
@@ -3057,7 +3195,7 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
                 return (
                   <button key={cat} onClick={() => update("category", cat)} style={{
                     padding: "8px 14px",
-                    background: isActive ? theme.text : "transparent",
+                    background: isActive ? theme.primary : "transparent",
                     color: isActive ? theme.textWhite : theme.textSub,
                     border: isActive ? "none" : `1px solid ${theme.border}`,
                     borderRadius: theme.radiusFull, fontSize: "13px",
@@ -3222,7 +3360,7 @@ function SettlementView({ state }) {
       {/* Total */}
       <div style={{
         ...sectionStyle,
-        background: theme.text, color: theme.textWhite,
+        background: theme.primary, color: theme.textWhite,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: "15px", fontWeight: "600" }}>총 지출</span>
@@ -3753,9 +3891,9 @@ function ExpenseTab({ state, setState }) {
           return (
             <button key={d} onClick={() => setSelectedDay(d)} style={{
               flexShrink: 0, padding: "6px 14px", position: "relative",
-              background: isActive ? theme.text : theme.bgCard,
+              background: isActive ? theme.primary : theme.bgCard,
               color: isActive ? theme.textWhite : theme.text,
-              border: `1.5px solid ${isActive ? theme.text : theme.border}`,
+              border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
               borderRadius: theme.radiusFull, fontSize: "13px",
               fontWeight: isActive ? "700" : "600", cursor: "pointer",
               boxShadow: isActive ? "none" : theme.shadow,
@@ -3870,8 +4008,11 @@ function ExpenseTab({ state, setState }) {
                 textAlign: "center", padding: "48px 20px", color: theme.textLight,
               }}>
                 <div style={{ fontSize: "40px", marginBottom: "12px" }}>💳</div>
-                <p style={{ fontSize: "15px", margin: "0 0 16px", fontWeight: "500" }}>
-                  지출 내역이 없습니다
+                <p style={{ fontSize: "15px", margin: "0 0 6px", fontWeight: "700", color: theme.text }}>
+                  아직 지출 내역이 없어요
+                </p>
+                <p style={{ fontSize: "13px", margin: 0 }}>
+                  아래 버튼으로 첫 지출을 기록해보세요
                 </p>
               </div>
             )}
@@ -3879,9 +4020,9 @@ function ExpenseTab({ state, setState }) {
             {/* Add Button */}
             <button onClick={handleAdd} style={{
               width: "100%", marginTop: "12px", padding: "14px",
-              background: selectedDay === -1 && dayExpenses.length === 0 ? theme.primary : theme.primaryLight,
-              color: selectedDay === -1 && dayExpenses.length === 0 ? theme.textWhite : theme.primary,
-              border: selectedDay === -1 && dayExpenses.length === 0 ? "none" : `1.5px solid ${theme.primary}30`,
+              background: theme.primaryLight,
+              color: theme.primary,
+              border: `1.5px solid ${theme.primary}30`,
               borderRadius: theme.radius, fontSize: "14px", fontWeight: "700", cursor: "pointer",
             }}>+ 지출 추가</button>
           </>
@@ -4243,9 +4384,9 @@ function CheckTab({ state, setState }) {
         ].map(s => (
           <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
             flex: 1, padding: "10px",
-            background: activeSection === s.id ? theme.text : theme.bgCard,
+            background: activeSection === s.id ? theme.primary : theme.bgCard,
             color: activeSection === s.id ? theme.textWhite : theme.textSub,
-            border: `1px solid ${activeSection === s.id ? theme.text : theme.border}`,
+            border: `1px solid ${activeSection === s.id ? theme.primary : theme.border}`,
             borderRadius: theme.radiusSm, fontSize: "13px", fontWeight: "700", cursor: "pointer",
           }}>{s.label}</button>
         ))}
@@ -5336,7 +5477,7 @@ function ArchiveModal({ archives, onClose, onDeleteArchive, onEditArchive }) {
   );
 }
 
-function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, onThemeChange, driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle, onDeleteArchive, onEditArchive }) {
+function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, onThemeChange, driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle, onDeleteArchive, onEditArchive, onShowOnboarding }) {
   const [editOpen, setEditOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -5569,9 +5710,9 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
             ].map(t => (
               <button key={t.id} onClick={() => { handleTheme(t.id); }} style={{
                 flex: 1, padding: "9px 4px",
-                background: theme_mode === t.id ? theme.text : "transparent",
+                background: theme_mode === t.id ? theme.primary : theme.bgCard,
                 color: theme_mode === t.id ? theme.textWhite : theme.textSub,
-                border: `1px solid ${theme_mode === t.id ? theme.text : theme.border}`,
+                border: `1px solid ${theme_mode === t.id ? theme.primary : theme.border}`,
                 borderRadius: theme.radiusSm, fontSize: "11px", fontWeight: "600", cursor: "pointer",
               }}>{t.label}</button>
             ))}
@@ -5586,9 +5727,9 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
             ].map(t => (
               <button key={t.id} onClick={() => { handleTheme(t.id); }} style={{
                 flex: 1, padding: "9px 4px",
-                background: theme_mode === t.id ? theme.text : "transparent",
+                background: theme_mode === t.id ? theme.primary : theme.bgCard,
                 color: theme_mode === t.id ? theme.textWhite : theme.textSub,
-                border: `1px solid ${theme_mode === t.id ? theme.text : theme.border}`,
+                border: `1px solid ${theme_mode === t.id ? theme.primary : theme.border}`,
                 borderRadius: theme.radiusSm, fontSize: "11px", fontWeight: "600", cursor: "pointer",
               }}>{t.label}</button>
             ))}
@@ -5794,6 +5935,18 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
         <span style={{ fontSize: "16px", color: theme.textLight }}>↗</span>
       </a>
 
+      <button onClick={onShowOnboarding} style={{
+        width: "100%", display: "flex", alignItems: "center", gap: "12px",
+        padding: "14px 16px", background: theme.bgCard,
+        border: `1px solid ${theme.borderLight}`, borderRadius: theme.radius,
+        cursor: "pointer", textAlign: "left", boxShadow: theme.shadow, marginBottom: "12px",
+      }}>
+        <span style={{ fontSize: "20px" }}>🧳</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>튜토리얼 다시 보기</div>
+        </div>
+      </button>
+
       {/* 여행 마무리 */}
       <button onClick={() => setFinishOpen(true)} style={{
         width: "100%", marginTop: "8px", padding: "16px",
@@ -5857,6 +6010,8 @@ export default function App() {
   const [appThemeMode, setAppThemeMode] = useState(localStorage.getItem("theme_mode") || "system");
   const [particlesEnabled, setParticlesEnabled] = useState(localStorage.getItem("particles_enabled") !== "false");
   const [showTripInProgress, setShowTripInProgress] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showTutorialReview, setShowTutorialReview] = useState(false);
 
   const handleParticleToggle = () => {
     const next = !particlesEnabled;
@@ -5958,6 +6113,9 @@ export default function App() {
     } else {
       setScreen("welcome");
     }
+    try {
+      if (!localStorage.getItem(ONBOARDING_KEY)) setShowOnboarding(true);
+    } catch (e) { /* ignore */ }
   }, []);
 
   // Responsive
@@ -6066,6 +6224,7 @@ export default function App() {
           applyTheme(mode);
         }}
         onBack={() => setScreen("welcome")}
+        onShowOnboarding={() => { setScreen("welcome"); setShowTutorialReview(true); }}
       />
     );
   }
@@ -6085,6 +6244,12 @@ export default function App() {
         />
         {showTripInProgress && (
           <TripInProgressModal tripName={state?.tripName} onClose={() => setShowTripInProgress(false)} onGoToTrip={() => { setShowTripInProgress(false); setScreen("main"); }} />
+        )}
+        {showOnboarding && (
+          <OnboardingModal onClose={() => setShowOnboarding(false)} />
+        )}
+        {showTutorialReview && (
+          <TutorialReviewModal onClose={() => setShowTutorialReview(false)} />
         )}
       </>
     );
@@ -6129,7 +6294,8 @@ export default function App() {
         return <SettingsTab state={state} setState={setState} onFinishTrip={handleFinishTrip} archives={archives} onThemeChange={handleThemeChange}
           driveStatus={driveStatus} driveMessage={driveMessage} lastSynced={lastSynced}
           handleDriveSave={handleDriveSave} handleDriveLoad={handleDriveLoad} resetToIdle={resetToIdle}
-          onDeleteArchive={handleDeleteArchive} onEditArchive={handleEditArchive} />;
+          onDeleteArchive={handleDeleteArchive} onEditArchive={handleEditArchive}
+          onShowOnboarding={() => setShowTutorialReview(true)} />;
       default:
         return null;
     }
@@ -6266,6 +6432,12 @@ export default function App() {
           isMobile={true}
           tripPhase={tripPhase}
         />
+      )}
+      {showOnboarding && (
+        <OnboardingModal onClose={() => setShowOnboarding(false)} />
+      )}
+      {showTutorialReview && (
+        <TutorialReviewModal onClose={() => setShowTutorialReview(false)} />
       )}
     </div>
   );

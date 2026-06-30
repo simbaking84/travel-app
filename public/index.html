@@ -49,7 +49,7 @@
         '<span style="font-size:18px">⚠️</span>',
         '<span style="flex:1">카카오톡 브라우저에서 일부 기능에 오류가 발생했어요.<br>',
         '<b>우측 상단 ··· → 다른 브라우저로 열기</b>를 이용해 주세요.</span>',
-        '<button onclick="document.getElementById(\\'kakao-banner\\').remove()" ',
+        '<button onclick="document.getElementById(\'kakao-banner\').remove()" ',
         'style="background:none;border:none;font-size:18px;cursor:pointer;color:#3C1E1E;padding:4px">✕</button>'
       ].join('');
       document.body.insertBefore(banner, document.body.firstChild);
@@ -65,7 +65,8 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script>
-    if ('serviceWorker' in navigator) {
+    var isLocalDev = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+    if ('serviceWorker' in navigator && !isLocalDev) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('%PUBLIC_URL%/service-worker.js')
           .then(function (reg) {
