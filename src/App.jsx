@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.01.04";
+const APP_VERSION = "v2.16.00";
 
 const STORAGE_KEY = "travel_app_v2";
 const ARCHIVE_KEY = "travel_archive_v2";
