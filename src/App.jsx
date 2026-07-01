@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.16.00";
+const APP_VERSION = "v2.16.09";
 
 const STORAGE_KEY = "travel_app_v2";
 const ARCHIVE_KEY = "travel_archive_v2";
@@ -437,7 +437,7 @@ function TutorialReviewModal({ onClose }) {
 }
 
 
-function WelcomeScreen({ bgMode, onNewTrip, onImport, onViewArchive, hasArchive, activeTripName, onGoToActiveTrip, onOpenSettings }) {
+function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, hasArchive, activeTripName, onGoToActiveTrip, onOpenSettings }) {
   return (
     <div style={{
       minHeight: "100dvh",
@@ -450,7 +450,7 @@ function WelcomeScreen({ bgMode, onNewTrip, onImport, onViewArchive, hasArchive,
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
       position: "relative",
     }}>
-      <AppBackground mode={bgMode || "light"} />
+      <AppBackground mode={bgMode || "light"} bgFit="tile" />
       <button onClick={onOpenSettings} aria-label="설정" style={{
         position: "absolute", top: "16px", right: "16px",
         width: "40px", height: "40px", borderRadius: "50%",
@@ -479,14 +479,16 @@ function WelcomeScreen({ bgMode, onNewTrip, onImport, onViewArchive, hasArchive,
         marginBottom: "48px",
       }}>
         <img
-          src={`${process.env.PUBLIC_URL}/assets/icons/mascot-logo.png`}
+          src={mascotSrc || `${process.env.PUBLIC_URL}/assets/icons/mascot-logo.png`}
           alt="모리"
           style={{
             width: "110px",
             height: "110px",
             borderRadius: "50%",
             marginBottom: "16px",
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
+            filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.2))",
+            objectFit: "cover",
+            background: "transparent",
           }}
         />
         <h1 style={{
@@ -1091,7 +1093,7 @@ function ArchiveEditModal({ archive, onSave, onClose }) {
 }
 
 // ─── 전역 설정 화면 (여행 시작 전에도 접근 가능: Drive 미리연결 + 테마 + 엑셀양식) ───
-function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onShowOnboarding }) {
+function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onShowOnboarding, customThemes, onSaveCustomTheme, onToggleCustomTheme, onDeleteCustomTheme, onOpenEditor, themeEditorOpen, setThemeEditorOpen, editingTheme, setEditingTheme }) {
   const [driveStatus, setDriveStatus] = useState("idle"); // idle | connecting | connected | error
   const [driveMessage, setDriveMessage] = useState("");
 
@@ -1123,6 +1125,7 @@ function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onS
   };
 
   return (
+    <>
     <div style={{
       minHeight: "100dvh",
       background: "transparent",
@@ -1201,6 +1204,59 @@ function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onS
           </div>
         </div>
 
+        {/* 커스텀 테마 */}
+        <div style={sectionStyle}>
+          <div style={{ padding: "12px 16px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>커스텀 테마</span>
+            <button onClick={() => onOpenEditor(null)} style={{
+              fontSize: "12px", fontWeight: "700", color: theme.primary,
+              background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+            }}>+ 추가</button>
+          </div>
+          {(!customThemes || customThemes.length === 0) ? (
+            <div style={{ padding: "12px 16px 14px", fontSize: "13px", color: theme.textLight, textAlign: "center" }}>
+              커스텀 테마가 없습니다<br/>
+              <span style={{ fontSize: "12px" }}>+ 추가 버튼으로 만들어보세요</span>
+            </div>
+          ) : (
+            <div style={{ padding: "0 8px 8px" }}>
+              {customThemes.map(ct => (
+                <div key={ct.id} style={{
+                  display: "flex", alignItems: "center", gap: "10px",
+                  padding: "8px", borderRadius: theme.radiusSm,
+                  background: ct.isActive ? theme.primaryLight : "transparent",
+                  marginBottom: "4px",
+                }}>
+                  <div style={{
+                    width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
+                    background: ct.bgImage ? `url(${ct.bgImage}) center/cover` : (ct.bgColor || "#eee"),
+                    border: `2px solid ${ct.isActive ? theme.primary : theme.border}`,
+                  }} />
+                  <div style={{ flex: 1, fontSize: "13px", fontWeight: "600", color: theme.text }}>
+                    {ct.name || "이름 없음"}
+                  </div>
+                  <button onClick={() => onToggleCustomTheme(ct)} style={{
+                    padding: "4px 10px", fontSize: "11px", fontWeight: "700",
+                    background: ct.isActive ? theme.primary : theme.bgInput,
+                    color: ct.isActive ? theme.textWhite : theme.textSub,
+                    border: "none", borderRadius: theme.radiusSm, cursor: "pointer",
+                  }}>{ct.isActive ? "적용중" : "적용"}</button>
+                  <button onClick={() => onOpenEditor(ct)} style={{
+                    padding: "4px 8px", fontSize: "11px", background: "none",
+                    color: theme.textSub, border: `1px solid ${theme.border}`,
+                    borderRadius: theme.radiusSm, cursor: "pointer",
+                  }}>✏️</button>
+                  <button onClick={() => onDeleteCustomTheme(ct.id)} style={{
+                    padding: "4px 8px", fontSize: "11px", background: "none",
+                    color: theme.danger, border: `1px solid ${theme.danger}30`,
+                    borderRadius: theme.radiusSm, cursor: "pointer",
+                  }}>🗑️</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* 데이터 관리 */}
         <div style={sectionStyle}>
           <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>
@@ -1252,6 +1308,14 @@ function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onS
         </div>
       </div>
     </div>
+    {themeEditorOpen && (
+      <CustomThemeEditorModal
+        editTheme={editingTheme}
+        onSave={onSaveCustomTheme}
+        onClose={() => { setThemeEditorOpen(false); setEditingTheme(null); }}
+      />
+    )}
+    </>
   );
 }
 
@@ -1775,6 +1839,20 @@ const BG_MODES = {
   },
 };
 
+
+// 테마별 마스코트 이미지 매핑
+function getThemeMascot(themeMode) {
+  const resolved = themeMode === "seasonal" ? getSeason() : themeMode;
+  const map = {
+    spring:  `${process.env.PUBLIC_URL}/assets/icons/mascot-spring.png`,
+    summer:  `${process.env.PUBLIC_URL}/assets/icons/mascot-summer.png`,
+    fall:    `${process.env.PUBLIC_URL}/assets/icons/mascot-fall.png`,
+    winter:  `${process.env.PUBLIC_URL}/assets/icons/mascot-winter.png`,
+    dark:    `${process.env.PUBLIC_URL}/assets/icons/mascot-dark.png`,
+  };
+  return map[resolved] || `${process.env.PUBLIC_URL}/assets/icons/mascot-logo.png`;
+}
+
 // themeMode("system"/"seasonal"/light/dark/spring/summer/fall/winter) -> 실제 배경 모드로 변환
 function resolveBgMode(themeMode) {
   if (themeMode === "system") return "light";
@@ -1783,8 +1861,20 @@ function resolveBgMode(themeMode) {
 }
 
 // 화면 전체 고정 배경 (모바일/PC 별도 이미지 + 색상 fallback)
-function AppBackground({ mode }) {
+// bgFit: "tile" | "stretch" | "center" | "default"(기본, 우하단)
+function AppBackground({ mode, bgFit = "tile", customImg = null, customMascot = null, mascotSrc = null }) {
   const cfg = BG_MODES[mode] || BG_MODES.light;
+
+  const getFitStyle = (fit) => {
+    switch (fit) {
+      case "tile":    return { backgroundSize: "auto", backgroundRepeat: "repeat", backgroundPosition: "center" };
+      case "stretch": return { backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", backgroundPosition: "center" };
+      case "center":  return { backgroundSize: "auto", backgroundRepeat: "no-repeat", backgroundPosition: "center" };
+      default:        return { backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom" };
+    }
+  };
+  const fitStyle = getFitStyle(bgFit);
+
   useEffect(() => {
     let styleEl = document.getElementById("app-bg-style");
     if (!styleEl) {
@@ -1792,28 +1882,41 @@ function AppBackground({ mode }) {
       styleEl.id = "app-bg-style";
       document.head.appendChild(styleEl);
     }
-    styleEl.textContent = `
-      .app-bg-fixed {
-        background-image: url('${cfg.mobile}');
-        background-color: ${cfg.colorMobile};
-      }
-      @media (min-width: 768px) {
+    if (customImg) {
+      styleEl.textContent = `.app-bg-fixed { background-image: url('${customImg}'); background-color: transparent; }`;
+    } else {
+      styleEl.textContent = `
         .app-bg-fixed {
-          background-image: url('${cfg.pc}');
-          background-color: ${cfg.colorPc};
+          background-image: url('${cfg.mobile}');
+          background-color: ${cfg.colorMobile};
         }
-      }
-    `;
-  }, [cfg.mobile, cfg.pc, cfg.colorMobile, cfg.colorPc]);
+        @media (min-width: 768px) {
+          .app-bg-fixed {
+            background-image: url('${cfg.pc}');
+            background-color: ${cfg.colorPc};
+          }
+        }
+      `;
+    }
+  }, [cfg.mobile, cfg.pc, cfg.colorMobile, cfg.colorPc, customImg]);
 
   return (
-    <div className="app-bg-fixed" style={{
-      position: "fixed", inset: 0, zIndex: -1,
-      backgroundSize: "contain",
-      backgroundPosition: "right bottom",
-      backgroundRepeat: "no-repeat",
-      pointerEvents: "none",
-    }} />
+    <>
+      <div className="app-bg-fixed" style={{
+        position: "fixed", inset: 0, zIndex: -1,
+        ...fitStyle,
+        pointerEvents: "none",
+      }} />
+      {/* 마스코트 (테마별/커스텀) */}
+      {(customMascot || mascotSrc) && (
+        <div style={{
+          position: "fixed", bottom: "80px", right: "24px", zIndex: -1,
+          pointerEvents: "none", opacity: 0.85,
+        }}>
+          <img src={customMascot || mascotSrc} alt="mascot" style={{ width: "120px", height: "120px", objectFit: "contain" }} />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -5030,12 +5133,14 @@ function CustomThemeEditorModal({ editTheme, onSave, onClose }) {
   const [form, setForm] = useState(editTheme || {
     id: genId(), name: "", startDate: "", endDate: "",
     autoApply: false, bgImage: null, bgColor: "#FAFAF8",
+    bgFit: "tile", mascotImage: null,
     particles: [], colors: { primary: "#2563EB", sidebar: "#1A1D23", text: "#1A1D23", textSub: "#6B7280", bg: "#FAFAF8" },
     isActive: false,
   });
   const [sizeWarning, setSizeWarning] = useState("");
   const bgRef = useRef(null);
   const particleRef = useRef(null);
+  const mascotRef = useRef(null);
 
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const updateColor = (k, v) => setForm(p => ({ ...p, colors: { ...p.colors, [k]: v } }));
@@ -5141,6 +5246,62 @@ function CustomThemeEditorModal({ editTheme, onSave, onClose }) {
             </div>
           </div>
         )}
+
+        {/* 배경 표시 방식 */}
+        {form.bgImage && (
+          <div>
+            <label style={labelStyle}>배경 표시 방식</label>
+            <div style={{ display:"flex", gap:"6px" }}>
+              {[
+                { id: "tile", label: "🔲 바둑판" },
+                { id: "stretch", label: "↔️ 늘림" },
+                { id: "center", label: "⊙ 중앙" },
+              ].map(t => (
+                <button key={t.id} onClick={() => update("bgFit", t.id)} style={{
+                  flex: 1, padding: "9px 4px",
+                  background: form.bgFit === t.id ? theme.primary : theme.bgCard,
+                  color: form.bgFit === t.id ? theme.textWhite : theme.textSub,
+                  border: `1px solid ${form.bgFit === t.id ? theme.primary : theme.border}`,
+                  borderRadius: theme.radiusSm, fontSize: "11px", fontWeight: "600", cursor: "pointer",
+                }}>{t.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 마스코트 이미지 */}
+        <div>
+          <label style={labelStyle}>마스코트 이미지 (선택, PNG 투명배경, 500KB 이하)</label>
+          {form.mascotImage ? (
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <img src={form.mascotImage} alt="mascot" style={{ width:"64px", height:"64px", objectFit:"contain", borderRadius:"8px", border:`1px solid ${theme.border}`, background:"#f0f0f0" }} />
+              <button onClick={() => update("mascotImage", null)} style={{
+                padding:"6px 12px", background:theme.danger, color:"#fff",
+                border:"none", borderRadius:theme.radiusSm, fontSize:"12px", cursor:"pointer",
+              }}>제거</button>
+            </div>
+          ) : (
+            <>
+              <input ref={mascotRef} type="file" accept="image/png" onChange={(e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                if (file.size > 500 * 1024) { setSizeWarning("마스코트 이미지는 500KB 이하로 올려주세요."); return; }
+                setSizeWarning("");
+                const reader = new FileReader();
+                reader.onload = (ev) => update("mascotImage", ev.target.result);
+                reader.readAsDataURL(file);
+                e.target.value = "";
+              }} style={{ display:"none" }} />
+              <button onClick={() => mascotRef.current?.click()} style={{
+                width:"100%", padding:"12px", border:`1.5px dashed ${theme.border}`,
+                borderRadius:theme.radiusSm, background:"none", color:theme.textSub,
+                fontSize:"13px", cursor:"pointer",
+              }}>🐾 마스코트 이미지 업로드</button>
+              <div style={{ fontSize:"11px", color:theme.textLight, marginTop:"4px" }}>
+                테마 적용 시 기본 마스코트 대신 이 이미지가 표시됩니다
+              </div>
+            </>
+          )}
+        </div>
 
         {/* 파티클 이미지 */}
         <div>
@@ -5477,14 +5638,12 @@ function ArchiveModal({ archives, onClose, onDeleteArchive, onEditArchive }) {
   );
 }
 
-function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, onThemeChange, driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle, onDeleteArchive, onEditArchive, onShowOnboarding }) {
+function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, onThemeChange, driveStatus, driveMessage, lastSynced, handleDriveSave, handleDriveLoad, resetToIdle, onDeleteArchive, onEditArchive, onShowOnboarding, customThemes, onSaveCustomTheme, onToggleCustomTheme, onDeleteCustomTheme, themeEditorOpen, setThemeEditorOpen, editingTheme, setEditingTheme, particlesEnabled, onParticleToggle }) {
   const [editOpen, setEditOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [theme_mode, setThemeMode] = useState(localStorage.getItem("theme_mode") || "system");
-  const [customThemes, setCustomThemes] = useState(loadCustomThemes);
-  const [themeEditorOpen, setThemeEditorOpen] = useState(false);
-  const [editingTheme, setEditingTheme] = useState(null);
+
   const cardRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -5492,46 +5651,12 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
     setThemeMode(mode);
     localStorage.setItem("theme_mode", mode);
     applyTheme(mode);
-    // 커스텀 테마가 켜져 있으면 해제 (기본 테마와 동시 적용 방지)
-    if (customThemes.some(t => t.isActive)) {
+    if (customThemes?.some(t => t.isActive)) {
       const updated = customThemes.map(t => ({ ...t, isActive: false }));
-      setCustomThemes(updated);
       saveCustomThemes(updated);
+      onDeleteCustomTheme?.("__reset__");
     }
     onThemeChange?.(mode);
-    onThemeChange?.("__custom_updated__");
-  };
-
-  const handleSaveCustomTheme = (ct) => {
-    const updated = editingTheme
-      ? customThemes.map(t => t.id === ct.id ? ct : t)
-      : [...customThemes, ct];
-    setCustomThemes(updated);
-    saveCustomThemes(updated);
-    setThemeEditorOpen(false);
-    setEditingTheme(null);
-    onThemeChange?.("__custom_updated__");
-  };
-
-  const handleToggleCustomTheme = (ct) => {
-    const updated = customThemes.map(t => ({ ...t, isActive: t.id === ct.id ? !t.isActive : false }));
-    setCustomThemes(updated);
-    saveCustomThemes(updated);
-    const nowActive = updated.find(t => t.id === ct.id);
-    if (nowActive?.isActive) {
-      applyCustomTheme(nowActive);
-    } else {
-      applyTheme(theme_mode);
-      onThemeChange?.(theme_mode);
-    }
-    onThemeChange?.("__custom_updated__");
-  };
-
-  const handleDeleteCustomTheme = (id) => {
-    const updated = customThemes.filter(t => t.id !== id);
-    setCustomThemes(updated);
-    saveCustomThemes(updated);
-    onThemeChange?.("__custom_updated__");
   };
 
   const handleCardUpload = (e) => {
@@ -5737,6 +5862,98 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
         </div>
       </div>
 
+      {/* 파티클 효과 토글 */}
+      <div style={sectionStyle}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
+          <div>
+            <div style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}>✨ 파티클 효과</div>
+            <div style={{ fontSize: "12px", color: theme.textSub }}>계절 테마의 꽃잎·낙엽·눈 효과</div>
+          </div>
+          <button onClick={onParticleToggle} style={{
+            width: "44px", height: "24px", borderRadius: "12px", border: "none",
+            background: particlesEnabled ? theme.primary : theme.border,
+            cursor: "pointer", position: "relative", transition: "background 0.2s",
+          }}>
+            <div style={{
+              width: "18px", height: "18px", borderRadius: "50%", background: theme.textWhite,
+              position: "absolute", top: "3px", transition: "left 0.2s",
+              left: particlesEnabled ? "23px" : "3px",
+            }} />
+          </button>
+        </div>
+      </div>
+
+      {/* 커스텀 테마 관리 */}
+      <div style={sectionStyle}>
+        <div style={{ padding:"12px 16px 8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontSize:"12px", fontWeight:"700", color:theme.textLight, letterSpacing:"0.5px" }}>커스텀 테마</span>
+          <button onClick={() => { setEditingTheme(null); setThemeEditorOpen(true); }} style={{
+            padding:"4px 12px", background:theme.primary, color:theme.textWhite,
+            border:"none", borderRadius:theme.radiusFull, fontSize:"12px", fontWeight:"700", cursor:"pointer",
+          }}>+ 추가</button>
+        </div>
+        {customThemes.length === 0 ? (
+          <div style={{ padding:"16px", textAlign:"center", fontSize:"13px", color:theme.textLight }}>
+            커스텀 테마가 없습니다<br/>
+            <span style={{ fontSize:"11px" }}>+ 추가로 나만의 테마를 만들어보세요</span>
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {customThemes.map((ct, i) => {
+              const active = getActiveCustomTheme(customThemes)?.id === ct.id || ct.isActive;
+              const today = new Date(); today.setHours(0,0,0,0);
+              const isAutoActive = ct.autoApply && ct.startDate && ct.endDate &&
+                today >= new Date(ct.startDate + "T00:00:00") && today <= new Date(ct.endDate + "T00:00:00");
+              return (
+                <div key={ct.id} style={{
+                  display:"flex", alignItems:"center", gap:"10px", padding:"12px 16px",
+                  borderBottom: i < customThemes.length - 1 ? `1px solid ${theme.borderLight}` : "none",
+                  background: active ? theme.primaryLight : "transparent",
+                }}>
+                  {/* 색상 프리뷰 */}
+                  <div style={{
+                    width:"36px", height:"36px", borderRadius:"8px", flexShrink:0,
+                    background: ct.bgImage ? `url(${ct.bgImage}) center/cover` : (ct.bgColor || theme.bg),
+                    border:`2px solid ${ct.colors?.primary || theme.primary}`,
+                    overflow:"hidden",
+                  }} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:"14px", fontWeight:"700", color:theme.text }}>
+                      {ct.name}
+                      {isAutoActive && <span style={{ marginLeft:"6px", fontSize:"10px", background:theme.success, color:"#fff", padding:"1px 6px", borderRadius:"9999px" }}>자동 적용 중</span>}
+                    </div>
+                    {ct.startDate && ct.endDate && (
+                      <div style={{ fontSize:"11px", color:theme.textLight }}>
+                        {formatDate(ct.startDate)} ~ {formatDate(ct.endDate)}
+                        {ct.autoApply ? " · 자동" : " · 수동"}
+                      </div>
+                    )}
+                    {ct.particles?.length > 0 && (
+                      <div style={{ fontSize:"11px", color:theme.textLight }}>파티클 {ct.particles.length}개</div>
+                    )}
+                  </div>
+                  <div style={{ display:"flex", gap:"4px" }}>
+                    <button onClick={() => onToggleCustomTheme(ct)} style={{
+                      padding:"5px 10px", borderRadius:theme.radiusFull,
+                      border:`1.5px solid ${ct.isActive ? theme.primary : theme.border}`,
+                      background: ct.isActive ? theme.primary : "transparent",
+                      color: ct.isActive ? theme.textWhite : theme.textSub,
+                      fontSize:"12px", fontWeight:"700", cursor:"pointer",
+                    }}>{ct.isActive ? "적용 중" : "적용"}</button>
+                    <button onClick={() => { setEditingTheme(ct); setThemeEditorOpen(true); }} style={{
+                      width:"30px", height:"30px", border:"none", background:"none", cursor:"pointer", fontSize:"14px",
+                    }}>✏️</button>
+                    <button onClick={() => onDeleteCustomTheme(ct.id)} style={{
+                      width:"30px", height:"30px", border:"none", background:"none", cursor:"pointer", fontSize:"14px",
+                    }}>🗑️</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* 데이터 관리 */}
       <div style={sectionStyle}>
         <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: theme.textLight, letterSpacing: "0.5px" }}>
@@ -5835,76 +6052,6 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
         </div>
       </div>
 
-      {/* 커스텀 테마 관리 */}
-      <div style={sectionStyle}>
-        <div style={{ padding:"12px 16px 8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span style={{ fontSize:"12px", fontWeight:"700", color:theme.textLight, letterSpacing:"0.5px" }}>커스텀 테마</span>
-          <button onClick={() => { setEditingTheme(null); setThemeEditorOpen(true); }} style={{
-            padding:"4px 12px", background:theme.primary, color:theme.textWhite,
-            border:"none", borderRadius:theme.radiusFull, fontSize:"12px", fontWeight:"700", cursor:"pointer",
-          }}>+ 추가</button>
-        </div>
-        {customThemes.length === 0 ? (
-          <div style={{ padding:"16px", textAlign:"center", fontSize:"13px", color:theme.textLight }}>
-            커스텀 테마가 없습니다<br/>
-            <span style={{ fontSize:"11px" }}>+ 추가로 나만의 테마를 만들어보세요</span>
-          </div>
-        ) : (
-          <div style={{ display:"flex", flexDirection:"column" }}>
-            {customThemes.map((ct, i) => {
-              const active = getActiveCustomTheme(customThemes)?.id === ct.id || ct.isActive;
-              const today = new Date(); today.setHours(0,0,0,0);
-              const isAutoActive = ct.autoApply && ct.startDate && ct.endDate &&
-                today >= new Date(ct.startDate + "T00:00:00") && today <= new Date(ct.endDate + "T00:00:00");
-              return (
-                <div key={ct.id} style={{
-                  display:"flex", alignItems:"center", gap:"10px", padding:"12px 16px",
-                  borderBottom: i < customThemes.length - 1 ? `1px solid ${theme.borderLight}` : "none",
-                  background: active ? theme.primaryLight : "transparent",
-                }}>
-                  {/* 색상 프리뷰 */}
-                  <div style={{
-                    width:"36px", height:"36px", borderRadius:"8px", flexShrink:0,
-                    background: ct.bgImage ? `url(${ct.bgImage}) center/cover` : (ct.bgColor || theme.bg),
-                    border:`2px solid ${ct.colors?.primary || theme.primary}`,
-                    overflow:"hidden",
-                  }} />
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:"14px", fontWeight:"700", color:theme.text }}>
-                      {ct.name}
-                      {isAutoActive && <span style={{ marginLeft:"6px", fontSize:"10px", background:theme.success, color:"#fff", padding:"1px 6px", borderRadius:"9999px" }}>자동 적용 중</span>}
-                    </div>
-                    {ct.startDate && ct.endDate && (
-                      <div style={{ fontSize:"11px", color:theme.textLight }}>
-                        {formatDate(ct.startDate)} ~ {formatDate(ct.endDate)}
-                        {ct.autoApply ? " · 자동" : " · 수동"}
-                      </div>
-                    )}
-                    {ct.particles?.length > 0 && (
-                      <div style={{ fontSize:"11px", color:theme.textLight }}>파티클 {ct.particles.length}개</div>
-                    )}
-                  </div>
-                  <div style={{ display:"flex", gap:"4px" }}>
-                    <button onClick={() => handleToggleCustomTheme(ct)} style={{
-                      padding:"5px 10px", borderRadius:theme.radiusFull,
-                      border:`1.5px solid ${ct.isActive ? theme.primary : theme.border}`,
-                      background: ct.isActive ? theme.primary : "transparent",
-                      color: ct.isActive ? theme.textWhite : theme.textSub,
-                      fontSize:"12px", fontWeight:"700", cursor:"pointer",
-                    }}>{ct.isActive ? "적용 중" : "적용"}</button>
-                    <button onClick={() => { setEditingTheme(ct); setThemeEditorOpen(true); }} style={{
-                      width:"30px", height:"30px", border:"none", background:"none", cursor:"pointer", fontSize:"14px",
-                    }}>✏️</button>
-                    <button onClick={() => handleDeleteCustomTheme(ct.id)} style={{
-                      width:"30px", height:"30px", border:"none", background:"none", cursor:"pointer", fontSize:"14px",
-                    }}>🗑️</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
       {/* 아카이브 */}
       <button onClick={() => setArchiveOpen(true)} style={{
@@ -5992,7 +6139,7 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
       {themeEditorOpen && (
         <CustomThemeEditorModal
           editTheme={editingTheme}
-          onSave={handleSaveCustomTheme}
+          onSave={onSaveCustomTheme}
           onClose={() => { setThemeEditorOpen(false); setEditingTheme(null); }}
         />
       )}
@@ -6001,6 +6148,197 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
 }
 
 // ─── Main App ───
+// ─── PC 우측 패널 (탭별 요약) ───
+function PCRightPanel({ tab, state, setState }) {
+  const rate = state.rate || 1;
+  const toKRW = (e) => e.currency === "KRW" ? e.amount : e.amount * rate;
+  const totalSpent = (state.expenses || []).reduce((s, e) => s + toKRW(e), 0);
+  const totalBudget = (state.budget?.totalKRW || 0) + (state.budget?.totalLocal || 0) * rate;
+  const dday = getDday(state.tripStart);
+
+  // 공통 헤더
+  const PanelTitle = ({ children }) => (
+    <div style={{ fontSize: "13px", fontWeight: "700", color: theme.textSub, marginBottom: "12px", letterSpacing: "0.3px" }}>
+      {children}
+    </div>
+  );
+
+  const InfoRow = ({ label, value, color }) => (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${theme.borderLight}` }}>
+      <span style={{ fontSize: "13px", color: theme.textSub }}>{label}</span>
+      <span style={{ fontSize: "13px", fontWeight: "700", color: color || theme.text }}>{value}</span>
+    </div>
+  );
+
+  if (tab === "itinerary") {
+    const days = [];
+    if (state.tripStart && state.tripEnd) {
+      const s = new Date(state.tripStart + "T00:00:00");
+      const e = new Date(state.tripEnd + "T00:00:00");
+      const diff = Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1;
+      for (let i = 0; i < diff; i++) days.push(i);
+    }
+    const totalSlots = (state.itinerary || []).length;
+    const visited = (state.itinerary || []).filter(s => s.visited).length;
+    return (
+      <div>
+        {/* D-day 카드 */}
+        {dday && (
+          <div style={{
+            background: dday === "D-DAY" ? theme.primary : theme.primaryLight,
+            color: dday === "D-DAY" ? theme.textWhite : theme.primary,
+            borderRadius: theme.radius, padding: "20px", textAlign: "center", marginBottom: "16px",
+          }}>
+            <div style={{ fontSize: "36px", fontWeight: "800" }}>{dday}</div>
+            <div style={{ fontSize: "13px", marginTop: "4px", opacity: 0.8 }}>
+              {state.tripStart && formatDate(state.tripStart)} ~ {state.tripEnd && formatDate(state.tripEnd)}
+            </div>
+          </div>
+        )}
+        {/* 여행 정보 */}
+        <div style={{ background: theme.bgCard, borderRadius: theme.radius, padding: "16px", marginBottom: "16px", border: `1px solid ${theme.borderLight}` }}>
+          <PanelTitle>📋 일정 현황</PanelTitle>
+          <InfoRow label="총 일정" value={`${totalSlots}개`} />
+          <InfoRow label="방문 완료" value={`${visited}개`} color={theme.success} />
+          <InfoRow label="남은 일정" value={`${totalSlots - visited}개`} />
+          <InfoRow label="여행 일수" value={`${days.length}일`} />
+          {state.accommodation && <InfoRow label="숙소" value={state.accommodation} />}
+        </div>
+        {/* 여행 메모 미리보기 */}
+        {state.tripMemo && (
+          <div style={{ background: theme.bgCard, borderRadius: theme.radius, padding: "16px", border: `1px solid ${theme.borderLight}` }}>
+            <PanelTitle>📝 메모</PanelTitle>
+            <p style={{ fontSize: "13px", color: theme.textSub, lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" }}>
+              {state.tripMemo}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (tab === "expense") {
+    const byCat = {};
+    (state.expenses || []).forEach(e => {
+      if (!byCat[e.category]) byCat[e.category] = 0;
+      byCat[e.category] += toKRW(e);
+    });
+    const remaining = totalBudget - totalSpent;
+    return (
+      <div>
+        {/* 예산 요약 */}
+        <div style={{ background: theme.bgCard, borderRadius: theme.radius, padding: "16px", marginBottom: "16px", border: `1px solid ${theme.borderLight}` }}>
+          <PanelTitle>💰 예산 현황</PanelTitle>
+          <InfoRow label="총 예산" value={totalBudget > 0 ? `${Math.round(totalBudget).toLocaleString()}원` : "미설정"} />
+          <InfoRow label="총 지출" value={`${Math.round(totalSpent).toLocaleString()}원`} color={theme.danger} />
+          {totalBudget > 0 && (
+            <>
+              <InfoRow label="잔액" value={`${Math.round(remaining).toLocaleString()}원`} color={remaining >= 0 ? theme.success : theme.danger} />
+              <div style={{ marginTop: "12px" }}>
+                <div style={{ height: "8px", background: theme.bgInput, borderRadius: "4px", overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%", borderRadius: "4px",
+                    width: `${Math.min(100, (totalSpent / totalBudget) * 100)}%`,
+                    background: remaining >= 0 ? theme.primary : theme.danger,
+                    transition: "width 0.3s",
+                  }} />
+                </div>
+                <div style={{ fontSize: "11px", color: theme.textLight, marginTop: "4px", textAlign: "right" }}>
+                  {Math.round((totalSpent / (totalBudget || 1)) * 100)}% 사용
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        {/* 카테고리별 */}
+        {Object.keys(byCat).length > 0 && (
+          <div style={{ background: theme.bgCard, borderRadius: theme.radius, padding: "16px", border: `1px solid ${theme.borderLight}` }}>
+            <PanelTitle>📊 카테고리별</PanelTitle>
+            {Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
+              <InfoRow key={cat} label={cat} value={`${Math.round(amt).toLocaleString()}원`} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (tab === "check") {
+    const checkStates = state.checkStates || {};
+    const PHASES_INFO = [
+      { id: "plan", label: "📝 계획 전" },
+      { id: "confirm", label: "📋 확정 후" },
+      { id: "depart", label: "🧳 출발 전" },
+    ];
+    return (
+      <div>
+        <div style={{ background: theme.bgCard, borderRadius: theme.radius, padding: "16px", marginBottom: "16px", border: `1px solid ${theme.borderLight}` }}>
+          <PanelTitle>✅ 단계별 진행률</PanelTitle>
+          {PHASES_INFO.map(p => {
+            const data = PHASE_ITEMS[p.id];
+            if (!data) return null;
+            const items = [...(data.common || [])];
+            if (state.selectedRegion && state.selectedRegion !== "domestic" && data.overseas) items.push(...data.overseas);
+            if (state.selectedRegion && data[state.selectedRegion]) items.push(...data[state.selectedRegion]);
+            if (state.companionType && data[state.companionType]) items.push(...data[state.companionType]);
+            const checked = items.filter(i => checkStates[i.id]).length;
+            const pct = items.length > 0 ? Math.round((checked / items.length) * 100) : 0;
+            return (
+              <div key={p.id} style={{ marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "13px", color: theme.text }}>{p.label}</span>
+                  <span style={{ fontSize: "13px", fontWeight: "700", color: pct === 100 ? theme.success : theme.textSub }}>
+                    {checked}/{items.length}
+                  </span>
+                </div>
+                <div style={{ height: "6px", background: theme.bgInput, borderRadius: "3px", overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%", borderRadius: "3px",
+                    width: `${pct}%`,
+                    background: pct === 100 ? theme.success : theme.primary,
+                    transition: "width 0.3s",
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* 기내반입 요약 */}
+        <div style={{ background: "#FEF3C7", borderRadius: theme.radius, padding: "16px", border: "1px solid #FCD34D" }}>
+          <PanelTitle>✈️ 기내반입 주의</PanelTitle>
+          {[
+            "액체류 100ml 이하, 지퍼백 1개",
+            "보조배터리 2개 이내, 기내 사용 금지",
+            "EVE 진통제 한국 반입 금지",
+          ].map((item, i) => (
+            <div key={i} style={{ fontSize: "12.5px", color: "#92400E", padding: "4px 0", display: "flex", gap: "6px" }}>
+              <span>⛔</span><span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (tab === "settings") {
+    return (
+      <div>
+        <div style={{ background: theme.bgCard, borderRadius: theme.radius, padding: "16px", border: `1px solid ${theme.borderLight}` }}>
+          <PanelTitle>ℹ️ 앱 정보</PanelTitle>
+          <InfoRow label="버전" value={APP_VERSION} />
+          <InfoRow label="저장 방식" value="로컬 저장소" />
+          <InfoRow label="여행 기록" value={`${(state.archives?.length || 0)}개`} />
+          {state.lastSaved && (
+            <InfoRow label="마지막 저장" value={new Date(state.lastSaved).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function App() {
   const [state, setState] = useState(null);
   const [screen, setScreen] = useState("loading");
@@ -6009,9 +6347,43 @@ export default function App() {
   const [archives, setArchives] = useState([]);
   const [appThemeMode, setAppThemeMode] = useState(localStorage.getItem("theme_mode") || "system");
   const [particlesEnabled, setParticlesEnabled] = useState(localStorage.getItem("particles_enabled") !== "false");
+
   const [showTripInProgress, setShowTripInProgress] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showTutorialReview, setShowTutorialReview] = useState(false);
+  const [customThemes, setCustomThemes] = useState(loadCustomThemes);
+  const [themeEditorOpen, setThemeEditorOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState(null);
+
+  const handleSaveCustomTheme = (ct) => {
+    const updated = editingTheme
+      ? customThemes.map(t => t.id === ct.id ? ct : t)
+      : [...customThemes, ct];
+    setCustomThemes(updated);
+    saveCustomThemes(updated);
+    setThemeEditorOpen(false);
+    setEditingTheme(null);
+  };
+
+  const handleToggleCustomTheme = (ct) => {
+    const updated = customThemes.map(t => ({ ...t, isActive: t.id === ct.id ? !t.isActive : false }));
+    setCustomThemes(updated);
+    saveCustomThemes(updated);
+    const nowActive = updated.find(t => t.id === ct.id);
+    if (nowActive?.isActive) applyCustomTheme(nowActive);
+    else applyTheme(appThemeMode);
+  };
+
+  const handleDeleteCustomTheme = (id) => {
+    if (id === "__reset__") return;
+    const updated = customThemes.filter(t => t.id !== id);
+    setCustomThemes(updated);
+    saveCustomThemes(updated);
+  };
+
+  const onSaveCustomTheme = handleSaveCustomTheme;
+  const onToggleCustomTheme = handleToggleCustomTheme;
+  const onDeleteCustomTheme = handleDeleteCustomTheme;
 
   const handleParticleToggle = () => {
     const next = !particlesEnabled;
@@ -6179,22 +6551,16 @@ export default function App() {
   const resolvedAppSeason = appThemeMode === "seasonal" ? getSeason() : appThemeMode;
   const isActive = SEASONAL_THEMES.has(appThemeMode) && ["spring","summer","fall","winter"].includes(resolvedAppSeason);
 
-  const [appCustomThemes, setAppCustomThemes] = useState(loadCustomThemes);
-  const [customThemeVersion, setCustomThemeVersion] = useState(0);
-  const activeCustomTheme = getActiveCustomTheme(appCustomThemes);
 
-  // customThemeVersion 바뀔 때마다 localStorage에서 리로드
-  useEffect(() => {
-    setAppCustomThemes(loadCustomThemes());
-  }, [customThemeVersion, appThemeMode]);
+  const activeCustomTheme = getActiveCustomTheme(customThemes);
+
+
 
   // 커스텀 테마 변경 → App에 알림
   const handleThemeChange = (modeOrSignal) => {
     if (modeOrSignal === "__custom_updated__") {
-      setCustomThemeVersion(v => v + 1);
     } else {
       setAppThemeMode(modeOrSignal);
-      setCustomThemeVersion(v => v + 1);
     }
   };
 
@@ -6225,6 +6591,15 @@ export default function App() {
         }}
         onBack={() => setScreen("welcome")}
         onShowOnboarding={() => { setScreen("welcome"); setShowTutorialReview(true); }}
+        customThemes={customThemes}
+        onSaveCustomTheme={onSaveCustomTheme}
+        onToggleCustomTheme={onToggleCustomTheme}
+        onDeleteCustomTheme={onDeleteCustomTheme}
+        onOpenEditor={(t) => { setEditingTheme(t || null); setThemeEditorOpen(true); setScreen("globalSettings"); }}
+        themeEditorOpen={themeEditorOpen}
+        setThemeEditorOpen={setThemeEditorOpen}
+        editingTheme={editingTheme}
+        setEditingTheme={setEditingTheme}
       />
     );
   }
@@ -6234,6 +6609,7 @@ export default function App() {
       <>
         <WelcomeScreen
           bgMode={resolveBgMode(appThemeMode)}
+          mascotSrc={getThemeMascot(appThemeMode)}
           onNewTrip={handleNewTrip}
           onImport={handleImport}
           onViewArchive={handleViewArchive}
@@ -6295,7 +6671,17 @@ export default function App() {
           driveStatus={driveStatus} driveMessage={driveMessage} lastSynced={lastSynced}
           handleDriveSave={handleDriveSave} handleDriveLoad={handleDriveLoad} resetToIdle={resetToIdle}
           onDeleteArchive={handleDeleteArchive} onEditArchive={handleEditArchive}
-          onShowOnboarding={() => setShowTutorialReview(true)} />;
+          onShowOnboarding={() => setShowTutorialReview(true)}
+          particlesEnabled={particlesEnabled}
+          onParticleToggle={handleParticleToggle}
+          customThemes={customThemes}
+          onSaveCustomTheme={onSaveCustomTheme}
+          onToggleCustomTheme={onToggleCustomTheme}
+          onDeleteCustomTheme={onDeleteCustomTheme}
+          themeEditorOpen={themeEditorOpen}
+          setThemeEditorOpen={setThemeEditorOpen}
+          editingTheme={editingTheme}
+          setEditingTheme={setEditingTheme} />;
       default:
         return null;
     }
@@ -6309,17 +6695,19 @@ export default function App() {
       fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
       position: "relative",
     }}>
-      {!activeCustomTheme && <AppBackground mode={resolveBgMode(appThemeMode)} />}
+      {!activeCustomTheme && <AppBackground mode={resolveBgMode(appThemeMode)} bgFit="tile" mascotSrc={getThemeMascot(appThemeMode)} />}
       {!activeCustomTheme && <ParticleCanvas themeMode={appThemeMode} enabled={particlesEnabled} />}
       {/* 커스텀 테마 배경 + 파티클 */}
-      {activeCustomTheme?.bgImage && (
-        <div style={{
-          position:"fixed", inset:0, zIndex:-1, pointerEvents:"none",
-          backgroundImage:`url(${activeCustomTheme.bgImage})`,
-          backgroundSize:"cover", backgroundPosition:"center",
-        }} />
+      {activeCustomTheme && (
+        <AppBackground
+          mode="light"
+          customImg={activeCustomTheme.bgImage || null}
+          bgFit={activeCustomTheme.bgFit || "tile"}
+          customMascot={activeCustomTheme.mascotImage || null}
+          mascotSrc={!activeCustomTheme.mascotImage ? `${process.env.PUBLIC_URL}/assets/icons/mascot-logo.png` : null}
+        />
       )}
-      {!activeCustomTheme?.bgImage && activeCustomTheme && (
+      {activeCustomTheme && !activeCustomTheme.bgImage && (
         <div style={{
           position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none",
           background: activeCustomTheme.bgColor || theme.bg,
@@ -6329,26 +6717,7 @@ export default function App() {
         <CustomParticleCanvas theme={activeCustomTheme} />
       )}
 
-      {/* 파티클 토글 버튼 */}
-      {isActive && (
-        <button onClick={handleParticleToggle} style={{
-          position: "fixed",
-          bottom: isMobile ? "72px" : "20px",
-          right: "16px",
-          zIndex: 150,
-          width: "36px", height: "36px",
-          borderRadius: "50%",
-          border: "1.5px solid rgba(255,255,255,0.5)",
-          background: "rgba(0,0,0,0.25)",
-          backdropFilter: "blur(6px)",
-          cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "16px",
-          title: particlesEnabled ? "파티클 끄기" : "파티클 켜기",
-        }}>
-          {particlesEnabled ? "✨" : "○"}
-        </button>
-      )}
+{/* 파티클 토글: 설정탭으로 이동됨 */}
 
       {/* PC Sidebar */}
       {!isMobile && (
@@ -6413,16 +6782,28 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab Content */}
-        <div style={{
-          maxWidth: isMobile ? "100%" : "720px",
-          margin: isMobile ? 0 : "0 auto",
-          padding: isMobile ? 0 : "0 16px",
-        }}>
-          {renderTab()}
-        </div>
+        {/* Tab Content — PC: 2열, 모바일: 1열 */}
+        {!isMobile ? (
+          <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+            {/* 좌측: 메인 콘텐츠 */}
+            <div style={{ flex: "0 0 55%", minWidth: 0, overflowY: "auto" }}>
+              {renderTab()}
+            </div>
+            {/* 우측: 탭별 요약 패널 */}
+            <div style={{
+              flex: "0 0 45%", minWidth: 0, padding: "20px 24px", boxSizing: "border-box",
+              borderLeft: `1px solid ${theme.borderLight}`,
+              overflowY: "auto",
+            }}>
+              <PCRightPanel tab={currentTab} state={state} setState={setState} />
+            </div>
+          </div>
+        ) : (
+          <div>
+            {renderTab()}
+          </div>
+        )}
       </div>
-
       {/* Mobile Bottom Tab Bar */}
       {isMobile && (
         <TabBar
