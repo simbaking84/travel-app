@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.16.09";
+const APP_VERSION = "v2.16.10";
 
 const STORAGE_KEY = "travel_app_v2";
 const ARCHIVE_KEY = "travel_archive_v2";
@@ -1807,36 +1807,12 @@ function generateId() {
 const SEASONAL_THEMES = new Set(["spring", "summer", "fall", "winter", "seasonal"]);
 
 const BG_MODES = {
-  light: {
-    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light.webp`,
-    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light-mobile.webp`,
-    colorPc: "#f6fafd", colorMobile: "#f4f7fd",
-  },
-  dark: {
-    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark.webp`,
-    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark-mobile.webp`,
-    colorPc: "#122143", colorMobile: "#122346",
-  },
-  spring: {
-    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring.webp`,
-    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring-mobile.webp`,
-    colorPc: "#f3e7f8", colorMobile: "#f3e7f8",
-  },
-  summer: {
-    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer.webp`,
-    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer-mobile.webp`,
-    colorPc: "#e4f1ff", colorMobile: "#e5f0ff",
-  },
-  fall: {
-    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall.webp`,
-    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall-mobile.webp`,
-    colorPc: "#fce6c5", colorMobile: "#fde8c2",
-  },
-  winter: {
-    pc: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter.webp`,
-    mobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter-mobile.webp`,
-    colorPc: "#e7f4fd", colorMobile: "#e6f2fe",
-  },
+  light:  { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light.png`,  color: "#f4f7fd" },
+  dark:   { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark.png`,   color: "#122143" },
+  spring: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring.png`, color: "#fce8f0" },
+  summer: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer.png`, color: "#ddeeff" },
+  fall:   { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall.png`,   color: "#fdebd0" },
+  winter: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter.png`, color: "#e8ecf0" },
 };
 
 
@@ -1885,20 +1861,9 @@ function AppBackground({ mode, bgFit = "tile", customImg = null, customMascot = 
     if (customImg) {
       styleEl.textContent = `.app-bg-fixed { background-image: url('${customImg}'); background-color: transparent; }`;
     } else {
-      styleEl.textContent = `
-        .app-bg-fixed {
-          background-image: url('${cfg.mobile}');
-          background-color: ${cfg.colorMobile};
-        }
-        @media (min-width: 768px) {
-          .app-bg-fixed {
-            background-image: url('${cfg.pc}');
-            background-color: ${cfg.colorPc};
-          }
-        }
-      `;
+      styleEl.textContent = `.app-bg-fixed { background-image: url('${cfg.img}'); background-color: ${cfg.color}; }`;
     }
-  }, [cfg.mobile, cfg.pc, cfg.colorMobile, cfg.colorPc, customImg]);
+  }, [cfg.img, cfg.color, customImg]);
 
   return (
     <>
