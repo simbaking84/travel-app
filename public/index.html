@@ -16,11 +16,11 @@
   <meta name="theme-color" content="#12254b">
 
   <!-- 실제 GitHub에 올라간 정확한 파일명 (RealFaviconGenerator로 생성된 세트) -->
-  <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon-96x96.png?v=3" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg?v=3" />
-  <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico?v=3" />
-  <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png?v=3" />
-  <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest?v=3" />
+  <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon-96x96.png?v=4" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg?v=4" />
+  <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico?v=4" />
+  <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png?v=4" />
+  <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest?v=4" />
 
   <title>모리의 여행플랜</title>
 
@@ -71,14 +71,11 @@
         navigator.serviceWorker.register('%PUBLIC_URL%/service-worker.js')
           .then(function (reg) {
             console.log('SW registered:', reg.scope);
-            // 페이지 열려있는 동안에도 새 버전이 있는지 주기적으로 확인
             setInterval(function () { reg.update(); }, 60 * 1000);
           })
           .catch(function (err) { console.log('SW registration failed:', err); });
       });
 
-      // 새 서비스워커가 활성화(이전 캐시 교체 완료)되면 자동으로 한 번 새로고침
-      // → 사용자가 캐시를 직접 안 지워도 최신 버전이 자동 반영됨
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (refreshing) return;
