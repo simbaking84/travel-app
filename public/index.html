@@ -2,34 +2,41 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="google-site-verification" content="yXivkfDli5_IvUpjqf7QhXhp7OH0Qxq7UR8BjwkHREI" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="모여플">
+  <meta name="description" content="모리의 여행플랜은 여행 일정, 예산, 체크리스트를 한 곳에서 관리하는 개인 여행 플래너 웹앱입니다.">
 
   <meta property="og:title" content="모리의 여행플랜" />
-  <meta property="og:description" content="나의 여행 이야기" />
-  <meta property="og:image" content="https://simbaking84.github.io/travel-app/og-image-ko.png?v=3" />
+  <meta property="og:description" content="여행 일정, 예산, 체크리스트를 한 곳에서 관리하는 개인 여행 플래너 웹앱입니다." />
+  <meta property="og:image" content="https://simbaking84.github.io/travel-app/og-image-ko.png?v=4" />
   <meta property="og:url" content="https://simbaking84.github.io/travel-app/" />
 
   <meta name="theme-color" content="#12254b">
 
-  <!-- 실제 GitHub에 올라간 정확한 파일명 (RealFaviconGenerator로 생성된 세트) -->
   <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon-96x96.png?v=4" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg?v=4" />
   <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico?v=4" />
   <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png?v=4" />
   <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest?v=4" />
 
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-1620x2160.png" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+
   <title>모리의 여행플랜</title>
 
-  <!-- 기존 배포본과 동일한 폰트/아이콘 CDN -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
-  <!-- ✅ 카카오 인앱브라우저 감지 — 오류 발생 시에만 배너 표시 (기존 패치 유지) -->
   <script>
   (function(){
     var ua = navigator.userAgent || '';
@@ -58,10 +65,9 @@
   </script>
 </head>
 <body>
-  <noscript>이 앱을 사용하려면 JavaScript를 활성화해주세요.</noscript>
+  <noscript>모리의 여행플랜 — 여행 일정, 예산, 체크리스트를 한 곳에서 관리하는 개인 여행 플래너입니다. 이 앱을 사용하려면 JavaScript를 활성화해주세요.</noscript>
   <div id="root"></div>
 
-  <!-- ⚠️ 필수: Google Drive 연동(GIS)용 -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script>

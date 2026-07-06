@@ -1,5 +1,5 @@
 // ⚠️ 배포할 때마다 버전 번호를 올려주세요 (캐시 갱신을 위해 필수)
-const CACHE_NAME = 'travel-planner-v23';
+const CACHE_NAME = 'travel-planner-v24';
 
 const CORE_ASSETS = [
   '/',
@@ -8,18 +8,12 @@ const CORE_ASSETS = [
 ];
 
 const BACKGROUND_ASSETS = [
-  '/assets/backgrounds/bg-light.webp',
-  '/assets/backgrounds/bg-light-mobile.webp',
-  '/assets/backgrounds/bg-dark.webp',
-  '/assets/backgrounds/bg-dark-mobile.webp',
-  '/assets/backgrounds/bg-spring.webp',
-  '/assets/backgrounds/bg-spring-mobile.webp',
-  '/assets/backgrounds/bg-summer.webp',
-  '/assets/backgrounds/bg-summer-mobile.webp',
-  '/assets/backgrounds/bg-fall.webp',
-  '/assets/backgrounds/bg-fall-mobile.webp',
-  '/assets/backgrounds/bg-winter.webp',
-  '/assets/backgrounds/bg-winter-mobile.webp',
+  '/assets/backgrounds/bg-light.png',
+  '/assets/backgrounds/bg-dark.png',
+  '/assets/backgrounds/bg-spring.png',
+  '/assets/backgrounds/bg-summer.png',
+  '/assets/backgrounds/bg-fall.png',
+  '/assets/backgrounds/bg-winter.png',
 ];
 
 const PARTICLE_ASSETS = [
@@ -37,7 +31,17 @@ const PARTICLE_ASSETS = [
   '/assets/particles/particle-winter-3.png',
 ];
 
-const ALL_ASSETS = [...CORE_ASSETS, ...BACKGROUND_ASSETS, ...PARTICLE_ASSETS];
+const MASCOT_ASSETS = [
+  '/assets/icons/mascot-logo.png',
+  '/assets/icons/mascot-spring.png',
+  '/assets/icons/mascot-summer.png',
+  '/assets/icons/mascot-fall.png',
+  '/assets/icons/mascot-winter.png',
+  '/assets/icons/mascot-dark.png',
+  '/assets/icons/loading-mascot.png',
+];
+
+const ALL_ASSETS = [...CORE_ASSETS, ...BACKGROUND_ASSETS, ...PARTICLE_ASSETS, ...MASCOT_ASSETS];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

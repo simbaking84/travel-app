@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 
 import * as XLSX from 'xlsx';
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.16.10";
+const APP_VERSION = "v2.16.15";
 
 const STORAGE_KEY = "travel_app_v2";
 const ARCHIVE_KEY = "travel_archive_v2";
@@ -414,7 +414,7 @@ function TutorialReviewModal({ onClose }) {
     <ModalWrapper onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
         <h3 style={{ margin: 0, fontSize: "17px", fontWeight: "800", color: theme.text }}>
-          🧳 모리의 여행플래너
+          🧳 모리의 여행플랜
         </h3>
         <button onClick={onClose} style={{
           background: "none", border: "none", fontSize: "22px",
@@ -497,7 +497,7 @@ function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, 
           color: theme.text,
           margin: "0 0 8px 0",
           letterSpacing: "-0.5px",
-        }}>모리의 여행플래너</h1>
+        }}>모리의 여행플랜</h1>
         <p style={{
           fontSize: "15px",
           color: theme.textSub,
@@ -1304,7 +1304,7 @@ function GlobalSettingsScreen({ bgMode, appThemeMode, onThemeChange, onBack, onS
         </div>
 
         <div style={{ textAlign: "center", padding: "20px 0 8px", fontSize: "12px", color: theme.textLight }}>
-          모리의 여행플래너 {APP_VERSION}
+          모리의 여행플랜 {APP_VERSION}
         </div>
       </div>
     </div>
@@ -1672,15 +1672,25 @@ function getMapUrl(place, isOverseas) {
 }
 
 function parseCSV(text) {
-  const timeMap = { morning: "09:00", afternoon: "13:00", evening: "18:00", allday: "00:00" };
+  const timeMap = { morning: "09:00", afternoon: "13:00", evening: "18:00", allday: "00:00",
+    "오전": "09:00", "오후": "13:00", "저녁": "18:00", "하루종일": "00:00", "밤": "20:00" };
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
-  const header = lines[0].toLowerCase().split(",").map(h => h.trim());
-  const dayIdx = header.indexOf("day");
-  const timeIdx = header.indexOf("time");
-  const titleIdx = header.indexOf("title");
-  const noteIdx = header.indexOf("note");
-  const placeIdx = header.indexOf("place");
+  const header = lines[0].toLowerCase().split(",").map(h => h.trim().replace(/"/g, ""));
+
+  const findIdx = (candidates) => {
+    for (const c of candidates) {
+      const idx = header.indexOf(c.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
+  const dayIdx   = findIdx(["day", "일차", "날짜", "date"]);
+  const timeIdx  = findIdx(["time", "시간", "시간대", "시간대별"]);
+  const titleIdx = findIdx(["title", "일정명", "일정", "제목", "방문지", "관광지", "장소명", "활동"]);
+  const noteIdx  = findIdx(["note", "메모", "비고", "노트", "이동수단", "참고", "안내"]);
+  const placeIdx = findIdx(["place", "장소", "위치", "맛집", "상호명"]);
   if (titleIdx === -1) return [];
   return lines.slice(1).map((line, i) => {
     const cols = [];
@@ -1692,11 +1702,13 @@ function parseCSV(text) {
       current += ch;
     }
     cols.push(current.trim());
-    const rawTime = timeIdx >= 0 ? (cols[timeIdx] || "").toLowerCase() : "";
+    const rawTime = timeIdx >= 0 ? (cols[timeIdx] || "").toLowerCase().trim() : "";
     const startTime = timeMap[rawTime] || rawTime || "09:00";
+    const rawDay = dayIdx >= 0 ? (cols[dayIdx] || "1") : "1";
+    const day = (parseInt(String(rawDay).replace(/[^0-9]/g, "")) || 1) - 1;
     return {
       id: `it_csv_${Date.now()}_${i}`,
-      day: dayIdx >= 0 ? parseInt(cols[dayIdx]) || 0 : 0,
+      day: day < 0 ? 0 : day,
       startTime,
       title: cols[titleIdx] || "",
       place: placeIdx >= 0 ? (cols[placeIdx] || "") : "",
@@ -2491,17 +2503,26 @@ function AIPromptModal({ state, onClose }) {
   const days = nights + 1;
   const companionText = state.companionType ? `${state.companionType} ${state.companionCount || ""}명` : "";
 
-  const prompt = `나는 "${destination}"으로 ${nights}박 ${days}일 여행을 가.${companionText ? ` (동행: ${companionText})` : ""}
-하루 일정을 짜줘. 아래 마크다운 표 형식 그대로, 다른 설명 없이 표만 줘.
+  const prompt = `[역할]
+당신은 여행 일정 전문가다.
+내가 주는 정보를 기반으로 여행 일정표를 만든다.
+결과는 마크다운 코드블록 없이, 그냥 표 형태로만 출력한다.
 
+[입력값]
+- 도시: ${destination}
+- 기간: ${state.tripStart || "미정"} ~ ${state.tripEnd || "미정"} (${nights}박 ${days}일)${companionText ? `\n- 동행: ${companionText}` : ""}
+
+[출력 형식]
 | 일차 | 시간 | 일정명 | 장소 | 메모 |
 |---|---|---|---|---|
-| 1 | 오전 | (예시) | (예시) | (예시) |
 
-- 일차는 1, 2, 3 ... 숫자로
-- 시간은 오전/오후/저녁 중 하나로
-- 장소는 실제 지명·상호명으로 (지도 검색에 쓸 거야)
-- 메모에는 입장료·예약 필요 여부·운영시간 등 참고할 내용을 적어줘`;
+[작성 규칙]
+1. 숙소 기준으로 이동 동선을 최소화한다.
+2. 하루 2~4개 주요 일정만 구성한다.
+3. 대표 명소 + 근처 맛집을 자연스럽게 연결한다.
+4. 일차는 숫자(1,2,3), 시간은 오전/오후/저녁 중 하나로만 작성한다.
+5. 장소는 구글맵에서 검색 가능한 실제 지명·상호명으로 작성한다.
+6. 메모에는 입장료, 운영시간, 예약 필요 여부를 포함한다.`;
 
   return (
     <ModalWrapper onClose={onClose}>
@@ -4831,7 +4852,9 @@ async function ensureDriveToken() {
   if (!window.google?.accounts?.oauth2) {
     throw new Error("Google 인증 모듈을 불러오지 못했습니다. 페이지를 새로고침해 주세요.");
   }
-  return withTimeout(
+
+  // 1차: 조용한 재인증 시도 (팝업 없음)
+  const tryAuth = (prompt) => withTimeout(
     new Promise((resolve, reject) => {
       try {
         const client = window.google.accounts.oauth2.initTokenClient({
@@ -4839,11 +4862,7 @@ async function ensureDriveToken() {
           scope: DRIVE_SCOPE,
           callback: (resp) => {
             if (resp.error) {
-              const msgs = {
-                access_denied: "Google 계정 접근이 거부됐습니다.",
-                popup_closed_by_user: "로그인 창이 닫혔습니다. 다시 시도해 주세요.",
-              };
-              reject(new Error(msgs[resp.error] || `인증 오류: ${resp.error}`));
+              reject(new Error(resp.error));
               return;
             }
             _driveToken = resp.access_token;
@@ -4851,21 +4870,33 @@ async function ensureDriveToken() {
             resolve(_driveToken);
           },
           error_callback: (err) => {
-            const msgs = {
-              popup_closed: "로그인 창이 닫혔습니다. 다시 시도해 주세요.",
-              popup_failed_to_open: "팝업이 차단됐습니다.\n브라우저 주소창에서 팝업 허용 후 다시 시도해 주세요.",
-            };
-            reject(new Error(msgs[err?.type] || `인증 실패: ${err?.type || "알 수 없는 오류"}`));
+            reject(new Error(err?.type || "auth_failed"));
           },
         });
-        client.requestAccessToken({ prompt: "select_account" });
+        client.requestAccessToken({ prompt });
       } catch (e) {
         reject(new Error(`Google 인증 초기화 오류: ${e.message}`));
       }
     }),
-    60000,
-    "로그인 대기 시간 초과 (60초).\n다시 시도해 주세요."
+    prompt === "" ? 5000 : 60000,
+    prompt === "" ? "silent_timeout" : "로그인 대기 시간 초과 (60초).\n다시 시도해 주세요."
   );
+
+  // 조용한 인증 먼저 시도
+  try {
+    return await tryAuth("");
+  } catch (e) {
+    // 조용한 인증 실패 시 계정 선택 팝업 표시
+    const msgs = {
+      access_denied: "Google 계정 접근이 거부됐습니다.",
+      popup_closed_by_user: "로그인 창이 닫혔습니다. 다시 시도해 주세요.",
+      popup_closed: "로그인 창이 닫혔습니다. 다시 시도해 주세요.",
+      popup_failed_to_open: "팝업이 차단됐습니다.\n브라우저 주소창에서 팝업 허용 후 다시 시도해 주세요.",
+    };
+    return await tryAuth("select_account").catch(err => {
+      throw new Error(msgs[err.message] || `인증 오류: ${err.message}`);
+    });
+  }
 }
 
 async function driveFindFile() {
@@ -6068,7 +6099,7 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
       }}>🏁 여행 마무리</button>
 
       <div style={{ textAlign: "center", marginTop: "28px", fontSize: "12px", color: theme.textLight }}>
-        모리의 여행플래너 {APP_VERSION}
+        모리의 여행플랜 {APP_VERSION}
         {state.lastSaved && (
           <div style={{ marginTop: "4px" }}>
             마지막 저장: {new Date(state.lastSaved).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
