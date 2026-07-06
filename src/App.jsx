@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import * as XLSX from 'xlsx';
 
@@ -195,10 +195,6 @@ function saveArchive(archive) {
 }
 
 // ─── Theme System ───
-const REGION_FLAGS = {
-  japan: "🇯🇵", europe: "🇪🇺", southeast_asia: "🌴",
-  usa: "🇺🇸", domestic: "🇰🇷", overseas: "🌏",
-};
 
 const THEME_PRESETS = {
   light: {
@@ -1665,7 +1661,7 @@ function MobileHeader({ state, onGoHome }) {
 
 // ─── Utility: Map & CSV ───
 function getMapUrl(place, isOverseas) {
-  const cleaned = place.replace(/[\(\)（）\[\]【】]/g, " ").replace(/[^\w\s가-힣ぁ-んァ-ヶ一-龥a-zA-Z0-9]/g, "").trim();
+  const cleaned = place.replace(/[()（）[\]【】]/g, " ").replace(/[^\w\s가-힣ぁ-んァ-ヶ一-龥a-zA-Z0-9]/g, "").trim();
   if (!cleaned) return null;
   if (isOverseas) return `https://www.google.com/maps/search/${encodeURIComponent(cleaned)}`;
   return `https://map.naver.com/v5/search/${encodeURIComponent(cleaned)}`;
@@ -4396,6 +4392,7 @@ function CheckTab({ state, setState }) {
     if (daysLeft > 14) setOpenPhase(completedPhases["plan"] ? "confirm" : "plan");
     else if (daysLeft > 0) setOpenPhase(completedPhases["confirm"] ? "depart" : "confirm");
     else setOpenPhase("depart");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.tripStart]);
 
   const getPhaseItems = (phaseId) => {
@@ -4837,6 +4834,7 @@ function loadGISScript() {
         "Google 인증 스크립트 로드 실패.\n\n" +
         "배포된 앱(GitHub Pages)에서 사용하려면\n" +
         "index.html <head> 안에 아래 코드를 추가하세요:\n" +
+        // eslint-disable-next-line no-useless-concat
         "<script src=\"https://accounts.google.com/gsi/client\" async defer></scri" + "pt>"
       ));
       document.head.appendChild(s);
@@ -6396,6 +6394,7 @@ export default function App() {
       setActiveTab(order[0]);
       setScreen("main");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driveStatus]);
 
   // ─── 가져온 일정으로 새 임시 여행 생성 ───
@@ -6544,8 +6543,6 @@ export default function App() {
   const tabOrder = state ? getTabOrder(state.tripStart, state.tripEnd) : [];
   const tripPhase = state ? getTripPhase(state.tripStart, state.tripEnd) : "before";
   const currentTab = activeTab || (tabOrder.length > 0 ? tabOrder[0] : "itinerary");
-  const resolvedAppSeason = appThemeMode === "seasonal" ? getSeason() : appThemeMode;
-  const isActive = SEASONAL_THEMES.has(appThemeMode) && ["spring","summer","fall","winter"].includes(resolvedAppSeason);
 
 
   const activeCustomTheme = getActiveCustomTheme(customThemes);
@@ -6819,3 +6816,5 @@ export default function App() {
     </div>
   );
 }
+
+
