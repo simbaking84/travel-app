@@ -566,7 +566,7 @@ function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, 
           </button>
         )}
   </div>
-  
+  <a
     href={`${process.env.PUBLIC_URL}/privacy.html`}
     target="_blank"      rel="noopener noreferrer"
       style={{
