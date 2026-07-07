@@ -565,11 +565,10 @@ function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, 
             📖 여행 기록 보기
           </button>
         )}
-      </div>
-
-      href={`${process.env.PUBLIC_URL}/privacy.html`}
-      target="_blank"
-      rel="noopener noreferrer"
+  </div>
+  
+    href={`${process.env.PUBLIC_URL}/privacy.html`}
+    target="_blank"      rel="noopener noreferrer"
       style={{
         marginTop: "20px",
         fontSize: "12px",
