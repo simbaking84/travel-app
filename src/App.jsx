@@ -566,6 +566,19 @@ function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, 
           </button>
         )}
       </div>
+
+      href={`${process.env.PUBLIC_URL}/privacy.html`}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        marginTop: "20px",
+        fontSize: "12px",
+        color: theme.textLight,
+        textDecoration: "underline",
+      }}
+     >
+      개인정보처리방침
+     </a> 
     </div>
   );
 }
