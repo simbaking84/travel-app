@@ -1815,12 +1815,12 @@ function generateId() {
 const SEASONAL_THEMES = new Set(["spring", "summer", "fall", "winter", "seasonal"]);
 
 const BG_MODES = {
-  light:  { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light.png`,  color: "#f4f7fd" },
-  dark:   { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark.png`,   color: "#122143" },
-  spring: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring.png`, color: "#fce8f0" },
-  summer: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer.png`, color: "#ddeeff" },
-  fall:   { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall.png`,   color: "#fdebd0" },
-  winter: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter.png`, color: "#e8ecf0" },
+  light:  { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light.webp`,  imgMobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-light-mobile.webp`,  color: "#f4f7fd" },
+  dark:   { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark.webp`,   imgMobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-dark-mobile.webp`,   color: "#122143" },
+  spring: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring.webp`, imgMobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-spring-mobile.webp`, color: "#fce8f0" },
+  summer: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer.webp`, imgMobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-summer-mobile.webp`, color: "#ddeeff" },
+  fall:   { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall.webp`,   imgMobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-fall-mobile.webp`,   color: "#fdebd0" },
+  winter: { img: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter.webp`, imgMobile: `${process.env.PUBLIC_URL}/assets/backgrounds/bg-winter-mobile.webp`, color: "#e8ecf0" },
 };
 
 
@@ -1866,10 +1866,12 @@ function AppBackground({ mode, bgFit = "tile", customImg = null, customMascot = 
       styleEl.id = "app-bg-style";
       document.head.appendChild(styleEl);
     }
+    const isNarrow = window.innerWidth < 768;
+    const imgToUse = customImg ? customImg : (isNarrow && cfg.imgMobile ? cfg.imgMobile : cfg.img);
     if (customImg) {
       styleEl.textContent = `.app-bg-fixed { background-image: url('${customImg}'); background-color: transparent; }`;
     } else {
-      styleEl.textContent = `.app-bg-fixed { background-image: url('${cfg.img}'); background-color: ${cfg.color}; }`;
+      styleEl.textContent = `.app-bg-fixed { background-image: url('${imgToUse}'); background-color: ${cfg.color}; }`;
     }
   }, [cfg.img, cfg.color, customImg]);
 
