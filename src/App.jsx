@@ -311,22 +311,22 @@ const ONBOARDING_KEY = "onboarding_seen_v1";
 
 const ONBOARDING_SLIDES = [
   {
-    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-1-itinerary.png`,
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-1-itinerary.webp`,
     title: "여행을 계획하고\n일정을 정리해요",
     desc: "일정, 메모, 지도까지\n한 곳에서 관리하세요.",
   },
   {
-    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-2-ai.png`,
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-2-ai.webp`,
     title: "AI와 함께 여행을\n더 스마트하게",
     desc: "AI에게 추천받고,\n일정도 쉽게 가져오세요.",
   },
   {
-    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-3-expense.png`,
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-3-expense.webp`,
     title: "지출을 기록하고\n예산을 관리해요",
     desc: "환율 계산과 예산 관리로\n여행 경비를 똑똑하게!",
   },
   {
-    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-4-checklist.png`,
+    img: `${process.env.PUBLIC_URL}/assets/onboarding/onboarding-4-checklist.webp`,
     title: "체크리스트와 함께\n완벽한 여행 준비",
     desc: "준비물 체크부터 출발까지\n모든 것을 챙겨드려요.",
   },
@@ -418,7 +418,7 @@ function TutorialReviewModal({ onClose }) {
         }}>✕</button>
       </div>
       <img
-        src={`${process.env.PUBLIC_URL}/assets/onboarding/onboarding-all.png`}
+        src={`${process.env.PUBLIC_URL}/assets/onboarding/onboarding-all.webp`}
         alt="튜토리얼"
         style={{ width: "100%", borderRadius: theme.radius }}
       />
@@ -1828,11 +1828,11 @@ const BG_MODES = {
 function getThemeMascot(themeMode) {
   const resolved = themeMode === "seasonal" ? getSeason() : themeMode;
   const map = {
-    spring:  `${process.env.PUBLIC_URL}/assets/icons/mascot-spring.png`,
-    summer:  `${process.env.PUBLIC_URL}/assets/icons/mascot-summer.png`,
-    fall:    `${process.env.PUBLIC_URL}/assets/icons/mascot-fall.png`,
-    winter:  `${process.env.PUBLIC_URL}/assets/icons/mascot-winter.png`,
-    dark:    `${process.env.PUBLIC_URL}/assets/icons/mascot-dark.png`,
+    spring:  `${process.env.PUBLIC_URL}/assets/icons/mascot-spring.webp`,
+    summer:  `${process.env.PUBLIC_URL}/assets/icons/mascot-summer.webp`,
+    fall:    `${process.env.PUBLIC_URL}/assets/icons/mascot-fall.webp`,
+    winter:  `${process.env.PUBLIC_URL}/assets/icons/mascot-winter.webp`,
+    dark:    `${process.env.PUBLIC_URL}/assets/icons/mascot-dark.webp`,
   };
   return map[resolved] || `${process.env.PUBLIC_URL}/assets/icons/mascot-logo.png`;
 }
