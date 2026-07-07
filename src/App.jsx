@@ -352,7 +352,7 @@ function OnboardingModal({ onClose }) {
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 20px" }}>
         <button onClick={finish} style={{
           background: "none", border: "none", fontSize: "14px",
-          color: theme.textLight, cursor: "pointer", fontWeight: "600",
+          color: theme.textSub, cursor: "pointer", fontWeight: "600",
         }}>건너뛰기</button>
       </div>
 
