@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/travel-app/static/js/main.a1972d6a.js",
-    "index.html": "/travel-app/index.html",
-    "main.a1972d6a.js.map": "/travel-app/static/js/main.a1972d6a.js.map"
+    "main.js": "/static/js/main.de4e9f89.js",
+    "index.html": "/index.html",
+    "main.de4e9f89.js.map": "/static/js/main.de4e9f89.js.map"
   },
   "entrypoints": [
-    "static/js/main.a1972d6a.js"
+    "static/js/main.de4e9f89.js"
   ]
 }
