@@ -334,13 +334,17 @@ const ONBOARDING_SLIDES = [
 
 function OnboardingModal({ onClose }) {
   const [step, setStep] = useState(0);
+  const [ready, setReady] = useState(false);
   const isLast = step === ONBOARDING_SLIDES.length - 1;
   const slide = ONBOARDING_SLIDES[step];
-
   const finish = () => {
     try { localStorage.setItem(ONBOARDING_KEY, "1"); } catch (e) { /* ignore */ }
     onClose();
   };
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 400);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div style={{
@@ -390,7 +394,7 @@ function OnboardingModal({ onClose }) {
       </div>
 
       <div style={{ padding: "0 20px 32px", maxWidth: "480px", width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
-        <button onClick={() => isLast ? finish() : setStep(s => s + 1)} style={{
+        <button onClick={() => { if (!ready) return; isLast ? finish() : setStep(s => s + 1); }} style={{
           width: "100%", padding: "16px",
           background: theme.primary, color: theme.textWhite,
           border: "none", borderRadius: theme.radius,
