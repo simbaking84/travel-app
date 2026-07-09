@@ -87,11 +87,13 @@
       });
 
       let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      });
+navigator.serviceWorker.addEventListener('controllerchange', function () {
+  if (refreshing) return;
+  var isFirstVisit = !localStorage.getItem('onboarding_seen_v1');
+  if (isFirstVisit) return;
+  refreshing = true;
+  window.location.reload();
+});
     }
   </script>
 </body>
