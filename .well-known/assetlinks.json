@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.moritravel.planner",
+    "sha256_cert_fingerprints": ["B3:A1:E1:7D:21:B9:5D:0B:1F:17:96:4F:EB:34:18:B2:A5:11:61:64:D6:5C:CC:DF:98:12:AA:A3:73:DC:F6:DE"]
+  }
+}]
