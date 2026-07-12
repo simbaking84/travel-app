@@ -3,6 +3,9 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.moritravel.planner",
-    "sha256_cert_fingerprints": ["B3:A1:E1:7D:21:B9:5D:0B:1F:17:96:4F:EB:34:18:B2:A5:11:61:64:D6:5C:CC:DF:98:12:AA:A3:73:DC:F6:DE"]
+    "sha256_cert_fingerprints": [
+      "B3:A1:E1:7D:21:B9:5D:0B:1F:17:96:4F:EB:34:18:B2:A5:11:61:64:D6:5C:CC:DF:98:12:AA:A3:73:DC:F6:DE",
+      "D8:3A:2D:F2:D8:59:36:73:58:48:B8:04:64:AB:59:CD:9E:F9:6D:DC:90:0D:A8:D1:37:7B:5B:5C:E6:A3:C8:F0"
+    ]
   }
 }]
