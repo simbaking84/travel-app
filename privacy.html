@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개인정보처리방침 - 모리의 여행플래너</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.8;
+      color: #1A1D23;
+      background-color: #FAFAF8;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: #FFFFFF;
+      border-radius: 12px;
+      padding: 60px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 50px;
+      border-bottom: 2px solid #2563EB;
+      padding-bottom: 30px;
+    }
+    
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1A1D23;
+    }
+    
+    .app-name {
+      font-size: 18px;
+      color: #6B7280;
+      margin-bottom: 4px;
+    }
+    
+    .update-date {
+      font-size: 14px;
+      color: #9CA3AF;
+      margin-top: 12px;
+    }
+    
+    .table-of-contents {
+      background-color: #EFF6FF;
+      border-left: 4px solid #2563EB;
+      padding: 20px 24px;
+      margin-bottom: 40px;
+      border-radius: 8px;
+    }
+    
+    .table-of-contents h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1D4ED8;
+    }
+    
+    .toc-list {
+      list-style: none;
+      columns: 2;
+      gap: 20px;
+    }
+    
+    .toc-list li {
+      margin-bottom: 8px;
+      color: #2563EB;
+      text-decoration: none;
+    }
+    
+    .toc-list a {
+      color: #2563EB;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    .toc-list a:hover {
+      color: #1D4ED8;
+      text-decoration: underline;
+    }
+    
+    section {
+      margin-bottom: 40px;
+    }
+    
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1A1D23;
+      padding-top: 20px;
+      border-top: 1px solid #E5E7EB;
+    }
+    
+    h2:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+    
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      color: #374151;
+    }
+    
+    p {
+      margin-bottom: 12px;
+      color: #1A1D23;
+    }
+    
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 12px;
+    }
+    
+    li {
+      margin-bottom: 8px;
+      color: #1A1D23;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    
+    table th {
+      background-color: #EFF6FF;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #1D4ED8;
+      border: 1px solid #DBEAFE;
+    }
+    
+    table td {
+      padding: 12px;
+      border: 1px solid #E5E7EB;
+      color: #1A1D23;
+    }
+    
+    table tr:nth-child(even) {
+      background-color: #F9FAFB;
+    }
+    
+    .highlight {
+      background-color: #FEF9EF;
+      border-left: 4px solid #F59E0B;
+      padding: 12px 16px;
+      margin: 16px 0;
+      border-radius: 4px;
+    }
+    
+    .highlight-blue {
+      background-color: #EFF6FF;
+      border-left: 4px solid #2563EB;
+      padding: 12px 16px;
+      margin: 16px 0;
+      border-radius: 4px;
+    }
+    
+    .contact-section {
+      background-color: #F3F4F6;
+      padding: 24px;
+      border-radius: 8px;
+      margin-top: 30px;
+    }
+    
+    .contact-section h3 {
+      margin-top: 0;
+      color: #1A1D23;
+    }
+    
+    .contact-item {
+      margin: 8px 0;
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .contact-label {
+      font-weight: 600;
+      color: #6B7280;
+      min-width: 80px;
+    }
+    
+    .contact-value {
+      color: #1A1D23;
+      word-break: break-all;
+      overflow-wrap: break-word;
+    }
+    
+    a {
+      color: #2563EB;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    a:hover {
+      color: #1D4ED8;
+      text-decoration: underline;
+    }
+    
+    .footer {
+      border-top: 1px solid #E5E7EB;
+      padding-top: 30px;
+      margin-top: 50px;
+      text-align: center;
+      font-size: 14px;
+      color: #9CA3AF;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 40px 20px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      h2 {
+        font-size: 18px;
+      }
+      
+      .toc-list {
+        columns: 1;
+      }
+      
+      table {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="app-name">🧳 모리의 여행플래너</div>
+      <h1>개인정보처리방침</h1>
+      <p class="update-date">최종 수정: 2026년 6월 26일</p>
+    </header>
+
+    <nav class="table-of-contents">
+      <h2>목차</h2>
+      <ul class="toc-list">
+        <li><a href="#section1">1. 개인정보 처리의 목적</a></li>
+        <li><a href="#section2">2. 수집하는 개인정보</a></li>
+        <li><a href="#section3">3. 수집 목적 및 이용</a></li>
+        <li><a href="#section4">4. 보관 기간</a></li>
+        <li><a href="#section5">5. 제3자 제공</a></li>
+        <li><a href="#section6">6. 보호 조치</a></li>
+        <li><a href="#section7">7. 사용자의 권리</a></li>
+        <li><a href="#section8">8. 정책 변경</a></li>
+        <li><a href="#section9">9. 연락처</a></li>
+      </ul>
+    </nav>
+
+    <!-- Section 1 -->
+    <section id="section1">
+      <h2>1. 개인정보 처리의 목적</h2>
+      <p>모리의 여행플래너(이하 '서비스')는 사용자의 여행 계획 관리 서비스를 제공하기 위해 개인정보를 처리합니다. 본 방침은 이용자의 개인정보 보호를 위해 작성되었으며, 서비스 이용 중 발생할 수 있는 개인정보 처리에 대하여 설명합니다.</p>
+      <p>본 개인정보처리방침은 웹(PWA) 버전과 Android 앱(모리의 여행플랜) 버전에 적용되며, 향후 출시되는 다른 플랫폼(iOS 등) 버전에도 동일하게 적용됩니다.</p>
+    </section>
+
+    <!-- Section 2 -->
+    <section id="section2">
+      <h2>2. 수집하는 개인정보</h2>
+      
+      <h3>2-1. Google 계정을 통한 수집</h3>
+      <p>서비스는 Google OAuth를 통해 다음 정보를 수집합니다:</p>
+      <ul>
+        <li><strong>Google 계정 ID:</strong> 사용자 식별용</li>
+        <li><strong>기본 프로필 정보:</strong> 이름, 이메일 주소, 프로필 사진 (선택)</li>
+        <li><strong>Google Drive 접근 권한:</strong> 여행 데이터 저장/복구용</li>
+      </ul>
+      
+      <div class="highlight-blue">
+        <strong>보안 참고:</strong> OAuth 토큰은 현재 탭에서만 유효하며, 탭을 닫으면 자동으로 소실됩니다. 브라우저 종료 후 다시 로그인이 필요합니다.
+      </div>
+
+      <h3>2-2. 로컬 저장 데이터</h3>
+      <p>사용자의 브라우저 로컬스토리지에 저장되는 데이터:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>데이터 항목</th>
+            <th>저장 위치</th>
+            <th>설명</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>여행 일정</td>
+            <td>로컬스토리지</td>
+            <td>여행 이름, 날짜, 일정, 위치, 메모 등</td>
+          </tr>
+          <tr>
+            <td>지출 내역</td>
+            <td>로컬스토리지</td>
+            <td>금액, 통화, 분류, 결제수단</td>
+          </tr>
+          <tr>
+            <td>체크리스트</td>
+            <td>로컬스토리지</td>
+            <td>준비 항목, 완료 상태</td>
+          </tr>
+          <tr>
+            <td>설정 정보</td>
+            <td>로컬스토리지</td>
+            <td>테마, 언어, 알림 설정</td>
+          </tr>
+          <tr>
+            <td>여행 기록</td>
+            <td>로컬스토리지</td>
+            <td>지난 여행 아카이브</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2-3. 기술적 정보</h3>
+      <ul>
+        <li><strong>쿠키 및 캐시:</strong> 서비스 성능 최적화용 (서비스워커 캐시)</li>
+        <li><strong>환경 정보:</strong> 브라우저 종류, 해상도, OS 등 (서비스 호환성 확인용)</li>
+      </ul>
+    </section>
+
+    <!-- Section 3 -->
+    <section id="section3">
+      <h2>3. 수집 목적 및 이용</h2>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>수집 항목</th>
+            <th>이용 목적</th>
+            <th>법적 근거</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Google 계정 정보</td>
+            <td>서비스 가입, 로그인, 본인 확인</td>
+            <td>이용약관 동의</td>
+          </tr>
+          <tr>
+            <td>여행 데이터<br/>(일정, 지출, 체크)</td>
+            <td>서비스 핵심 기능 제공</td>
+            <td>서비스 이용 동의</td>
+          </tr>
+          <tr>
+            <td>Google Drive 데이터</td>
+            <td>클라우드 백업, 복구</td>
+            <td>사용자 선택 (선택적 기능)</td>
+          </tr>
+          <tr>
+            <td>기술적 정보</td>
+            <td>서비스 성능 개선, 호환성 확보</td>
+            <td>정당한 이익</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>개인정보의 제3자 공개 불가</h3>
+      <p>사용자의 여행 데이터는 전적으로 개별 사용자의 로컬스토리지 또는 개별 Google Drive에만 저장됩니다. 서비스는 다음을 보장합니다:</p>
+      <ul>
+        <li>사용자 데이터를 기업 서버에 저장하지 않음</li>
+        <li>제3의 광고 회사 또는 마케팅 업체에 제공하지 않음</li>
+        <li>법적 요청이 없는 한 정부기관에 제공하지 않음</li>
+      </ul>
+    </section>
+
+    <!-- Section 4 -->
+    <section id="section4">
+      <h2>4. 개인정보의 보관 기간</h2>
+      
+      <h3>4-1. 로컬스토리지 데이터</h3>
+      <ul>
+        <li><strong>보관 기간:</strong> 사용자가 브라우저 데이터를 삭제할 때까지</li>
+        <li><strong>자동 삭제:</strong> 없음 (사용자가 수동으로 삭제하거나 '여행 마무리' 기능으로 삭제)</li>
+      </ul>
+
+      <h3>4-2. Google Drive 백업</h3>
+      <ul>
+        <li><strong>보관 기간:</strong> Google Drive 계정이 유지되는 동안</li>
+        <li><strong>삭제 방법:</strong> Google Drive에서 수동 삭제 또는 Google 계정 삭제</li>
+      </ul>
+
+      <h3>4-3. OAuth 토큰</h3>
+      <ul>
+        <li><strong>보관 기간:</strong> 브라우저 탭이 열려있는 동안만</li>
+        <li><strong>자동 소실:</strong> 탭 닫음 시 즉시 소실</li>
+      </ul>
+
+      <div class="highlight">
+        <strong>주의:</strong> 서비스 이용 중단 시 저장된 데이터는 자동 삭제되지 않습니다. 필요시 사용자가 수동으로 삭제해야 합니다.
+      </div>
+    </section>
+
+    <!-- Section 5 -->
+    <section id="section5">
+      <h2>5. 제3자에게의 정보 제공</h2>
+      
+      <h3>5-1. 정보 제공 현황</h3>
+      <p><strong>모리의 여행플래너는 사용자 동의 없이 제3자에게 개인정보를 제공하지 않습니다.</strong></p>
+
+      <h3>5-2. 필수 파트너</h3>
+      <p>다음의 경우에만 정보 공개가 발생합니다:</p>
+      <ul>
+        <li><strong>Google LLC:</strong> OAuth 및 Google Drive 서비스 제공 (사용자 선택)</li>
+        <li><strong>GitHub Pages:</strong> 웹 호스팅 (서비스 배포용)</li>
+      </ul>
+
+      <p>이들 서비스는 각각의 개인정보보호방침을 따릅니다:</p>
+      <ul>
+        <li><a href="https://policies.google.com/privacy" target="_blank">Google 개인정보보호방침</a></li>
+        <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank">GitHub 개인정보보호방침</a></li>
+      </ul>
+
+      <h3>5-3. 법적 요청</h3>
+      <p>법원의 명령, 수사기관의 요청 등 법률에 따른 의무가 있는 경우에만 정보를 제공할 수 있습니다.</p>
+    </section>
+
+    <!-- Section 6 -->
+    <section id="section6">
+      <h2>6. 개인정보 보호 조치</h2>
+      
+      <h3>6-1. 기술적 보호 조치</h3>
+      <ul>
+        <li><strong>HTTPS 암호화:</strong> 모든 통신은 SSL/TLS 암호화됨</li>
+        <li><strong>로컬스토리지 격리:</strong> 브라우저의 동일 출처 정책(Same-Origin Policy)으로 보호</li>
+        <li><strong>Google Drive 보안:</strong> Google의 엔드-투-엔드 암호화 및 접근 제어</li>
+        <li><strong>서비스워커 캐시:</strong> 오프라인 기능 제공 및 성능 최적화</li>
+      </ul>
+
+      <h3>6-2. 접근 제어</h3>
+      <ul>
+        <li>Google OAuth를 통한 본인 확인만이 데이터 접근 허용</li>
+        <li>로컬스토리지는 현재 도메인(moritravelplan.com)에서만 접근 가능</li>
+        <li>토큰 기반 인증으로 무단 접근 방지</li>
+      </ul>
+
+      <h3>6-3. 주의 사항</h3>
+      <p><strong>사용자는 다음 사항을 반드시 지켜주세요:</strong></p>
+      <ul>
+        <li>공용 컴퓨터에서는 사용 후 반드시 로그아웃</li>
+        <li>Google 계정의 보안을 유지 (강력한 비밀번호, 2단계 인증)</li>
+        <li>피싱 이메일 및 의심스러운 링크를 피하기</li>
+      </ul>
+    </section>
+
+    <!-- Section 7 -->
+    <section id="section7">
+      <h2>7. 사용자의 권리</h2>
+      
+      <h3>7-1. 개인정보 열람 및 수정 요청</h3>
+      <p>사용자는 다음의 권리를 행사할 수 있습니다:</p>
+      <ul>
+        <li><strong>열람:</strong> 로컬스토리지 및 Google Drive에 저장된 자신의 데이터 확인</li>
+        <li><strong>수정:</strong> 서비스 내 편집 기능으로 데이터 직접 수정</li>
+        <li><strong>삭제:</strong> '여행 마무리' 또는 브라우저 데이터 삭제로 로컬 데이터 제거</li>
+        <li><strong>Google Drive 삭제:</strong> Google Drive에서 직접 백업 파일 삭제 가능</li>
+      </ul>
+
+      <h3>7-2. 데이터 이동권</h3>
+      <ul>
+        <li>JSON 형식으로 데이터 내보내기 기능 제공</li>
+        <li>엑셀(CSV) 형식으로 데이터 다운로드 가능</li>
+        <li>다른 서비스로의 데이터 이전 용이</li>
+      </ul>
+
+      <h3>7-3. 동의 철회</h3>
+      <ul>
+        <li><strong>Google Drive 연동:</strong> 설정에서 '계정 연결 해제' 버튼으로 언제든 철회 가능</li>
+        <li><strong>서비스 이용 중단:</strong> 언제든 계정 삭제 가능 (데이터는 로컬에서 삭제됨)</li>
+      </ul>
+
+      <h3>7-4. 정정 및 삭제 청구</h3>
+      <p>개인정보에 오류가 있거나 삭제를 원할 경우, 다음 주소로 요청할 수 있습니다:</p>
+      <div class="contact-section">
+        <p><strong>이메일:</strong> <a href="mailto:moriaty84@gmail.com">moriaty84@gmail.com</a></p>
+        <p>요청 시 24시간 내 답변하겠습니다.</p>
+      </div>
+    </section>
+
+    <!-- Section 8 -->
+    <section id="section8">
+      <h2>8. 개인정보처리방침의 변경</h2>
+      
+      <p>서비스는 법령의 변경에 따라 본 방침을 변경할 수 있습니다. 변경 사항은 다음과 같이 공지합니다:</p>
+      
+      <h3>8-1. 변경 공지 방법</h3>
+      <ul>
+        <li><strong>웹사이트 공지:</strong> 본 페이지의 '최종 수정' 날짜 업데이트</li>
+        <li><strong>주요 변경:</strong> 서비스 내 공지사항 또는 이메일 안내</li>
+      </ul>
+
+      <h3>8-2. 변경 효력 발생</h3>
+      <ul>
+        <li>경미한 변경: 즉시 적용</li>
+        <li>중요한 변경: 최소 30일 전 공지 후 적용</li>
+        <li>사용자의 권리를 제한하는 변경: 사전 동의 필수</li>
+      </ul>
+
+      <div class="highlight-blue">
+        <strong>변경 이력 확인:</strong> 이 페이지를 주기적으로 확인하여 최신 정책을 확인하시기 바랍니다.
+      </div>
+    </section>
+
+    <!-- Section 9 -->
+    <section id="section9">
+      <h2>9. 문의 및 신고</h2>
+      
+      <div class="contact-section">
+        <h3>모리의 여행플래너 개인정보 관리자</h3>
+        <div class="contact-item">
+          <span class="contact-label">이메일</span>
+          <span class="contact-value"><a href="mailto:moriaty84@gmail.com">moriaty84@gmail.com</a></span>
+        </div>
+        <div class="contact-item">
+          <span class="contact-label">서비스</span>
+          <span class="contact-value"><a href="https://moritravelplan.com/" target="_blank">https://moritravelplan.com/</a></span>
+        </div>
+        <p style="margin-top: 16px; font-size: 14px; color: #6B7280;">개인정보 관련 문의나 불만 사항이 있으신 경우 위 이메일로 연락주시면 성실히 답변하겠습니다.</p>
+      </div>
+
+      <h3 style="margin-top: 30px;">기타 신고 기관</h3>
+      <p>개인정보 침해로 인한 신고나 상담이 필요한 경우:</p>
+      <ul>
+        <li><strong>개인정보보호위원회:</strong> <a href="https://www.ppc.go.kr" target="_blank">https://www.ppc.go.kr</a> (1833-6458)</li>
+        <li><strong>경찰청:</strong> <a href="https://www.police.go.kr" target="_blank">https://www.police.go.kr</a> (사이버범죄신고)</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <p>© 2024-2026 모리의 여행플래너. All rights reserved.</p>
+      <p>이 개인정보처리방침은 Google OAuth를 사용하는 서비스의 정책입니다.</p>
+    </footer>
+  </div>
+</body>
+</html>

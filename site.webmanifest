@@ -1,0 +1,20 @@
+{
+  "name": "모리의 여행플랜",
+  "short_name": "모여플",
+  "description": "모리의 모바일·PC 겸용 여행 일정·예산·지출 관리 앱",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12254b",
+  "theme_color": "#12254b",
+  "lang": "ko",
+  "categories": ["travel", "lifestyle", "utilities"],
+  "icons": [
+    { "src": "web-app-manifest-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "web-app-manifest-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": []
+}
