@@ -5692,15 +5692,26 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const file = new File([blob], `${state.tripName || "여행"}_일정.json`, { type: "application/json" });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ title: `${state.tripName} 일정`, files: [file] });
-      } catch (e) { /* cancelled */ }
-    } else {
+
+    const downloadFallback = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = file.name; a.click();
       URL.revokeObjectURL(url);
+      alert("공유가 지원되지 않아 파일을 다운로드했습니다. 다운로드 폴더를 확인해주세요.");
+    };
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ title: `${state.tripName} 일정`, files: [file] });
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          console.error("공유 실패:", e.name, e.message);
+          downloadFallback();
+        }
+      }
+    } else {
+      downloadFallback();
     }
   };
 
