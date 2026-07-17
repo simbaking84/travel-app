@@ -4,6 +4,7 @@
   "private": true,
   "homepage": "https://moritravelplan.com",
   "dependencies": {
+    "lz-string": "^1.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
@@ -17,7 +18,9 @@
     "deploy": "npm run build && gh-pages -d build"
   },
   "eslintConfig": {
-    "extends": ["react-app"]
+    "extends": [
+      "react-app"
+    ]
   },
   "browserslist": {
     "production": [

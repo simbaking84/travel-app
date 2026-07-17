@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-
 import * as XLSX from 'xlsx';
+import LZString from "lz-string";
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
@@ -5528,6 +5528,35 @@ function FinishTripModal({ onConfirm, onClose }) {
   );
 }
 
+// ─── Import Share Modal ───
+function ImportShareModal({ data, onOverwrite, onNew, onCancel }) {
+  return (
+    <ModalWrapper onClose={onCancel}>
+      <h3 style={{ margin: "0 0 12px", fontSize: "18px", fontWeight: "800", color: theme.text }}>
+        📥 공유받은 일정
+      </h3>
+      <p style={{ fontSize: "14px", color: theme.textSub, marginBottom: "20px" }}>
+        <b>{data.tripName}</b> ({data.tripStart} ~ {data.tripEnd}) 일정을 받았습니다.
+        어떻게 저장할까요?
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <button onClick={onNew} style={{
+          padding: "14px", background: theme.primary, color: "#fff",
+          border: "none", borderRadius: theme.radius, fontSize: "15px", fontWeight: "700", cursor: "pointer",
+        }}>새로 만들기 (기존 여행은 자동 저장됨)</button>
+        <button onClick={onOverwrite} style={{
+          padding: "14px", background: theme.danger, color: "#fff",
+          border: "none", borderRadius: theme.radius, fontSize: "15px", fontWeight: "700", cursor: "pointer",
+        }}>덮어쓰기 (기존 여행 삭제됨)</button>
+        <button onClick={onCancel} style={{
+          padding: "14px", background: theme.bgInput, color: theme.textSub,
+          border: "none", borderRadius: theme.radius, fontSize: "15px", fontWeight: "600", cursor: "pointer",
+        }}>취소</button>
+      </div>
+    </ModalWrapper>
+  );
+}
+
 // ─── Archive View Modal ───
 function ArchiveModal({ archives, onClose, onDeleteArchive, onEditArchive }) {
   const [expanded, setExpanded] = useState(null);
@@ -5680,7 +5709,13 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
     e.target.value = "";
   };
 
-  const handleShare = async () => {
+ const generateShareLink = (exportData) => {
+  const json = JSON.stringify(exportData);
+  const compressed = LZString.compressToEncodedURIComponent(json);
+  return `${window.location.origin}${window.location.pathname}?share=${compressed}`;
+};
+
+const handleShare = async () => {
     const exportData = {
       tripName: state.tripName,
       tripStart: state.tripStart,
@@ -5690,6 +5725,10 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
       itinerary: state.itinerary,
       version: "2.0",
     };
+
+    const shareUrl = generateShareLink(exportData);
+    const MAX_URL_LENGTH = 3500;
+
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const file = new File([blob], `${state.tripName || "여행"}_일정.json`, { type: "application/json" });
 
@@ -5701,17 +5740,43 @@ function SettingsTab({ state, setState, onFinishTrip, archives, onViewArchive, o
       alert("공유가 지원되지 않아 파일을 다운로드했습니다. 다운로드 폴더를 확인해주세요.");
     };
 
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    const copyLinkFallback = async () => {
       try {
-        await navigator.share({ title: `${state.tripName} 일정`, files: [file] });
+        await navigator.clipboard.writeText(shareUrl);
+        alert("공유 링크가 복사되었습니다. 원하는 곳에 붙여넣어 보내주세요.");
+      } catch (e) {
+        console.error("클립보드 복사 실패:", e.name, e.message);
+        downloadFallback();
+      }
+    };
+
+    if (shareUrl.length > MAX_URL_LENGTH) {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ title: `${state.tripName} 일정`, files: [file] });
+        } catch (e) {
+          if (e.name !== "AbortError") {
+            console.error("공유 실패:", e.name, e.message);
+            downloadFallback();
+          }
+        }
+      } else {
+        downloadFallback();
+      }
+      return;
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${state.tripName} 일정 공유`, url: shareUrl });
       } catch (e) {
         if (e.name !== "AbortError") {
           console.error("공유 실패:", e.name, e.message);
-          downloadFallback();
+          await copyLinkFallback();
         }
       }
     } else {
-      downloadFallback();
+      await copyLinkFallback();
     }
   };
 
@@ -6368,6 +6433,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [archives, setArchives] = useState([]);
+  const [pendingImport, setPendingImport] = useState(null);
   const [appThemeMode, setAppThemeMode] = useState(localStorage.getItem("theme_mode") || "system");
   const [particlesEnabled, setParticlesEnabled] = useState(localStorage.getItem("particles_enabled") !== "false");
 
@@ -6498,6 +6564,22 @@ export default function App() {
 
   // Load initial data
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareParam = params.get("share");
+    if (shareParam) {
+      try {
+        const json = LZString.decompressFromEncodedURIComponent(shareParam);
+        const imported = JSON.parse(json);
+        if (imported && imported.tripName) {
+          setPendingImport(imported);
+        }
+      } catch (e) {
+        console.error("공유 데이터 파싱 실패:", e.name, e.message);
+        alert("공유 링크를 읽을 수 없습니다. 링크가 손상되었을 수 있습니다.");
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
     const saved = loadState();
     const arch = loadArchive();
     setArchives(arch);
@@ -6509,9 +6591,6 @@ export default function App() {
     } else {
       setScreen("welcome");
     }
-    try {
-      if (!localStorage.getItem(ONBOARDING_KEY)) setShowOnboarding(true);
-    } catch (e) { /* ignore */ }
   }, []);
 
   // Responsive
@@ -6537,13 +6616,41 @@ export default function App() {
   const handleViewArchive = () => setScreen("archive");
   const handleGoHome = () => setScreen("welcome");
 
-  const handleSetupComplete = (newState) => {
+const handleSetupComplete = (newState) => {
     setState(newState);
     saveState(newState);
     const order = getTabOrder(newState.tripStart, newState.tripEnd);
     setActiveTab(order[0]);
     setScreen("main");
   };
+
+  const handleImportOverwrite = () => {
+    if (!pendingImport) return;
+    const newState = {
+      ...pendingImport,
+      expenses: pendingImport.expenses || [],
+      version: "2.0",
+    };
+    setState(newState);
+    saveState(newState);
+    const order = getTabOrder(newState.tripStart, newState.tripEnd);
+    setActiveTab(order[0]);
+    setScreen("main");
+    setPendingImport(null);
+  };
+
+  const handleImportAsNew = () => {
+    if (!pendingImport) return;
+    if (state && state.tripName) {
+      const archiveEntry = { ...state, review: "", archivedAt: new Date().toISOString() };
+      const newArchives = [archiveEntry, ...archives];
+      setArchives(newArchives);
+      saveArchive(newArchives);
+    }
+    handleImportOverwrite();
+  };
+
+  const handleImportCancel = () => setPendingImport(null);
 
   const handleFinishTrip = (review = "") => {
     if (!state) return;
@@ -6585,6 +6692,17 @@ export default function App() {
       setAppThemeMode(modeOrSignal);
     }
   };
+
+ if (pendingImport) {
+    return (
+      <ImportShareModal
+        data={pendingImport}
+        onOverwrite={handleImportOverwrite}
+        onNew={handleImportAsNew}
+        onCancel={handleImportCancel}
+      />
+    );
+  }
 
   if (screen === "loading") {
     return (
