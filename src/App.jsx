@@ -2080,13 +2080,20 @@ function ModalWrapper({ onClose, children }) {
     return () => window.removeEventListener("resize", handler);
   }, []);
 
+  const mouseDownOnBackdrop = useRef(false);
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 200,
       display: "flex", alignItems: "center", justifyContent: "center",
       background: "rgba(0,0,0,0.4)", padding: "16px",
-    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
+    }}
+      onMouseDown={e => { mouseDownOnBackdrop.current = (e.target === e.currentTarget); }}
+      onClick={e => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop.current) onClose();
+        mouseDownOnBackdrop.current = false;
+      }}
+    >      <div style={{
         width: "100%",
         maxWidth: isLandscape ? "680px" : "480px",
         maxHeight: isLandscape ? "85dvh" : "80dvh",
