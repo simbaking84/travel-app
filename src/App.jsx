@@ -572,8 +572,8 @@ function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, 
 {!activeTripName && (
     <div style={{
       marginTop: "20px",
-      maxWidth: "340px",
       width: "100%",
+      boxSizing: "border-box",
       padding: "12px 16px",
       background: theme.bgCard,
       border: `1px solid ${theme.border}`,
