@@ -4390,7 +4390,7 @@ function CheckItem({ item, checked, onToggle }) {
 
 function CheckTab({ state, setState }) {
   const companions = [
-    { type: "solo", label: "혼자", icon: "🧍", count: 1, fixed: true },
+    { type: "solo", label: "혼자", icon: "🚶", count: 1, fixed: true },
     { type: "couple", label: "커플", icon: "💑", count: 2, fixed: true },
     { type: "friends", label: "친구", icon: "👫", count: null, fixed: false },
     { type: "family", label: "가족", icon: "👨‍👩‍👧", count: null, fixed: false },
@@ -6216,13 +6216,18 @@ const handleShare = async () => {
         <FinishTripModal
           onConfirm={async (review) => {
             setFinishOpen(false);
-            if (window.confirm("Google Drive에도 백업하시겠습니까?\n\n여행카드 이미지 등 큰 데이터는 브라우저 저장공간보다 Drive가 훨씬 안전합니다.\n(이 기기에 데이터가 남아있더라도, 다른 기기에서 보거나 나중에 복구하려면 Drive 백업을 권장합니다)")) {
-              try {
-                await driveSave({ ...state, archives: loadArchive(), savedAt: new Date().toISOString(), appVersion: "2.0" });
-                alert("✅ Drive 백업 완료! 여행을 마무리합니다.");
-              } catch (e) {
-                if (!window.confirm(`⚠️ Drive 백업에 실패했습니다 (${e.message || "오류"}).\n그래도 마무리(아카이브 저장)를 진행할까요?`)) return;
+            try {
+              if (window.confirm("Google Drive에도 백업하시겠습니까?\n\n여행카드 이미지 등 큰 데이터는 브라우저 저장공간보다 Drive가 훨씬 안전합니다.\n(이 기기에 데이터가 남아있더라도, 다른 기기에서 보거나 나중에 복구하려면 Drive 백업을 권장합니다)")) {
+                try {
+                  await driveSave({ ...state, archives: loadArchive(), savedAt: new Date().toISOString(), appVersion: "2.0" });
+                  alert("✅ Drive 백업 완료! 여행을 마무리합니다.");
+                } catch (e) {
+                  console.error("Drive 백업 실패:", e.name, e.message);
+                  if (!window.confirm(`⚠️ Drive 백업에 실패했습니다 (${e.message || "오류"}).\n그래도 마무리(아카이브 저장)를 진행할까요?`)) return;
+                }
               }
+            } catch (e) {
+              console.error("Drive 백업 확인 절차 오류:", e.name, e.message);
             }
             onFinishTrip(review);
           }}
