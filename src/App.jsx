@@ -569,23 +569,40 @@ function WelcomeScreen({ bgMode, mascotSrc, onNewTrip, onImport, onViewArchive, 
             📖 여행 기록 보기
           </button>
         )}
-  </div>
-  <a
-    href={`${process.env.PUBLIC_URL}/privacy.html`}
-    target="_blank"      rel="noopener noreferrer"
-      style={{
-        marginTop: "20px",
-        fontSize: "12px",
-        color: theme.textLight,
-        textDecoration: "underline",
-      }}
-     >
-      개인정보처리방침
-     </a> 
+{!activeTripName && (
+    <div style={{
+      marginTop: "20px",
+      maxWidth: "340px",
+      width: "100%",
+      padding: "12px 16px",
+      background: theme.bgCard,
+      border: `1px solid ${theme.border}`,
+      borderRadius: theme.radiusSm,
+      fontSize: "12.5px",
+      color: theme.textSub,
+      textAlign: "center",
+      lineHeight: 1.5,
+    }}>
+      💡 웹(브라우저)에서 쓰던 데이터가 있다면, "기존 데이터 가져오기" → Google Drive에서 불러오기로 이어서 쓰실 수 있어요.
+    </div>
+  )}
+      </div>
+
+      <a
+        href={`${process.env.PUBLIC_URL}/privacy.html`}
+        target="_blank" rel="noopener noreferrer"
+        style={{
+          marginTop: "20px",
+          fontSize: "12px",
+          color: theme.textLight,
+          textDecoration: "underline",
+        }}
+      >
+        개인정보처리방침
+      </a>
     </div>
   );
 }
-
 // Trip Setup Form
 function TripSetupForm({ bgMode, onComplete, onBack }) {
   const [form, setForm] = useState({
@@ -6140,6 +6157,7 @@ const handleShare = async () => {
         }}>
           💡 Drive 저장 시 Google 계정 로그인이 필요합니다.<br/>
           저장 파일명: {DRIVE_FILE_NAME}<br/>
+          🌐 다른 브라우저나 기기에서 쓰던 데이터는 위 "Drive 불러오기"로 옮길 수 있어요.<br/>
           <span style={{ color: theme.textLight }}>
             ⚙️ 배포 환경에서는 index.html &lt;head&gt;에<br/>
             &lt;script src="https://accounts.google.com/gsi/client" async defer&gt;&lt;/script&gt; 추가 필요
