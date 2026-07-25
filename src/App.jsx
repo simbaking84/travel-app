@@ -6461,7 +6461,15 @@ export default function App() {
   const [state, setState] = useState(null);
   const [screen, setScreen] = useState("loading");
   const [activeTab, setActiveTab] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [isMobile, setIsMobile] = useState(() => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const shortSide = Math.min(w, h);
+    const isLandscape = w > h;
+    if (shortSide < 480) return true;
+    if (w >= 1024) return false;
+    return !isLandscape;
+  });
   const [archives, setArchives] = useState([]);
   const [pendingImport, setPendingImport] = useState(null);
   const [appThemeMode, setAppThemeMode] = useState(localStorage.getItem("theme_mode") || "system");
@@ -6625,9 +6633,23 @@ export default function App() {
 
   // Responsive
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 1024);
+    const computeIsMobile = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const shortSide = Math.min(w, h);
+      const isLandscape = w > h;
+      if (shortSide < 480) return true;
+      if (w >= 1024) return false;
+      return !isLandscape;
+    };
+    const handler = () => setIsMobile(computeIsMobile());
+    handler();
     window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    window.addEventListener("orientationchange", handler);
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("orientationchange", handler);
+    };
   }, []);
 
   // Auto save
