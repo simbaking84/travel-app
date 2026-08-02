@@ -11798,7 +11798,12 @@ export default function App() {
       window.removeEventListener("orientationchange", handler);
     };
   }, []);
-
+// 웰컴 화면 진입 시 온보딩 자동 표시 (아직 안 본 사용자만)
+  useEffect(() => {
+    if (screen === "welcome" && localStorage.getItem(ONBOARDING_KEY) !== "1") {
+      setShowOnboarding(true);
+    }
+  }, [screen]);
   // Auto save
   useEffect(() => {
     if (state && screen === "main") {

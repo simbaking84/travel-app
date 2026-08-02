@@ -5,7 +5,7 @@
 export const AFFILIATE_LINKS = {
   hotel: {
     label: "숙소 예약",
-    url: "https://www.agoda.com/",
+    url: "https://www.agoda.com/partners/partnersearch.aspx?pcs=1&cid=1969873&hl=ko-kr",
     active: false,
   },
   flight: {
