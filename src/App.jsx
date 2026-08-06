@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import LZString from "lz-string";
+import { AFFILIATE_LINKS, getKlookActivityUrl } from "./config/affiliateLinks";
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
@@ -7304,6 +7305,15 @@ const PHASE_ITEMS = {
     ],
   },
 };
+// 체크리스트 항목 ID → 제휴 카테고리 매핑
+const ITEM_AFFILIATE_MAP = {
+  pl5: "flight",
+  pl6: "hotel",
+  pl7: "insurance",
+  cf1: "insurance",
+  cf2: "esim",
+  cf4: "activity",
+};
 
 // ─── 2025 최신 기내 반입 금지 품목 ───
 const CARRY_ON_PROHIBITED = [
@@ -7378,53 +7388,109 @@ const REGIONS = [
 ];
 
 // ─── CheckItem Component ───
-function CheckItem({ item, checked, onToggle }) {
+function CheckItem({ item, checked, onToggle, destination }) {
+  const affiliateKey = ITEM_AFFILIATE_MAP[item.id];
+  const affiliate = affiliateKey ? AFFILIATE_LINKS[affiliateKey] : null;
+  const affiliateUrl =
+    affiliateKey === "activity"
+      ? getKlookActivityUrl(destination)
+      : affiliate?.url;
+  const showAffiliateBtn = affiliate && affiliate.active && affiliateUrl;
+
   return (
-    <button
-      onClick={() => onToggle(item.id)}
+    <div
       style={{
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: "12px",
+        flexWrap: "wrap",
+        gap: "10px",
         padding: "12px 16px",
         background: checked ? "#F0FDF4" : "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
         transition: "background 0.15s",
       }}
     >
-      <div
+      <button
+        onClick={() => onToggle(item.id)}
         style={{
-          width: "22px",
-          height: "22px",
-          borderRadius: "6px",
-          flexShrink: 0,
-          border: `2px solid ${checked ? theme.success : theme.border}`,
-          background: checked ? theme.success : "transparent",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          fontSize: "13px",
-          color: theme.textWhite,
-          transition: "all 0.15s",
+          gap: "12px",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          textAlign: "left",
+          padding: 0,
         }}
       >
-        {checked ? "✓" : ""}
-      </div>
-      <span
-        style={{
-          fontSize: "14px",
-          fontWeight: "500",
-          color: checked ? theme.textLight : theme.text,
-          textDecoration: checked ? "line-through" : "none",
-          lineHeight: 1.4,
-        }}
-      >
-        {item.text}
-      </span>
-    </button>
+        <div
+          style={{
+            width: "22px",
+            height: "22px",
+            borderRadius: "6px",
+            flexShrink: 0,
+            border: `2px solid ${checked ? theme.success : theme.border}`,
+            background: checked ? theme.success : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "13px",
+            color: theme.textWhite,
+            transition: "all 0.15s",
+          }}
+        >
+          {checked ? "✓" : ""}
+        </div>
+        <span
+          style={{
+            fontSize: "14px",
+            fontWeight: "500",
+            color: checked ? theme.textLight : theme.text,
+            textDecoration: checked ? "line-through" : "none",
+            lineHeight: 1.4,
+          }}
+        >
+          {item.text}
+        </span>
+      </button>
+
+      {showAffiliateBtn && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(affiliateUrl, "_blank", "noopener,noreferrer");
+          }}
+          title={affiliate.label}
+          style={{
+            width: affiliateKey === "activity" ? "auto" : "32px",
+            height: "32px",
+            flexShrink: 0,
+            padding: affiliateKey === "activity" ? "0 10px" : 0,
+            borderRadius: "8px",
+            border: `1px solid ${theme.border}`,
+            background: theme.cardBg || "#fff",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px",
+            fontSize: "15px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {affiliateKey === "hotel" && "🏨"}
+          {affiliateKey === "flight" && "✈️"}
+          {affiliateKey === "activity" && "🎫"}
+          {affiliateKey === "esim" && "📶"}
+          {affiliateKey === "insurance" && "🛡️"}
+          {affiliateKey === "activity" && (
+            <span style={{ fontSize: "12px", fontWeight: 600 }}>
+              예약하기
+            </span>
+          )}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -7939,6 +8005,7 @@ function CheckTab({ state, setState }) {
                               item={item}
                               checked={!!checkStates[item.id]}
                               onToggle={toggleCheck}
+                              destination={state.accommodation}
                             />
                           </div>
                         ))}
