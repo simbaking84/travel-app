@@ -7315,6 +7315,15 @@ const ITEM_AFFILIATE_MAP = {
   cf4: "activity",
 };
 
+// "예약하기" 탭에 표시할 제휴 카테고리 목록 (AFFILIATE_LINKS 키 순서대로)
+const AFFILIATE_CATEGORIES = [
+  { key: "hotel", icon: "🏨" },
+  { key: "flight", icon: "✈️" },
+  { key: "activity", icon: "🎫" },
+  { key: "esim", icon: "📶" },
+  { key: "insurance", icon: "🛡️" },
+];
+
 // ─── 2025 최신 기내 반입 금지 품목 ───
 const CARRY_ON_PROHIBITED = [
   {
@@ -7640,6 +7649,10 @@ function CheckTab({ state, setState }) {
           {
             id: "shopping",
             label: `🪣 여행 버킷 (${shoppingList.filter((s) => s.done).length}/${shoppingList.length})`,
+          },
+          {
+            id: "booking",
+            label: "🎫 예약하기",
           },
         ].map((s) => (
           <button
@@ -8073,7 +8086,7 @@ function CheckTab({ state, setState }) {
               })}
             </div>
           </>
-        ) : (
+        ) : activeSection === "shopping" ? (
           /* 여행 버킷 */
           <div>
             {/* 설명 배너 */}
@@ -8239,6 +8252,91 @@ function CheckTab({ state, setState }) {
                 {shoppingList.length}개 완료
               </div>
             )}
+          </div>
+        ) : (
+          /* 예약하기 */
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div
+              style={{
+                padding: "12px 16px",
+                marginBottom: "6px",
+                background: theme.primaryLight,
+                borderRadius: theme.radiusSm,
+                fontSize: "13px",
+                color: theme.primary,
+                fontWeight: "500",
+                lineHeight: 1.6,
+              }}
+            >
+              🎫 여행에 필요한 예약을 카테고리별로 한 곳에서 연결해드려요.
+            </div>
+            {AFFILIATE_CATEGORIES.map((c) => {
+              const info = AFFILIATE_LINKS[c.key];
+              const isActive = Boolean(info.active && info.url);
+              return (
+                <button
+                  key={c.key}
+                  disabled={!isActive}
+                  onClick={() => {
+                    if (!isActive) return;
+                    const url =
+                      c.key === "activity"
+                        ? getKlookActivityUrl(state.accommodation)
+                        : info.url;
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: theme.radiusSm,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.bgCard,
+                    cursor: isActive ? "pointer" : "not-allowed",
+                    opacity: isActive ? 1 : 0.5,
+                    textAlign: "left",
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: theme.text,
+                    }}
+                  >
+                    {c.icon} {info.label}
+                  </span>
+                  {isActive ? (
+                    <span
+                      style={{
+                        color: theme.textLight,
+                        fontSize: "16px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      ›
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        padding: "3px 10px",
+                        borderRadius: theme.radiusFull,
+                        background: theme.bgBadge,
+                        color: theme.textLight,
+                        fontSize: "11px",
+                        fontWeight: "700",
+                      }}
+                    >
+                      준비 중
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
