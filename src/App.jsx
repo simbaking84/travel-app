@@ -1339,6 +1339,9 @@ function TripSetupForm({ bgMode, onComplete, onBack }) {
                 type="date"
                 value={form.tripStart}
                 onChange={(e) => update("tripStart", e.target.value)}
+                onClick={(e) => {
+                  if (e.target.showPicker) e.target.showPicker();
+                }}
                 style={inputStyle}
               />
             </div>
@@ -1349,6 +1352,9 @@ function TripSetupForm({ bgMode, onComplete, onBack }) {
                 value={form.tripEnd}
                 min={form.tripStart || undefined}
                 onChange={(e) => update("tripEnd", e.target.value)}
+                onClick={(e) => {
+                  if (e.target.showPicker) e.target.showPicker();
+                }}
                 style={inputStyle}
               />
             </div>
@@ -9041,6 +9047,9 @@ function CustomThemeEditorModal({ editTheme, onSave, onClose }) {
               type="date"
               value={form.startDate}
               onChange={(e) => update("startDate", e.target.value)}
+              onClick={(e) => {
+                if (e.target.showPicker) e.target.showPicker();
+              }}
               style={{ ...inputStyle, flex: 1 }}
             />
             <span style={{ color: theme.textLight, flexShrink: 0 }}>~</span>
@@ -9048,6 +9057,9 @@ function CustomThemeEditorModal({ editTheme, onSave, onClose }) {
               type="date"
               value={form.endDate}
               onChange={(e) => update("endDate", e.target.value)}
+              onClick={(e) => {
+                if (e.target.showPicker) e.target.showPicker();
+              }}
               style={{ ...inputStyle, flex: 1 }}
             />
           </div>
@@ -9552,6 +9564,9 @@ function TripEditModal({ state, onSave, onClose }) {
               type="date"
               value={form.tripStart}
               onChange={(e) => update("tripStart", e.target.value)}
+              onClick={(e) => {
+                if (e.target.showPicker) e.target.showPicker();
+              }}
               style={inputStyle}
             />
           </div>
@@ -9561,6 +9576,9 @@ function TripEditModal({ state, onSave, onClose }) {
               type="date"
               value={form.tripEnd}
               onChange={(e) => update("tripEnd", e.target.value)}
+              onClick={(e) => {
+                if (e.target.showPicker) e.target.showPicker();
+              }}
               style={inputStyle}
             />
           </div>
