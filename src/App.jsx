@@ -7467,8 +7467,9 @@ function CheckItem({ item, checked, onToggle, destination }) {
             flexShrink: 0,
             padding: affiliateKey === "activity" ? "0 10px" : 0,
             borderRadius: "8px",
-            border: `1px solid ${theme.border}`,
-            background: theme.cardBg || "#fff",
+            border: `1.5px solid ${theme.primary}`,
+            background: theme.bgCard,
+            color: theme.text,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -7484,7 +7485,7 @@ function CheckItem({ item, checked, onToggle, destination }) {
           {affiliateKey === "esim" && "📶"}
           {affiliateKey === "insurance" && "🛡️"}
           {affiliateKey === "activity" && (
-            <span style={{ fontSize: "12px", fontWeight: 600 }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: theme.text }}>
               예약하기
             </span>
           )}
