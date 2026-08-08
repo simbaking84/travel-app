@@ -50,16 +50,79 @@ export function getKlookActivityUrl(destination) {
   return buildKlookAffiliateUrl(KLOOK_HOME_URL);
 }
 
+// ─── 트립닷컴(Trip.com) 제휴 링크 ───
+const TRIP_COM_PARTNER_PARAMS = "Allianceid=9908886&SID=327865168";
+const TRIP_COM_SUB3 = "D19144078";
+
+// 숙소: 도시별 코드가 확인된 도시만 등록, 나머지는 트립닷컴 홈으로 폴백
+const TRIP_COM_HOTEL_CITIES = {
+  서울: { code: 274, display: "서울" },
+  도쿄: { code: 228, display: "도쿄" },
+};
+
+const TRIP_COM_HOTEL_FALLBACK_URL = `https://kr.trip.com/?${TRIP_COM_PARTNER_PARAMS}&trip_sub1=hotel&trip_sub3=${TRIP_COM_SUB3}`;
+
+// 항공: 서울(SEL) 출발 고정, 도착지 공항코드가 확인된 도시만 등록, 나머지는 트립닷컴 홈으로 폴백
+const TRIP_COM_FLIGHT_CITIES = {
+  도쿄: { engName: "Tokyo", airportCode: "TYO" },
+};
+
+const TRIP_COM_FLIGHT_FALLBACK_URL = `https://kr.trip.com/?${TRIP_COM_PARTNER_PARAMS}&trip_sub1=flight&trip_sub3=${TRIP_COM_SUB3}`;
+
+// state.accommodation(여행지) 문자열에서 확인된 도시를 찾아 트립닷컴 숙소 목록 페이지로,
+// 확인되지 않은 도시(또는 입력 없음)는 트립닷컴 홈으로 연결되는 제휴 링크를 반환합니다.
+export function getTripComHotelUrl(destination) {
+  const dest = (destination || "").trim();
+  if (dest) {
+    const matchedCity = Object.keys(TRIP_COM_HOTEL_CITIES).find((city) =>
+      dest.toUpperCase().includes(city.toUpperCase())
+    );
+    if (matchedCity) {
+      const { code, display } = TRIP_COM_HOTEL_CITIES[matchedCity];
+      const encodedDisplay = encodeURIComponent(display);
+      return (
+        `https://kr.trip.com/hotels/list?city=${code}&display=${encodedDisplay}` +
+        `&optionId=${code}&optionType=City&optionName=${encodedDisplay}` +
+        `&${TRIP_COM_PARTNER_PARAMS}&trip_sub1=hotel&trip_sub3=${TRIP_COM_SUB3}`
+      );
+    }
+  }
+  return TRIP_COM_HOTEL_FALLBACK_URL;
+}
+
+// state.accommodation(여행지) 문자열에서 확인된 도착 도시를 찾아 서울(SEL) 출발 항공권 페이지로,
+// 확인되지 않은 도시(또는 입력 없음)는 트립닷컴 홈으로 연결되는 제휴 링크를 반환합니다.
+export function getTripComFlightUrl(destination) {
+  const dest = (destination || "").trim();
+  if (dest) {
+    const matchedCity = Object.keys(TRIP_COM_FLIGHT_CITIES).find((city) =>
+      dest.toUpperCase().includes(city.toUpperCase())
+    );
+    if (matchedCity) {
+      const { engName, airportCode } = TRIP_COM_FLIGHT_CITIES[matchedCity];
+      return (
+        `https://kr.trip.com/flights/Seoul-to-${engName}/tickets-SEL-${airportCode}` +
+        `?flighttype=S&dcity=SEL&acity=${airportCode}` +
+        `&${TRIP_COM_PARTNER_PARAMS}&trip_sub1=flight&trip_sub3=${TRIP_COM_SUB3}`
+      );
+    }
+  }
+  return TRIP_COM_FLIGHT_FALLBACK_URL;
+}
+
+// 유심·eSIM: 도시·국가 구분 없이 고정 링크 하나로 연결
+const ESIM_FIXED_URL = "https://3ha.in/r/603327";
+
 export const AFFILIATE_LINKS = {
   hotel: {
     label: "숙소 예약",
-    url: "https://www.agoda.com/partners/partnersearch.aspx?pcs=1&cid=1969873&hl=ko-kr",
-    active: false,
+    url: TRIP_COM_HOTEL_FALLBACK_URL,
+    active: true,
   },
   flight: {
     label: "항공권 예약",
-    url: "https://www.skyscanner.co.kr/",
-    active: false,
+    url: TRIP_COM_FLIGHT_FALLBACK_URL,
+    active: true,
   },
   activity: {
     label: "투어·입장권",
@@ -68,8 +131,8 @@ export const AFFILIATE_LINKS = {
   },
   esim: {
     label: "유심·eSIM",
-    url: "",
-    active: false,
+    url: ESIM_FIXED_URL,
+    active: true,
   },
   insurance: {
     label: "여행자보험",

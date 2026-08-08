@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import LZString from "lz-string";
-import { AFFILIATE_LINKS, getKlookActivityUrl } from "./config/affiliateLinks";
+import {
+  AFFILIATE_LINKS,
+  getKlookActivityUrl,
+  getTripComHotelUrl,
+  getTripComFlightUrl,
+} from "./config/affiliateLinks";
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
@@ -7409,6 +7414,10 @@ function CheckItem({ item, checked, onToggle, destination }) {
   const affiliateUrl =
     affiliateKey === "activity"
       ? getKlookActivityUrl(destination)
+      : affiliateKey === "hotel"
+      ? getTripComHotelUrl(destination)
+      : affiliateKey === "flight"
+      ? getTripComFlightUrl(destination)
       : affiliate?.url;
   const showAffiliateBtn = affiliate && affiliate.active && affiliateUrl;
 
@@ -8288,6 +8297,10 @@ function CheckTab({ state, setState }) {
                     const url =
                       c.key === "activity"
                         ? getKlookActivityUrl(state.accommodation)
+                        : c.key === "hotel"
+                        ? getTripComHotelUrl(state.accommodation)
+                        : c.key === "flight"
+                        ? getTripComFlightUrl(state.accommodation)
                         : info.url;
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
