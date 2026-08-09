@@ -7316,16 +7316,6 @@ const PHASE_ITEMS = {
     ],
   },
 };
-// 체크리스트 항목 ID → 제휴 카테고리 매핑
-const ITEM_AFFILIATE_MAP = {
-  pl5: "flight",
-  pl6: "hotel",
-  pl7: "insurance",
-  cf1: "insurance",
-  cf2: "esim",
-  cf4: "activity",
-};
-
 // "예약하기" 탭에 표시할 제휴 카테고리 목록 (AFFILIATE_LINKS 키 순서대로)
 const AFFILIATE_CATEGORIES = [
   { key: "hotel", icon: "🏨" },
@@ -7408,114 +7398,53 @@ const REGIONS = [
 ];
 
 // ─── CheckItem Component ───
-function CheckItem({ item, checked, onToggle, destination }) {
-  const affiliateKey = ITEM_AFFILIATE_MAP[item.id];
-  const affiliate = affiliateKey ? AFFILIATE_LINKS[affiliateKey] : null;
-  const affiliateUrl =
-    affiliateKey === "activity"
-      ? getKlookActivityUrl(destination)
-      : affiliateKey === "hotel"
-      ? getTripComHotelUrl(destination)
-      : affiliateKey === "flight"
-      ? getTripComFlightUrl(destination)
-      : affiliate?.url;
-  const showAffiliateBtn = affiliate && affiliate.active && affiliateUrl;
-
+function CheckItem({ item, checked, onToggle }) {
   return (
-    <div
+    <button
+      onClick={() => onToggle(item.id)}
       style={{
         width: "100%",
         display: "flex",
         alignItems: "center",
-        flexWrap: "wrap",
-        gap: "10px",
-        padding: "12px 16px",
+        gap: "12px",
+        border: "none",
         background: checked ? "#F0FDF4" : "transparent",
+        cursor: "pointer",
+        textAlign: "left",
+        padding: "12px 16px",
         transition: "background 0.15s",
       }}
     >
-      <button
-        onClick={() => onToggle(item.id)}
+      <div
         style={{
+          width: "22px",
+          height: "22px",
+          borderRadius: "6px",
+          flexShrink: 0,
+          border: `2px solid ${checked ? theme.success : theme.border}`,
+          background: checked ? theme.success : "transparent",
           display: "flex",
           alignItems: "center",
-          gap: "12px",
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
-          textAlign: "left",
-          padding: 0,
+          justifyContent: "center",
+          fontSize: "13px",
+          color: theme.textWhite,
+          transition: "all 0.15s",
         }}
       >
-        <div
-          style={{
-            width: "22px",
-            height: "22px",
-            borderRadius: "6px",
-            flexShrink: 0,
-            border: `2px solid ${checked ? theme.success : theme.border}`,
-            background: checked ? theme.success : "transparent",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "13px",
-            color: theme.textWhite,
-            transition: "all 0.15s",
-          }}
-        >
-          {checked ? "✓" : ""}
-        </div>
-        <span
-          style={{
-            fontSize: "14px",
-            fontWeight: "500",
-            color: checked ? theme.textLight : theme.text,
-            textDecoration: checked ? "line-through" : "none",
-            lineHeight: 1.4,
-          }}
-        >
-          {item.text}
-        </span>
-      </button>
-
-      {showAffiliateBtn && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(affiliateUrl, "_blank", "noopener,noreferrer");
-          }}
-          title={affiliate.label}
-          style={{
-            width: affiliateKey === "activity" ? "auto" : "32px",
-            height: "32px",
-            flexShrink: 0,
-            padding: affiliateKey === "activity" ? "0 10px" : 0,
-            borderRadius: "8px",
-            border: `1.5px solid ${theme.primary}`,
-            background: theme.bgCard,
-            color: theme.text,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "4px",
-            fontSize: "15px",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {affiliateKey === "hotel" && "🏨"}
-          {affiliateKey === "flight" && "✈️"}
-          {affiliateKey === "activity" && "🎫"}
-          {affiliateKey === "esim" && "📶"}
-          {affiliateKey === "insurance" && "🛡️"}
-          {affiliateKey === "activity" && (
-            <span style={{ fontSize: "12px", fontWeight: 600, color: theme.text }}>
-              예약하기
-            </span>
-          )}
-        </button>
-      )}
-    </div>
+        {checked ? "✓" : ""}
+      </div>
+      <span
+        style={{
+          fontSize: "14px",
+          fontWeight: "500",
+          color: checked ? theme.textLight : theme.text,
+          textDecoration: checked ? "line-through" : "none",
+          lineHeight: 1.4,
+        }}
+      >
+        {item.text}
+      </span>
+    </button>
   );
 }
 
@@ -8034,7 +7963,6 @@ function CheckTab({ state, setState }) {
                               item={item}
                               checked={!!checkStates[item.id]}
                               onToggle={toggleCheck}
-                              destination={state.accommodation}
                             />
                           </div>
                         ))}
@@ -8284,6 +8212,24 @@ function CheckTab({ state, setState }) {
               }}
             >
               🎫 여행에 필요한 예약을 카테고리별로 한 곳에서 연결해드려요.
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "0 4px",
+                marginBottom: "2px",
+                fontSize: "11px",
+                color: theme.textLight,
+                lineHeight: 1.5,
+              }}
+            >
+              <span style={{ flexShrink: 0 }}>ⓘ</span>
+              <span>
+                이 화면의 링크를 통해 예약 시, 모리의 여행플랜이 파트너사로부터
+                일정 수수료를 받을 수 있습니다.
+              </span>
             </div>
             {AFFILIATE_CATEGORIES.map((c) => {
               const info = AFFILIATE_LINKS[c.key];
@@ -11176,6 +11122,33 @@ function SettingsTab({
             &lt;script src="https://accounts.google.com/gsi/client" async
             defer&gt;&lt;/script&gt; 추가 필요
           </span>
+        </div>
+      </div>
+
+      {/* 제휴 마케팅 고지 */}
+      <div style={sectionStyle}>
+        <div
+          style={{
+            padding: "12px 16px 8px",
+            fontSize: "12px",
+            fontWeight: "700",
+            color: theme.textLight,
+            letterSpacing: "0.5px",
+          }}
+        >
+          제휴 마케팅 고지
+        </div>
+        <div
+          style={{
+            padding: "0 16px 14px",
+            fontSize: "12px",
+            color: theme.textSub,
+            lineHeight: 1.7,
+          }}
+        >
+          본 앱은 쿠팡파트너스와 유사한 제휴 마케팅을 통해 숙소, 항공권, 투어,
+          유심 등의 예약 링크를 제공하고 있으며, 해당 링크를 통해 예약이
+          이루어질 경우 각 파트너사로부터 일정 수수료를 지급받을 수 있습니다.
         </div>
       </div>
 
