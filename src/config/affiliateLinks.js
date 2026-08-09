@@ -55,9 +55,26 @@ const TRIP_COM_PARTNER_PARAMS = "Allianceid=9908886&SID=327865168";
 const TRIP_COM_SUB3 = "D19144078";
 
 // 숙소: 도시별 코드가 확인된 도시만 등록, 나머지는 트립닷컴 홈으로 폴백
+// code는 트립닷컴 cityId. 동명이인 도시가 있는 경우 검색 자동완성의 국가/지역(breadcrumb)과
+// 실제 호텔 목록으로 국가를 재확인한 뒤 등록함 (예: 로마 - 영국 콘월 동명 지명 존재, 파리 - 미국 텍사스,
+// 바르셀로나 - 베네수엘라, 라스베가스 - 스페인 마드리드 등 동명이인 존재 확인, 모두 정상 국가로 확정).
 const TRIP_COM_HOTEL_CITIES = {
   서울: { code: 274, display: "서울" },
   도쿄: { code: 228, display: "도쿄" },
+  오사카: { code: 219, display: "오사카" }, // 일본
+  교토: { code: 734, display: "교토" }, // 일본
+  나고야: { code: 360, display: "나고야" }, // 일본
+  오키나와: { code: 207, display: "오키나와" }, // 일본
+  삿포로: { code: 641, display: "삿포로" }, // 일본
+  상하이: { code: 2, display: "상하이" }, // 중국
+  방콕: { code: 359, display: "방콕" }, // 태국
+  다낭: { code: 1356, display: "다낭" }, // 베트남
+  파리: { code: 192, display: "파리" }, // 프랑스
+  로마: { code: 343, display: "로마" }, // 이탈리아
+  바르셀로나: { code: 40795, display: "바르셀로나" }, // 스페인
+  뉴욕: { code: 633, display: "뉴욕" }, // 미국
+  라스베가스: { code: 26282, display: "라스베이거스" }, // 미국 (트립닷컴 표기: 라스베이거스)
+  LA: { code: 347, display: "로스엔젤레스" }, // 미국 (트립닷컴 표기: 로스엔젤레스)
 };
 
 const TRIP_COM_HOTEL_FALLBACK_URL = `https://kr.trip.com/?${TRIP_COM_PARTNER_PARAMS}&trip_sub1=hotel&trip_sub3=${TRIP_COM_SUB3}`;
