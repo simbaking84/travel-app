@@ -58,6 +58,9 @@ const TRIP_COM_SUB3 = "D19144078";
 // code는 트립닷컴 cityId. 동명이인 도시가 있는 경우 검색 자동완성의 국가/지역(breadcrumb)과
 // 실제 호텔 목록으로 국가를 재확인한 뒤 등록함 (예: 로마 - 영국 콘월 동명 지명 존재, 파리 - 미국 텍사스,
 // 바르셀로나 - 베네수엘라, 라스베가스 - 스페인 마드리드 등 동명이인 존재 확인, 모두 정상 국가로 확정).
+// 강릉은 서울 소재 조선왕릉(康陵)과 동명이인이 자동완성에 함께 뜨므로 강원도 강릉시 쪽을 확정해 등록함.
+// 제주는 검색어 그대로 두면 제주특별자치도(도 단위, cityId 없음)가 먼저 잡히므로 "제주시" 재검색으로
+// 확정한 city ID를 등록함.
 const TRIP_COM_HOTEL_CITIES = {
   서울: { code: 274, display: "서울" },
   도쿄: { code: 228, display: "도쿄" },
@@ -66,6 +69,7 @@ const TRIP_COM_HOTEL_CITIES = {
   나고야: { code: 360, display: "나고야" }, // 일본
   오키나와: { code: 207, display: "오키나와" }, // 일본
   삿포로: { code: 641, display: "삿포로" }, // 일본
+  후쿠오카: { code: 248, display: "후쿠오카" }, // 일본
   상하이: { code: 2, display: "상하이" }, // 중국
   방콕: { code: 359, display: "방콕" }, // 태국
   다낭: { code: 1356, display: "다낭" }, // 베트남
@@ -75,16 +79,24 @@ const TRIP_COM_HOTEL_CITIES = {
   뉴욕: { code: 633, display: "뉴욕" }, // 미국
   라스베가스: { code: 26282, display: "라스베이거스" }, // 미국 (트립닷컴 표기: 라스베이거스)
   LA: { code: 347, display: "로스엔젤레스" }, // 미국 (트립닷컴 표기: 로스엔젤레스)
+  제주: { code: 737, display: "제주시" }, // 대한민국
+  부산: { code: 253, display: "부산" }, // 대한민국
+  강릉: { code: 61325, display: "강릉" }, // 대한민국
+  여수: { code: 4016, display: "여수" }, // 대한민국
+  경주: { code: 3675, display: "경주" }, // 대한민국
 };
 
-const TRIP_COM_HOTEL_FALLBACK_URL = `https://kr.trip.com/?${TRIP_COM_PARTNER_PARAMS}&trip_sub1=hotel&trip_sub3=${TRIP_COM_SUB3}`;
+// "숙소" 탭 URL(/hotels/?locale=ko-KR&curr=KRW)은 Chrome으로 홈페이지 좌측 "숙소" 메뉴를 클릭했을 때
+// 실제로 이동하는 URL을 직접 확인해 반영함 (트립닷컴 홈 대신 숙소 탭이 명확히 선택된 상태로 폴백).
+const TRIP_COM_HOTEL_FALLBACK_URL = `https://kr.trip.com/hotels/?locale=ko-KR&curr=KRW&${TRIP_COM_PARTNER_PARAMS}&trip_sub1=hotel&trip_sub3=${TRIP_COM_SUB3}`;
 
 // 항공: 서울(SEL) 출발 고정, 도착지 공항코드가 확인된 도시만 등록, 나머지는 트립닷컴 홈으로 폴백
 const TRIP_COM_FLIGHT_CITIES = {
   도쿄: { engName: "Tokyo", airportCode: "TYO" },
 };
 
-const TRIP_COM_FLIGHT_FALLBACK_URL = `https://kr.trip.com/?${TRIP_COM_PARTNER_PARAMS}&trip_sub1=flight&trip_sub3=${TRIP_COM_SUB3}`;
+// "항공권" 탭 URL(/flights/?locale=ko-KR&curr=KRW)도 동일한 방식으로 Chrome에서 직접 클릭해 확인함.
+const TRIP_COM_FLIGHT_FALLBACK_URL = `https://kr.trip.com/flights/?locale=ko-KR&curr=KRW&${TRIP_COM_PARTNER_PARAMS}&trip_sub1=flight&trip_sub3=${TRIP_COM_SUB3}`;
 
 // state.accommodation(여행지) 문자열에서 확인된 도시를 찾아 트립닷컴 숙소 목록 페이지로,
 // 확인되지 않은 도시(또는 입력 없음)는 트립닷컴 홈으로 연결되는 제휴 링크를 반환합니다.
