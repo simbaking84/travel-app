@@ -91,8 +91,27 @@ const TRIP_COM_HOTEL_CITIES = {
 const TRIP_COM_HOTEL_FALLBACK_URL = `https://kr.trip.com/hotels/?locale=ko-KR&curr=KRW&${TRIP_COM_PARTNER_PARAMS}&trip_sub1=hotel&trip_sub3=${TRIP_COM_SUB3}`;
 
 // 항공: 서울(SEL) 출발 고정, 도착지 공항코드가 확인된 도시만 등록, 나머지는 트립닷컴 홈으로 폴백
+// engName/airportCode는 Chrome으로 kr.trip.com 항공권 탭에서 "서울 → {도시}" 검색 후 실제 이동한
+// URL(flights/Seoul-to-{engName}/tickets-SEL-{airportCode})과 도착 공항으로 확인한 값.
+// 파리(PAR→CDG), 로마(ROM→FCO), 바르셀로나(BCN→BCN 직항), 라스베가스(LAS→LAS), LA(LAX→LAX 직항)는
+// 동명이인 지명(미국 텍사스 파리, 영국 콘월 로마, 베네수엘라 바르셀로나, 스페인 마드리드 인근 라스베가스 등)이
+// 존재해 실제 도착 공항 코드로 정상 국가행이 맞는지 재확인함.
+// 교토는 자체 공항이 없어(항공권 자동완성에서 선택 비활성화) 등록하지 않음 — 인근 오사카/간사이/고베공항만 개별 선택 가능.
 const TRIP_COM_FLIGHT_CITIES = {
   도쿄: { engName: "Tokyo", airportCode: "TYO" },
+  오사카: { engName: "Osaka", airportCode: "OSA" },
+  후쿠오카: { engName: "Fukuoka", airportCode: "FUK" },
+  오키나와: { engName: "Okinawa", airportCode: "OKA" },
+  삿포로: { engName: "Sapporo", airportCode: "SPK" },
+  상하이: { engName: "Shanghai", airportCode: "SHA" },
+  방콕: { engName: "Bangkok", airportCode: "BKK" },
+  다낭: { engName: "Danang", airportCode: "DAD" },
+  파리: { engName: "Paris", airportCode: "PAR" }, // 동명이인 확인: ICN→CDG, 프랑스 파리 (미국 텍사스 파리 아님)
+  로마: { engName: "Rome", airportCode: "ROM" }, // 동명이인 확인: ICN→FCO, 이탈리아 로마 (영국 콘월 로마 아님)
+  바르셀로나: { engName: "Barcelona", airportCode: "BCN" }, // 동명이인 확인: ICN→BCN 직항, 스페인 바르셀로나 (베네수엘라 아님)
+  뉴욕: { engName: "New-York", airportCode: "NYC" },
+  라스베가스: { engName: "Las-Vegas", airportCode: "LAS" }, // 동명이인 확인: ICN→LAS, 미국 라스베이거스 (스페인 마드리드 인근 아님)
+  LA: { engName: "Los-Angeles", airportCode: "LAX" },
 };
 
 // "항공권" 탭 URL(/flights/?locale=ko-KR&curr=KRW)도 동일한 방식으로 Chrome에서 직접 클릭해 확인함.
