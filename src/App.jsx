@@ -10,7 +10,7 @@ import {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.16.15";
+const APP_VERSION = "v2.17.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -11146,7 +11146,7 @@ function SettingsTab({
             lineHeight: 1.7,
           }}
         >
-          본 앱은 쿠팡파트너스와 유사한 제휴 마케팅을 통해 숙소, 항공권, 투어,
+          본 앱은 제휴 마케팅을 통해 숙소, 항공권, 투어,
           유심 등의 예약 링크를 제공하고 있으며, 해당 링크를 통해 예약이
           이루어질 경우 각 파트너사로부터 일정 수수료를 지급받을 수 있습니다.
         </div>
