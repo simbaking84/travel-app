@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import LZString from "lz-string";
+import QRCode from "qrcode";
 import {
   AFFILIATE_LINKS,
   getKlookActivityUrl,
@@ -14,6 +15,8 @@ const APP_VERSION = "v2.17.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
+// 공유 링크 QR코드 생성 가능 최대 길이 (초과 시 QR 대신 링크 공유 안내)
+const MAX_URL_LENGTH = 3500;
 
 const isStandalone = () => {
   const isDisplayModeStandalone = window.matchMedia?.(
@@ -3985,6 +3988,172 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
             삭제
           </button>
         </div>
+      </div>
+    </ModalWrapper>
+  );
+}
+
+// ─── Share Choice Modal (링크 공유 vs QR코드 보기) ───
+function ShareChoiceModal({ shareUrl, onShareLink, onShowQR, onClose }) {
+  const qrDisabled = shareUrl.length > MAX_URL_LENGTH;
+  return (
+    <ModalWrapper onClose={onClose}>
+      <div style={{ textAlign: "center" }}>
+        <h3
+          style={{
+            margin: "0 0 20px",
+            fontSize: "17px",
+            fontWeight: "800",
+            color: theme.text,
+          }}
+        >
+          일정을 어떻게 공유할까요?
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button
+            onClick={onShareLink}
+            style={{
+              padding: "14px",
+              background: theme.primary,
+              color: theme.textWhite,
+              border: "none",
+              borderRadius: theme.radiusSm,
+              fontSize: "15px",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            🔗 링크 공유
+          </button>
+          <button
+            onClick={onShowQR}
+            disabled={qrDisabled}
+            style={{
+              padding: "14px",
+              background: theme.bgInput,
+              color: qrDisabled ? theme.textLight : theme.text,
+              border: "none",
+              borderRadius: theme.radiusSm,
+              fontSize: "15px",
+              fontWeight: "700",
+              cursor: qrDisabled ? "default" : "pointer",
+              opacity: qrDisabled ? 0.6 : 1,
+            }}
+          >
+            📱 QR코드 보기
+          </button>
+        </div>
+        {qrDisabled && (
+          <p
+            style={{
+              fontSize: "12px",
+              color: theme.textSub,
+              margin: "14px 0 0",
+              lineHeight: 1.5,
+            }}
+          >
+            일정이 많아 QR을 생성할 수 없습니다. 링크 공유를 이용해주세요
+          </p>
+        )}
+      </div>
+    </ModalWrapper>
+  );
+}
+
+// ─── Share QR Modal ───
+function ShareQRModal({ shareUrl, tripName, onClose }) {
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setQrDataUrl(null);
+    setError(false);
+    QRCode.toDataURL(shareUrl, { width: 280, margin: 1 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch((e) => {
+        console.error("QR코드 생성 실패:", e.name, e.message);
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shareUrl]);
+
+  return (
+    <ModalWrapper onClose={onClose}>
+      <div style={{ textAlign: "center" }}>
+        <h3
+          style={{
+            margin: "0 0 16px",
+            fontSize: "17px",
+            fontWeight: "800",
+            color: theme.text,
+          }}
+        >
+          {tripName ? `"${tripName}" 일정 QR코드` : "일정 공유 QR코드"}
+        </h3>
+        {error ? (
+          <p
+            style={{
+              fontSize: "14px",
+              color: theme.danger,
+              padding: "40px 0",
+            }}
+          >
+            QR코드 생성에 실패했습니다.
+          </p>
+        ) : qrDataUrl ? (
+          <img
+            src={qrDataUrl}
+            alt="일정 공유 QR코드"
+            style={{
+              width: "220px",
+              height: "220px",
+              background: "#fff",
+              padding: "12px",
+              borderRadius: theme.radiusSm,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              padding: "60px 0",
+              fontSize: "14px",
+              color: theme.textSub,
+            }}
+          >
+            QR코드 생성 중...
+          </div>
+        )}
+        <p
+          style={{
+            fontSize: "12px",
+            color: theme.textSub,
+            margin: "16px 0 20px",
+            lineHeight: 1.5,
+          }}
+        >
+          다른 기기의 카메라로 QR코드를 스캔하면 일정을 바로 열 수 있어요.
+        </p>
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%",
+            padding: "12px",
+            background: theme.bgInput,
+            color: theme.textSub,
+            border: "none",
+            borderRadius: theme.radiusSm,
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+        >
+          닫기
+        </button>
       </div>
     </ModalWrapper>
   );
@@ -10206,6 +10375,9 @@ function SettingsTab({
   const [editOpen, setEditOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
+  const [shareQROpen, setShareQROpen] = useState(false);
+  const [shareUrlForModal, setShareUrlForModal] = useState("");
   const [theme_mode, setThemeMode] = useState(
     localStorage.getItem("theme_mode") || "system",
   );
@@ -10241,19 +10413,25 @@ function SettingsTab({
     return `${window.location.origin}${window.location.pathname}?share=${compressed}`;
   };
 
-  const handleShare = async () => {
-    const exportData = {
-      tripName: state.tripName,
-      tripStart: state.tripStart,
-      tripEnd: state.tripEnd,
-      tripRegion: state.tripRegion,
-      accommodation: state.accommodation,
-      itinerary: state.itinerary,
-      version: "2.0",
-    };
+  const buildShareExportData = () => ({
+    tripName: state.tripName,
+    tripStart: state.tripStart,
+    tripEnd: state.tripEnd,
+    tripRegion: state.tripRegion,
+    accommodation: state.accommodation,
+    itinerary: state.itinerary,
+    version: "2.0",
+  });
 
+  // "일정 공유" 클릭 시 링크 공유 / QR코드 보기를 고르는 선택 모달을 띄움
+  const openShareChoice = () => {
+    setShareUrlForModal(generateShareLink(buildShareExportData()));
+    setShareChoiceOpen(true);
+  };
+
+  const handleShare = async () => {
+    const exportData = buildShareExportData();
     const shareUrl = generateShareLink(exportData);
-    const MAX_URL_LENGTH = 3500;
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: "application/json",
@@ -10933,7 +11111,7 @@ function SettingsTab({
             icon: "🔗",
             label: "일정 공유",
             desc: "카카오톡·메일로 일정 전달",
-            action: handleShare,
+            action: openShareChoice,
           },
         ].map((item, i, arr) => (
           <button
@@ -11292,6 +11470,27 @@ function SettingsTab({
             setEditOpen(false);
           }}
           onClose={() => setEditOpen(false)}
+        />
+      )}
+      {shareChoiceOpen && (
+        <ShareChoiceModal
+          shareUrl={shareUrlForModal}
+          onShareLink={() => {
+            setShareChoiceOpen(false);
+            handleShare();
+          }}
+          onShowQR={() => {
+            setShareChoiceOpen(false);
+            setShareQROpen(true);
+          }}
+          onClose={() => setShareChoiceOpen(false)}
+        />
+      )}
+      {shareQROpen && (
+        <ShareQRModal
+          shareUrl={shareUrlForModal}
+          tripName={state.tripName}
+          onClose={() => setShareQROpen(false)}
         />
       )}
       {finishOpen && (
