@@ -7487,11 +7487,31 @@ const PHASE_ITEMS = {
 };
 // "예약하기" 탭에 표시할 제휴 카테고리 목록 (AFFILIATE_LINKS 키 순서대로)
 const AFFILIATE_CATEGORIES = [
-  { key: "hotel", icon: "🏨" },
-  { key: "flight", icon: "✈️" },
-  { key: "activity", icon: "🎫" },
-  { key: "esim", icon: "📶" },
-  { key: "insurance", icon: "🛡️" },
+  {
+    key: "hotel",
+    icon: "🏨",
+    desc: "여행 스타일에 맞는 숙소를 미리 예약해두면 현지 도착 후 이동 동선이 훨씬 편해져요.",
+  },
+  {
+    key: "flight",
+    icon: "✈️",
+    desc: "출발 6~8주 전이 항공권 가격이 가장 안정적인 편이에요. 일정이 확정되면 서둘러 예약해보세요.",
+  },
+  {
+    key: "activity",
+    icon: "🎫",
+    desc: "현지 인기 투어나 입장권은 미리 예약하면 현장 대기 없이 시간을 아낄 수 있어요.",
+  },
+  {
+    key: "esim",
+    icon: "📶",
+    desc: "도착 즉시 인터넷을 쓰려면 출국 전 eSIM이나 유심을 미리 준비하는 게 편해요.",
+  },
+  {
+    key: "insurance",
+    icon: "🛡️",
+    desc: "예상치 못한 사고나 분실에 대비해, 짧은 여행이라도 여행자보험은 챙기는 걸 추천해요.",
+  },
 ];
 
 // ─── 2025 최신 기내 반입 금지 품목 ───
@@ -8368,6 +8388,16 @@ function CheckTab({ state, setState }) {
         ) : (
           /* 예약하기 */
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <img
+              src="/assets/icons/booking-hero.webp"
+              alt=""
+              style={{
+                width: "100%",
+                borderRadius: theme.radiusSm,
+                marginBottom: "10px",
+                display: "block",
+              }}
+            />
             <div
               style={{
                 padding: "12px 16px",
@@ -8421,8 +8451,8 @@ function CheckTab({ state, setState }) {
                   }}
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
+                    flexDirection: "column",
+                    gap: "6px",
                     width: "100%",
                     padding: "14px 16px",
                     borderRadius: theme.radiusSm,
@@ -8433,40 +8463,59 @@ function CheckTab({ state, setState }) {
                     textAlign: "left",
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      flex: 1,
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: theme.text,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
                     }}
                   >
-                    {c.icon} {info.label}
-                  </span>
-                  {isActive ? (
                     <span
                       style={{
-                        color: theme.textLight,
-                        fontSize: "16px",
-                        flexShrink: 0,
+                        flex: 1,
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: theme.text,
                       }}
                     >
-                      ›
+                      {c.icon} {info.label}
                     </span>
-                  ) : (
-                    <span
+                    {isActive ? (
+                      <span
+                        style={{
+                          color: theme.textLight,
+                          fontSize: "16px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        ›
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          padding: "3px 10px",
+                          borderRadius: theme.radiusFull,
+                          background: theme.bgBadge,
+                          color: theme.textLight,
+                          fontSize: "11px",
+                          fontWeight: "700",
+                        }}
+                      >
+                        준비 중
+                      </span>
+                    )}
+                  </div>
+                  {c.desc && (
+                    <div
                       style={{
-                        flexShrink: 0,
-                        padding: "3px 10px",
-                        borderRadius: theme.radiusFull,
-                        background: theme.bgBadge,
-                        color: theme.textLight,
-                        fontSize: "11px",
-                        fontWeight: "700",
+                        fontSize: "12px",
+                        color: theme.textSub,
+                        lineHeight: 1.5,
                       }}
                     >
-                      준비 중
-                    </span>
+                      {c.desc}
+                    </div>
                   )}
                 </button>
               );
