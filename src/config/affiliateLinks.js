@@ -184,7 +184,7 @@ export const AFFILIATE_LINKS = {
   },
   insurance: {
     label: "여행자보험",
-    url: "",
-    active: false,
+    url: "https://kr.trip.com/insurance?bid=1&cid=2&pid=1&locale=ko-KR&curr=KRW&Allianceid=9908886&SID=327865168&trip_sub1=insurance&trip_sub3=D19243324",
+    active: true,
   },
 };
