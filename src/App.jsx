@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import LZString from "lz-string";
 import QRCode from "qrcode";
@@ -8,6 +8,11 @@ import {
   getTripComHotelUrl,
   getTripComFlightUrl,
 } from "./config/affiliateLinks";
+import AdBanner, {
+  MobileAdSticky,
+  MOBILE_TABBAR_HEIGHT_FALLBACK,
+  MOBILE_AD_RESERVED_HEIGHT_FALLBACK,
+} from "./components/AdBanner";
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
@@ -2826,7 +2831,14 @@ function ArchiveScreen({
 }
 
 // Tab Bar (Mobile Bottom / PC Sidebar)
-function TabBar({ tabs, activeTab, onTabChange, isMobile, tripPhase }) {
+function TabBar({
+  tabs,
+  activeTab,
+  onTabChange,
+  isMobile,
+  tripPhase,
+  containerRef,
+}) {
   const phaseLabel = { before: "여행 전", during: "여행 중", after: "여행 후" };
 
   if (!isMobile) {
@@ -2927,6 +2939,7 @@ function TabBar({ tabs, activeTab, onTabChange, isMobile, tripPhase }) {
   // Mobile Bottom Tab Bar
   return (
     <div
+      ref={containerRef}
       style={{
         position: "fixed",
         bottom: 0,
@@ -2936,6 +2949,7 @@ function TabBar({ tabs, activeTab, onTabChange, isMobile, tripPhase }) {
         background: theme.bgCard,
         borderTop: `1px solid ${theme.border}`,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        boxSizing: "border-box",
         zIndex: 100,
       }}
     >
@@ -7080,6 +7094,14 @@ function ExpenseTab({ state, setState }) {
 
       {/* Content */}
       <div style={{ padding: "0 20px 100px" }}>
+        {selectedDay === -1 && !state.expenseBannerClosed && (
+          <AdBanner
+            position="expense"
+            onClose={() =>
+              setState((prev) => ({ ...prev, expenseBannerClosed: true }))
+            }
+          />
+        )}
         {selectedDay === 999 ? (
           <SettlementView state={state} />
         ) : (
@@ -10026,6 +10048,7 @@ function FinishTripModal({ onConfirm, onClose }) {
           마무리 & 아카이브 저장
         </button>
       </div>
+      <AdBanner position="modal" />
     </ModalWrapper>
   );
 }
@@ -10097,6 +10120,7 @@ function ImportShareModal({ data, onOverwrite, onNew, onCancel }) {
           취소
         </button>
       </div>
+      <AdBanner position="modal" />
     </ModalWrapper>
   );
 }
@@ -11725,6 +11749,8 @@ function PCRightPanel({ tab, state, setState }) {
             </p>
           </div>
         )}
+        {/* 광고 배너: 다른 카드들과 같은 흐름으로 이어짐 (간격은 컴포넌트 자체에 내장) */}
+        <AdBanner position="main-side" />
       </div>
     );
   }
@@ -11824,6 +11850,8 @@ function PCRightPanel({ tab, state, setState }) {
               ))}
           </div>
         )}
+        {/* 광고 배너: 다른 카드들과 같은 흐름으로 이어짐 (간격은 컴포넌트 자체에 내장) */}
+        <AdBanner position="main-side" />
       </div>
     );
   }
@@ -11938,6 +11966,8 @@ function PCRightPanel({ tab, state, setState }) {
             </div>
           ))}
         </div>
+        {/* 광고 배너: 다른 카드들과 같은 흐름으로 이어짐 (간격은 컴포넌트 자체에 내장) */}
+        <AdBanner position="main-side" />
       </div>
     );
   }
@@ -11972,6 +12002,8 @@ function PCRightPanel({ tab, state, setState }) {
             />
           )}
         </div>
+        {/* 광고 배너: 다른 카드들과 같은 흐름으로 이어짐 (간격은 컴포넌트 자체에 내장) */}
+        <AdBanner position="main-side" />
       </div>
     );
   }
@@ -11979,9 +12011,60 @@ function PCRightPanel({ tab, state, setState }) {
   return null;
 }
 
+// ─── 로딩 화면 ───
+// 2초 후 스킵 버튼 노출, 3초 후 자동으로 로딩 종료(onDone 호출)
+function LoadingScreen({ onDone }) {
+  const [showSkip, setShowSkip] = useState(false);
+
+  useEffect(() => {
+    const skipTimer = setTimeout(() => setShowSkip(true), 2000);
+    const doneTimer = setTimeout(() => onDone(), 3000);
+    return () => {
+      clearTimeout(skipTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [onDone]);
+
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "20px",
+        background: theme.bg,
+        fontFamily:
+          "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+      }}
+    >
+      <div style={{ fontSize: "32px" }}>🧳</div>
+      <AdBanner position="loading" />
+      {showSkip && (
+        <button
+          onClick={onDone}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: "13px",
+            color: theme.textSub,
+            cursor: "pointer",
+            fontWeight: "600",
+            textDecoration: "underline",
+          }}
+        >
+          건너뛰기
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [state, setState] = useState(null);
   const [screen, setScreen] = useState("loading");
+  const [loadingScreenDone, setLoadingScreenDone] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
   const [isMobile, setIsMobile] = useState(() => {
     const w = window.innerWidth;
@@ -11992,6 +12075,35 @@ export default function App() {
     if (w >= 1024) return false;
     return !isLandscape;
   });
+  // 모바일 하단 탭바 실측 높이 & 하단 고정 광고 배너 실측 높이.
+  // 하드코딩된 추정치 대신 ResizeObserver로 실제 렌더링된 값을 받아써서,
+  // 배너가 탭바에 몇 px이라도 가려 잘리는 일이 없도록 함.
+  //
+  // 콜백 ref로 구현하는 이유: 로딩 화면(LoadingScreen)이 떠 있는 동안은
+  // 실제 탭바가 아직 DOM에 마운트되지 않은 상태라, 만약 일반 useEffect(deps)로
+  // 짰다면 "로딩 화면 → 실제 화면 전환" 시점에 재실행을 트리거할 의존성이
+  // 마땅치 않아 fallback 값(56px)에 영구히 멈춰버리는 문제가 있었습니다.
+  // 콜백 ref는 탭바 DOM이 실제로 마운트/언마운트되는 바로 그 순간에 호출되므로
+  // 이런 타이밍 문제 없이 항상 정확한 실측값을 얻습니다.
+  const [mobileTabBarHeight, setMobileTabBarHeight] = useState(
+    MOBILE_TABBAR_HEIGHT_FALLBACK,
+  );
+  const [mobileAdHeight, setMobileAdHeight] = useState(
+    MOBILE_AD_RESERVED_HEIGHT_FALLBACK,
+  );
+  const mobileTabBarObserverRef = useRef(null);
+  const mobileTabBarRef = useCallback((el) => {
+    if (mobileTabBarObserverRef.current) {
+      mobileTabBarObserverRef.current.disconnect();
+      mobileTabBarObserverRef.current = null;
+    }
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const report = () => setMobileTabBarHeight(el.getBoundingClientRect().height);
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    mobileTabBarObserverRef.current = ro;
+  }, []);
   const [archives, setArchives] = useState([]);
   const [pendingImport, setPendingImport] = useState(null);
   const [appThemeMode, setAppThemeMode] = useState(
@@ -12325,6 +12437,10 @@ export default function App() {
       setAppThemeMode(modeOrSignal);
     }
   };
+
+  if (!loadingScreenDone) {
+    return <LoadingScreen onDone={() => setLoadingScreenDone(true)} />;
+  }
 
   if (pendingImport) {
     return (
@@ -12682,7 +12798,27 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <div>{renderTab()}</div>
+          <div
+            style={
+              isMobile && state
+                ? {
+                    // mobileTabBarHeight는 실측값이라 safe-area가 이미 포함돼 있어
+                    // 여기서 따로 더하지 않음 (MobileAdSticky와 동일한 근거).
+                    paddingBottom: `${mobileAdHeight + mobileTabBarHeight}px`,
+                  }
+                : undefined
+            }
+          >
+            {renderTab()}
+          </div>
+        )}
+
+        {/* 모바일 하단 탭바 위 광고 배너: fixed로 스크롤과 무관하게 항상 탭바 바로 위 고정 */}
+        {isMobile && state && (
+          <MobileAdSticky
+            tabBarHeight={mobileTabBarHeight}
+            onHeightChange={setMobileAdHeight}
+          />
         )}
       </div>
       {/* Mobile Bottom Tab Bar */}
@@ -12693,6 +12829,7 @@ export default function App() {
           onTabChange={setActiveTab}
           isMobile={true}
           tripPhase={tripPhase}
+          containerRef={mobileTabBarRef}
         />
       )}
       {showOnboarding && (
