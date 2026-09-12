@@ -12,11 +12,12 @@ import AdBanner, {
   MobileAdSticky,
   MOBILE_TABBAR_HEIGHT_FALLBACK,
   MOBILE_AD_RESERVED_HEIGHT_FALLBACK,
+  SHOW_PLACEHOLDER,
 } from "./components/AdBanner";
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.20.0";
+const APP_VERSION = "v2.21.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -32,12 +33,49 @@ const isStandalone = () => {
 };
 const ARCHIVE_KEY = "travel_archive_v2";
 
+// ─── TWA 하드웨어 뒤로가기 스택 ───
+// ModalWrapper(및 전체화면 오버레이인 OnboardingModal)가 열려 있는 동안은
+// 각자 자신의 닫기 함수를 이 스택에 등록해둔다. App 루트의 popstate
+// 핸들러는 스택이 비어있지 않으면 가장 최근에 열린(=화면상 가장 위에 있는)
+// 것 하나만 닫고, 스택이 완전히 비어 있을 때(=메인 화면에서 더 이상 닫을
+// 서브 화면이 없을 때)만 앱 종료 확인 다이얼로그를 띄운다.
+const backHandlerStack = [];
+function pushBackHandler(onBack) {
+  backHandlerStack.push(onBack);
+  return () => {
+    const idx = backHandlerStack.lastIndexOf(onBack);
+    if (idx !== -1) backHandlerStack.splice(idx, 1);
+  };
+}
+function hasBackHandler() {
+  return backHandlerStack.length > 0;
+}
+function popBackHandler() {
+  const handler = backHandlerStack[backHandlerStack.length - 1];
+  backHandlerStack.length = Math.max(0, backHandlerStack.length - 1);
+  if (handler) handler();
+}
+// 모달/전체화면 오버레이 컴포넌트에서 호출: 마운트 중엔 onBack이 스택
+// 최상단에 등록되어 있다가, 언마운트 시(직접 닫기 버튼을 눌렀을 때 포함)
+// 자동으로 스택에서 제거된다.
+function useBackHandler(onBack) {
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
+  useEffect(() => {
+    return pushBackHandler(() => onBackRef.current && onBackRef.current());
+  }, []);
+}
+
 const TABS = {
-  itinerary: { id: "itinerary", label: "일정", icon: "📅" },
-  expense: { id: "expense", label: "지출", icon: "💰" },
-  check: { id: "check", label: "체크", icon: "✅" },
+  itinerary: { id: "itinerary", label: "일정", icon: "🗓️" },
+  expense: { id: "expense", label: "지출", icon: "💳" },
+  check: { id: "check", label: "체크", icon: "✔️" },
+  info: { id: "info", label: "정보", icon: "🧭" },
   settings: { id: "settings", label: "설정", icon: "⚙️" },
 };
+
+// TODO: 인스타그램 계정 확정되면 실제 URL로 교체
+const INSTAGRAM_URL = "https://www.instagram.com/REPLACE_ME";
 
 const DEFAULT_STATE = {
   tripName: "",
@@ -193,16 +231,19 @@ function formatRateLabel(value) {
 }
 
 // ─── Utility Functions ───
+// 여행 시점(전/중/후)에 따라 순서가 바뀌는 것은 이 3개 탭뿐 — "정보"와
+// "설정"은 이 동적 순서에 관여하지 않는 고정 탭이라 여기서 다루지 않는다.
+// 실제 탭바에 쓰이는 전체 순서는 App()에서 [이 반환값] → 정보 → 설정으로
+// 조립한다.
 function getTabOrder(tripStart, tripEnd) {
-  if (!tripStart || !tripEnd)
-    return ["check", "itinerary", "expense", "settings"];
+  if (!tripStart || !tripEnd) return ["check", "itinerary", "expense"];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(tripStart + "T00:00:00");
   const end = new Date(tripEnd + "T00:00:00");
-  if (today < start) return ["check", "itinerary", "expense", "settings"];
-  if (today > end) return ["expense", "itinerary", "check", "settings"];
-  return ["itinerary", "expense", "check", "settings"];
+  if (today < start) return ["check", "itinerary", "expense"];
+  if (today > end) return ["expense", "itinerary", "check"];
+  return ["itinerary", "expense", "check"];
 }
 
 function getTripPhase(tripStart, tripEnd) {
@@ -502,6 +543,9 @@ const ONBOARDING_SLIDES = [
 function OnboardingModal({ onClose }) {
   const [step, setStep] = useState(0);
   const [ready, setReady] = useState(false);
+  // TWA 하드웨어 뒤로가기: 온보딩이 떠 있는 동안 뒤로가기를 누르면
+  // 앱 종료가 아니라 온보딩을 닫는다(건너뛰기와 동일).
+  useBackHandler(onClose);
   const isLast = step === ONBOARDING_SLIDES.length - 1;
   const slide = ONBOARDING_SLIDES[step];
   const finish = () => {
@@ -3663,6 +3707,9 @@ function useScrollLock(active) {
 // ─── Responsive Modal Wrapper ───
 function ModalWrapper({ onClose, children }) {
   useScrollLock(true);
+  // TWA 하드웨어 뒤로가기: 이 모달이 열려 있는 동안 뒤로가기를 누르면
+  // 앱 종료가 아니라 이 모달을 닫는다.
+  useBackHandler(onClose);
   const [isLandscape, setIsLandscape] = useState(
     window.innerWidth > window.innerHeight,
   );
@@ -3953,7 +4000,13 @@ function SlotEditorModal({ slot, day, onSave, onClose }) {
 }
 
 // ─── Confirm Dialog ───
-function ConfirmDialog({ message, onConfirm, onCancel }) {
+function ConfirmDialog({
+  message,
+  onConfirm,
+  onCancel,
+  confirmLabel = "삭제",
+  confirmColor = theme.danger,
+}) {
   return (
     <ModalWrapper onClose={onCancel}>
       <div style={{ textAlign: "center" }}>
@@ -3990,7 +4043,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
             style={{
               flex: 1,
               padding: "12px",
-              background: theme.danger,
+              background: confirmColor,
               color: theme.textWhite,
               border: "none",
               borderRadius: theme.radiusSm,
@@ -3999,7 +4052,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
               cursor: "pointer",
             }}
           >
-            삭제
+            {confirmLabel}
           </button>
         </div>
       </div>
@@ -10418,6 +10471,135 @@ function ArchiveModal({ archives, onClose, onDeleteArchive, onEditArchive }) {
   );
 }
 
+// ─── 정보 탭 ───
+function InfoTab() {
+  const sectionStyle = {
+    background: theme.bgCard,
+    borderRadius: theme.radius,
+    border: `1px solid ${theme.borderLight}`,
+    marginBottom: "12px",
+    overflow: "hidden",
+    boxShadow: theme.shadow,
+  };
+  const rowStyle = {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "14px 16px",
+    background: "none",
+    border: "none",
+    borderBottom: `1px solid ${theme.borderLight}`,
+    cursor: "pointer",
+    textAlign: "left",
+    textDecoration: "none",
+  };
+  const sectionLabelStyle = {
+    padding: "12px 16px 8px",
+    fontSize: "12px",
+    fontWeight: "700",
+    color: theme.textLight,
+    letterSpacing: "0.5px",
+  };
+
+  const guides = [
+    {
+      icon: "🎒",
+      title: "여행 준비물 체크리스트",
+      desc: "빠짐없이 챙기는 준비물 가이드",
+      href: "/guide/travel-checklist",
+    },
+    {
+      icon: "💰",
+      title: "여행 예산 짜는 법",
+      desc: "항목별로 예산을 세우는 방법",
+      href: "/guide/travel-budget",
+    },
+    {
+      icon: "🗺️",
+      title: "여행 일정표 짜는 법",
+      desc: "동선까지 고려한 일정 짜는 법",
+      href: "/guide/travel-itinerary",
+    },
+  ];
+
+  return (
+    <div style={{ padding: "16px 20px 100px" }}>
+      {/* 여행 가이드 */}
+      <div style={sectionStyle}>
+        <div style={sectionLabelStyle}>여행 가이드</div>
+        {guides.map((g, i) => (
+          <a
+            key={g.href}
+            href={g.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...rowStyle,
+              borderBottom:
+                i === guides.length - 1
+                  ? "none"
+                  : `1px solid ${theme.borderLight}`,
+            }}
+          >
+            <span style={{ fontSize: "20px" }}>{g.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: theme.text,
+                }}
+              >
+                {g.title}
+              </div>
+              <div style={{ fontSize: "12px", color: theme.textSub }}>
+                {g.desc}
+              </div>
+            </div>
+            <span style={{ fontSize: "16px", color: theme.textLight }}>›</span>
+          </a>
+        ))}
+      </div>
+
+      {/* 소셜 */}
+      <div style={sectionStyle}>
+        <div style={sectionLabelStyle}>소셜</div>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...rowStyle, borderBottom: "none" }}
+        >
+          <span style={{ fontSize: "20px" }}>📷</span>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}
+            >
+              인스타그램
+            </div>
+            <div style={{ fontSize: "12px", color: theme.textSub }}>
+              여행 팁과 소식을 확인하세요
+            </div>
+          </div>
+          <span style={{ fontSize: "16px", color: theme.textLight }}>›</span>
+        </a>
+      </div>
+
+      <div
+        style={{
+          textAlign: "center",
+          marginTop: "28px",
+          fontSize: "12px",
+          color: theme.textLight,
+        }}
+      >
+        모리의 여행플랜 {APP_VERSION}
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab({
   state,
   setState,
@@ -11972,6 +12154,27 @@ function PCRightPanel({ tab, state, setState }) {
     );
   }
 
+  if (tab === "info") {
+    return (
+      <div>
+        <div
+          style={{
+            background: theme.bgCard,
+            borderRadius: theme.radius,
+            padding: "16px",
+            border: `1px solid ${theme.borderLight}`,
+          }}
+        >
+          <PanelTitle>🧭 정보</PanelTitle>
+          <InfoRow label="버전" value={APP_VERSION} />
+          <InfoRow label="가이드" value="3개" />
+        </div>
+        {/* 광고 배너: 다른 카드들과 같은 흐름으로 이어짐 (간격은 컴포넌트 자체에 내장) */}
+        <AdBanner position="main-side" />
+      </div>
+    );
+  }
+
   if (tab === "settings") {
     return (
       <div>
@@ -12066,6 +12269,44 @@ export default function App() {
   const [screen, setScreen] = useState("loading");
   const [loadingScreenDone, setLoadingScreenDone] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // TWA 하드웨어 뒤로가기 가드. 메인 화면(screen === "main")에 있는 동안만
+  // 동작한다 — 그 외 화면(로딩/랜딩/온보딩 설정 등)은 기존 동작 그대로 둔다.
+  //
+  // history에 "가드" 엔트리를 하나 채워 넣어, 뒤로가기를 누르면 항상
+  // popstate가 우리 쪽으로 먼저 들어오게 만든다. 열려 있는 모달/전체화면
+  // 오버레이가 있으면([[backHandlerStack]]) 그 중 가장 위의 것 하나만
+  // 닫고 가드를 다시 채워 넣는다(서브 화면은 기존처럼 "이전 화면"으로
+  // 돌아가는 것과 동일한 결과). 스택이 비어 있으면(=메인 화면에서 더 이상
+  // 닫을 서브 화면이 없으면) 종료 확인 다이얼로그를 띄운다.
+  useEffect(() => {
+    if (screen !== "main") return;
+
+    window.history.pushState({ __backGuard: true }, "");
+
+    const handlePopState = () => {
+      if (hasBackHandler()) {
+        popBackHandler();
+      } else {
+        setShowExitConfirm(true);
+      }
+      // 다음 뒤로가기도 다시 이 핸들러로 들어오도록 가드를 재장전한다.
+      window.history.pushState({ __backGuard: true }, "");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [screen]);
+
+  const handleCancelExit = () => setShowExitConfirm(false);
+  const handleConfirmExit = () => {
+    setShowExitConfirm(false);
+    // TWA(안드로이드 앱 래퍼)에서 window.close()를 호출하면 액티비티가
+    // 종료된다. 일반 브라우저 탭에서는 사용자가 직접 연 탭이 아니라면
+    // 브라우저가 조용히 무시하므로 부작용이 없다.
+    window.close();
+  };
   const [isMobile, setIsMobile] = useState(() => {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -12421,7 +12662,12 @@ export default function App() {
   };
 
   // Tab
-  const tabOrder = state ? getTabOrder(state.tripStart, state.tripEnd) : [];
+  // "정보"는 여행 시점에 따라 바뀌는 동적 순서에서 제외된 고정 탭이라
+  // getTabOrder()가 반환하는 3개(체크/일정/지출) 뒤, "설정" 바로 앞에
+  // 항상 고정으로 삽입한다. 최종 탭바 순서: [동적 3개] → 정보 → 설정.
+  const tabOrder = state
+    ? [...getTabOrder(state.tripStart, state.tripEnd), "info", "settings"]
+    : [];
   const tripPhase = state
     ? getTripPhase(state.tripStart, state.tripEnd)
     : "before";
@@ -12438,7 +12684,7 @@ export default function App() {
     }
   };
 
-  if (!loadingScreenDone) {
+  if (SHOW_PLACEHOLDER && !loadingScreenDone) {
     return <LoadingScreen onDone={() => setLoadingScreenDone(true)} />;
   }
 
@@ -12592,6 +12838,8 @@ export default function App() {
         return <ExpenseTab state={state} setState={setState} />;
       case "check":
         return <CheckTab state={state} setState={setState} />;
+      case "info":
+        return <InfoTab />;
       case "settings":
         return (
           <SettingsTab
@@ -12837,6 +13085,15 @@ export default function App() {
       )}
       {showTutorialReview && (
         <TutorialReviewModal onClose={() => setShowTutorialReview(false)} />
+      )}
+      {showExitConfirm && (
+        <ConfirmDialog
+          message="앱을 종료하시겠습니까?"
+          confirmLabel="종료"
+          confirmColor={theme.primary}
+          onConfirm={handleConfirmExit}
+          onCancel={handleCancelExit}
+        />
       )}
     </div>
   );
