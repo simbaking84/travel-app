@@ -17,7 +17,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.0";
+const APP_VERSION = "v2.21.1";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -74,8 +74,7 @@ const TABS = {
   settings: { id: "settings", label: "설정", icon: "⚙️" },
 };
 
-// TODO: 인스타그램 계정 확정되면 실제 URL로 교체
-const INSTAGRAM_URL = "https://www.instagram.com/REPLACE_ME";
+const INSTAGRAM_URL = "https://www.instagram.com/moritravelplan";
 
 const DEFAULT_STATE = {
   tripName: "",
@@ -12270,6 +12269,13 @@ export default function App() {
   const [loadingScreenDone, setLoadingScreenDone] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showExitPending, setShowExitPending] = useState(false);
+  // "종료" 확정 직후 우리가 직접 발생시키는 history.go() 네비게이션을
+  // 표시해두는 플래그 — 이 네비게이션에 대해서는 popstate 핸들러가
+  // 가드를 재장전하지 않고 그냥 지나가야 한다(재장전하면 아래 collapse가
+  // 무효화됨).
+  const exitingRef = useRef(false);
+  const exitRearmTimerRef = useRef(null);
 
   // TWA 하드웨어 뒤로가기 가드. 메인 화면(screen === "main")에 있는 동안만
   // 동작한다 — 그 외 화면(로딩/랜딩/온보딩 설정 등)은 기존 동작 그대로 둔다.
@@ -12286,6 +12292,14 @@ export default function App() {
     window.history.pushState({ __backGuard: true }, "");
 
     const handlePopState = () => {
+      if (exitingRef.current) {
+        // handleConfirmExit()가 직접 발생시킨 collapse 네비게이션.
+        // 여기서 가드를 다시 채우면 안 된다 — 그러면 다음 물리적
+        // 뒤로가기가 다시 우리 쪽(popstate)으로 와버려서, 네이티브
+        // 쪽이 canGoBack()===false로 판단해 앱을 종료할 기회가 사라진다.
+        exitingRef.current = false;
+        return;
+      }
       if (hasBackHandler()) {
         popBackHandler();
       } else {
@@ -12296,16 +12310,46 @@ export default function App() {
     };
 
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      clearTimeout(exitRearmTimerRef.current);
+    };
   }, [screen]);
 
   const handleCancelExit = () => setShowExitConfirm(false);
   const handleConfirmExit = () => {
     setShowExitConfirm(false);
-    // TWA(안드로이드 앱 래퍼)에서 window.close()를 호출하면 액티비티가
-    // 종료된다. 일반 브라우저 탭에서는 사용자가 직접 연 탭이 아니라면
-    // 브라우저가 조용히 무시하므로 부작용이 없다.
+
+    // ⚠️ Chromium(TWA의 렌더링 엔진)은 window.close()를 "현재 탭의
+    // back/forward 스택 엔트리가 2개 미만"일 때만 허용한다(스펙상
+    // "script-closable"). 그런데 위 뒤로가기 가드가 popstate가 올 때마다
+    // pushState를 호출해왔기 때문에 이 시점엔 이미 엔트리가 여러 개이고,
+    // 이 개수는 뒤로가기·replaceState 등 그 무엇으로도 줄일 수 없다
+    // (엔트리는 오직 "앞쪽으로 새로 navigate"할 때만 잘려나감).
+    // 즉 이 앱처럼 뒤로가기를 한 번이라도 가로챈 순간, window.close()는
+    // 이 세션 동안 사실상 항상 조용히 실패한다 — 그래도 비용이 없으니
+    // 일단 시도는 해본다(다른 WebView 구현에서 우연히 동작할 가능성 대비).
     window.close();
+
+    // 진짜 종료는 TWA를 감싼 네이티브 런처가 시스템 뒤로가기 키를 받을 때
+    // WebView.canGoBack()이 false인 경우에만 액티비티를 finish()하는
+    // 방식으로 일어난다. canGoBack()은 "엔트리 총개수"가 아니라 "현재
+    // 위치보다 앞(뒤로 갈 곳)이 있는가"만 보므로, 지금 위치를 맨 처음
+    // 엔트리로 되돌리면(엔트리 자체는 그대로 남아있어도) canGoBack()이
+    // false가 된다. 그 결과 사용자가 뒤로가기를 한 번 더 누르는 순간
+    // 네이티브 쪽이 정상적으로 앱을 종료한다.
+    exitingRef.current = true;
+    window.history.go(-window.history.length);
+
+    // 사용자가 실제로 한 번 더 뒤로가기를 누르지 않고 앱을 계속 쓸 수도
+    // 있으므로, 잠시 후 가드를 다시 채워 넣어 서브 화면(모달 등) 뒤로가기
+    // 인터셉트가 계속 정상 동작하도록 복구한다.
+    setShowExitPending(true);
+    clearTimeout(exitRearmTimerRef.current);
+    exitRearmTimerRef.current = setTimeout(() => {
+      window.history.pushState({ __backGuard: true }, "");
+      setShowExitPending(false);
+    }, 4000);
   };
   const [isMobile, setIsMobile] = useState(() => {
     const w = window.innerWidth;
@@ -13094,6 +13138,30 @@ export default function App() {
           onConfirm={handleConfirmExit}
           onCancel={handleCancelExit}
         />
+      )}
+      {showExitPending && (
+        // window.close()가 TWA에서 신뢰할 수 없는 관계로, "종료" 확정 후
+        // 실제 종료는 다음 물리적 뒤로가기에서 이뤄진다는 걸 안내하는
+        // 짧은 토스트. 일정 시간 뒤 자동으로 사라짐(그때 가드도 재장전됨).
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.85)",
+            color: "#fff",
+            padding: "10px 18px",
+            borderRadius: theme.radiusFull,
+            fontSize: "13px",
+            fontWeight: "600",
+            zIndex: 500,
+            whiteSpace: "nowrap",
+            boxShadow: theme.shadowLg,
+          }}
+        >
+          뒤로가기를 한 번 더 누르면 종료됩니다
+        </div>
       )}
     </div>
   );
