@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import * as XLSX from "xlsx";
 import LZString from "lz-string";
 import QRCode from "qrcode";
@@ -17,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.1";
+const APP_VERSION = "v2.21.2";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -64,6 +70,21 @@ function useBackHandler(onBack) {
   useEffect(() => {
     return pushBackHandler(() => onBackRef.current && onBackRef.current());
   }, []);
+}
+
+// 모듈이 로드되는 즉시(React가 마운트되기도 전에) 가드용 history 엔트리를
+// 하나 미리 심어둔다. 실기기(특히 저사양 TWA)에서는 App 컴포넌트의 첫
+// useEffect/useLayoutEffect가 실제로 실행되기까지 JS 파싱·하이드레이션
+// 시간만큼 지연이 생기는데, 그 짧은 틈에 사용자가 바로 뒤로가기를 누르면
+// 아직 아무 가드도 없는 채로(history.length가 늘어나지 않은 채로)
+// canGoBack()===false가 되어 네이티브가 앱을 그대로 종료해버린다.
+// 여기서 스크립트 평가 시점에 한 번 pushState를 해두면, 그 이후에 App의
+// 본 가드 useLayoutEffect가 "main" 화면에서 자기 몫의 엔트리를 추가로
+// 쌓기 전까지의 공백을 없앨 수 있다(엔트리가 하나 더 남는 것은 기존
+// 주석에도 있듯 무해함 — window.close() 경로는 애초에 history.go()로
+// 위치를 맨 앞으로 되돌리는 방식이라 엔트리 개수 자체는 문제되지 않음).
+if (typeof window !== "undefined" && window.history) {
+  window.history.pushState({ __backGuard: true }, "");
 }
 
 const TABS = {
@@ -12286,7 +12307,17 @@ export default function App() {
   // 닫고 가드를 다시 채워 넣는다(서브 화면은 기존처럼 "이전 화면"으로
   // 돌아가는 것과 동일한 결과). 스택이 비어 있으면(=메인 화면에서 더 이상
   // 닫을 서브 화면이 없으면) 종료 확인 다이얼로그를 띄운다.
-  useEffect(() => {
+  //
+  // useEffect가 아니라 useLayoutEffect를 쓰는 이유: 일반 useEffect(passive
+  // effect)는 커밋 후 브라우저 페인트를 기다렸다가(React 18에서는 게다가
+  // 별도 매크로태스크로 스케줄됨) 실행되므로, "loading → main"처럼 화면이
+  // 곧바로 main으로 바뀌는 첫 렌더 직후에 사용자가 그 틈에 뒤로가기를
+  // 누르면 가드가 아직 안 걸려 있을 수 있다(로컬 데스크톱 브라우저는 이
+  // 틈이 체감상 없을 만큼 빨라 재현이 안 됐던 것). useLayoutEffect는 커밋
+  // 직후 페인트 전에 동기적으로 실행되어 이 틈을 최대한 좁힌다. (스크립트
+  // 로드/하이드레이션 자체가 끝나기 전의 뒤로가기까지는 막을 수 없으므로,
+  // 그 구간은 모듈 최상단의 즉시 pushState(위 참고)로 별도 보강한다.)
+  useLayoutEffect(() => {
     if (screen !== "main") return;
 
     window.history.pushState({ __backGuard: true }, "");
