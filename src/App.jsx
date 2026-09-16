@@ -23,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.2";
+const APP_VERSION = "v2.21.3-test";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -72,6 +72,11 @@ function useBackHandler(onBack) {
   }, []);
 }
 
+// TEMP: 랜딩페이지 순간 노출 현상 원인 파악을 위해 종료 확인 가드
+// (popstate 가드 + pushState 로직) 전체를 임시로 비활성화. 원인이
+// 아닌 것으로 확인되면 true로 되돌릴 것.
+const EXIT_GUARD_ENABLED = false;
+
 // 모듈이 로드되는 즉시(React가 마운트되기도 전에) 가드용 history 엔트리를
 // 하나 미리 심어둔다. 실기기(특히 저사양 TWA)에서는 App 컴포넌트의 첫
 // useEffect/useLayoutEffect가 실제로 실행되기까지 JS 파싱·하이드레이션
@@ -83,7 +88,7 @@ function useBackHandler(onBack) {
 // 쌓기 전까지의 공백을 없앨 수 있다(엔트리가 하나 더 남는 것은 기존
 // 주석에도 있듯 무해함 — window.close() 경로는 애초에 history.go()로
 // 위치를 맨 앞으로 되돌리는 방식이라 엔트리 개수 자체는 문제되지 않음).
-if (typeof window !== "undefined" && window.history) {
+if (EXIT_GUARD_ENABLED && typeof window !== "undefined" && window.history) {
   window.history.pushState({ __backGuard: true }, "");
 }
 
@@ -12318,6 +12323,7 @@ export default function App() {
   // 로드/하이드레이션 자체가 끝나기 전의 뒤로가기까지는 막을 수 없으므로,
   // 그 구간은 모듈 최상단의 즉시 pushState(위 참고)로 별도 보강한다.)
   useLayoutEffect(() => {
+    if (!EXIT_GUARD_ENABLED) return;
     if (screen !== "main") return;
 
     window.history.pushState({ __backGuard: true }, "");
