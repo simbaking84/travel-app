@@ -23,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.3-test";
+const APP_VERSION = "v2.21.4";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -101,6 +101,7 @@ const TABS = {
 };
 
 const INSTAGRAM_URL = "https://www.instagram.com/moritravelplan";
+const KOFI_URL = "https://ko-fi.com/moritravelplan";
 
 const DEFAULT_STATE = {
   tripName: "",
@@ -11608,6 +11609,40 @@ function SettingsTab({
           유심 등의 예약 링크를 제공하고 있으며, 해당 링크를 통해 예약이
           이루어질 경우 각 파트너사로부터 일정 수수료를 지급받을 수 있습니다.
         </div>
+      </div>
+
+      {/* 후원 */}
+      <div style={sectionStyle}>
+        <div
+          style={{
+            padding: "12px 16px 8px",
+            fontSize: "12px",
+            fontWeight: "700",
+            color: theme.textLight,
+            letterSpacing: "0.5px",
+          }}
+        >
+          후원
+        </div>
+        <a
+          href={KOFI_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...rowStyle, borderBottom: "none" }}
+        >
+          <span style={{ fontSize: "20px" }}>☕</span>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}
+            >
+              후원하기
+            </div>
+            <div style={{ fontSize: "12px", color: theme.textSub }}>
+              커피 한 잔으로 개발자를 응원해주세요
+            </div>
+          </div>
+          <span style={{ fontSize: "16px", color: theme.textLight }}>›</span>
+        </a>
       </div>
 
       {/* 아카이브 */}
