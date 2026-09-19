@@ -23,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.4";
+const APP_VERSION = "v2.21.5";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -72,10 +72,7 @@ function useBackHandler(onBack) {
   }, []);
 }
 
-// TEMP: 랜딩페이지 순간 노출 현상 원인 파악을 위해 종료 확인 가드
-// (popstate 가드 + pushState 로직) 전체를 임시로 비활성화. 원인이
-// 아닌 것으로 확인되면 true로 되돌릴 것.
-const EXIT_GUARD_ENABLED = false;
+const EXIT_GUARD_ENABLED = true;
 
 // 모듈이 로드되는 즉시(React가 마운트되기도 전에) 가드용 history 엔트리를
 // 하나 미리 심어둔다. 실기기(특히 저사양 TWA)에서는 App 컴포넌트의 첫
