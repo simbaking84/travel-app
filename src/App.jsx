@@ -23,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.5";
+const APP_VERSION = "v2.21.6";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -99,6 +99,113 @@ const TABS = {
 
 const INSTAGRAM_URL = "https://www.instagram.com/moritravelplan";
 const KOFI_URL = "https://ko-fi.com/moritravelplan";
+const KOFI_ID = "Z6S7279NRT";
+const KOFI_OVERLAY_CSS_ID = "moriKofiOverlay";
+
+// ─── Ko-fi 오버레이 위젯(커스텀 트리거로 팝업만 열기) ───
+// kofiWidgetOverlay.draw()는 기본적으로 화면에 플로팅 버튼을 직접 그리고,
+// 그 버튼의 클릭 이벤트 안에서만 팝업을 여는 로직(toggleKofiIframe)이
+// 동작한다. overlay-widget.js는 팝업을 여는 별도의 공개 API를 제공하지
+// 않으므로, 기본 플로팅 버튼은 CSS로 숨기고 D-day 배지 옆 커스텀 아이콘
+// 클릭 시 그 안의 실제 버튼 엘리먼트(iframe 내부)를 프로그래밍적으로
+// 클릭시켜 팝업만 열리게 한다.
+let kofiOverlayReadyPromise = null;
+
+function loadKofiOverlayScript() {
+  return new Promise((resolve, reject) => {
+    if (window.kofiWidgetOverlay) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://storage.ko-fi.com/cdn/scripts/overlay-widget.js";
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.body.appendChild(script);
+  });
+}
+
+function ensureKofiOverlayReady() {
+  if (!kofiOverlayReadyPromise) {
+    kofiOverlayReadyPromise = loadKofiOverlayScript().then(() => {
+      if (!document.getElementById("kofi-overlay-hide-style")) {
+        const style = document.createElement("style");
+        style.id = "kofi-overlay-hide-style";
+        style.textContent =
+          ".floatingchat-container-wrap,.floatingchat-container-wrap-mobi{display:none!important;}" +
+          // Ko-fi 기본값(좌하단 고정)을 화면 폭·기기와 무관하게 항상
+          // 화면 정중앙에 뜨도록 덮어쓴다. 데스크톱/모바일 팝업 모두 적용.
+          ".floating-chat-kofi-popup-iframe,.floating-chat-kofi-popup-iframe-mobi{left:50%!important;top:50%!important;bottom:auto!important;right:auto!important;transform:translate(-50%,-50%)!important;}";
+        document.head.appendChild(style);
+      }
+      window.kofiWidgetOverlay.draw(KOFI_ID, {
+        type: "floating-chat",
+        "floating-chat.donateButton.text": "",
+        "floating-chat.donateButton.background-color": "transparent",
+        "floating-chat.donateButton.text-color": "#000",
+        "floating-chat.cssId": KOFI_OVERLAY_CSS_ID,
+      });
+    });
+  }
+  return kofiOverlayReadyPromise;
+}
+
+function clickKofiDonateButton() {
+  const buttonId = `${KOFI_OVERLAY_CSS_ID}-donate-button`;
+  // overlay-widget.js는 데스크톱용/모바일용 버튼·팝업을 각각 따로 그리고
+  // (floating-chat-wrapper.css의 max/min-device-width: 1000px 미디어쿼리로)
+  // 둘 중 하나의 "버튼"만 화면에 보이게 한다. 팝업 자체는 미디어쿼리로
+  // 숨겨지지 않으므로, 두 버튼을 모두 클릭하면 팝업이 두 개 겹쳐 열린다.
+  // 실제 위젯과 동일하게 하나만 열리도록 같은 기준으로 하나만 클릭한다.
+  const isMobi = window.matchMedia("(max-device-width: 1000px)").matches;
+  const iframeId = isMobi
+    ? "kofi-wo-container-mobi" + KOFI_OVERLAY_CSS_ID
+    : "kofi-wo-container" + KOFI_OVERLAY_CSS_ID;
+  const iframe = document.getElementById(iframeId);
+  const doc = iframe && (iframe.contentDocument || iframe.contentWindow?.document);
+  const btn = doc && doc.getElementById(buttonId);
+  if (btn) btn.click();
+}
+
+function openKofiOverlay() {
+  ensureKofiOverlayReady()
+    .then(() => setTimeout(clickKofiDonateButton, 30))
+    .catch(() => window.open(KOFI_URL, "_blank", "noopener,noreferrer"));
+}
+
+function KofiCoffeeButton({ size = 28 }) {
+  return (
+    <button
+      type="button"
+      onClick={openKofiOverlay}
+      title="Ko-fi로 후원하기"
+      aria-label="Ko-fi로 후원하기"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        padding: "2px",
+        flexShrink: 0,
+      }}
+    >
+      <img
+        src={`${process.env.PUBLIC_URL}/assets/icons/kofi-mascot-cup-v2.png`}
+        alt="Ko-fi 후원"
+        style={{
+          height: `${size}px`,
+          width: "auto",
+          objectFit: "contain",
+          display: "block",
+          flexShrink: 0,
+        }}
+      />
+    </button>
+  );
+}
 
 const DEFAULT_STATE = {
   tripName: "",
@@ -3124,22 +3231,25 @@ function MobileHeader({ state, onGoHome }) {
           </div>
         )}
       </div>
-      {dday && (
-        <div
-          style={{
-            padding: "4px 12px",
-            background: dday === "D-DAY" ? theme.primary : theme.bgBadge,
-            color: dday === "D-DAY" ? theme.textWhite : theme.text,
-            borderRadius: theme.radiusFull,
-            fontSize: "13px",
-            fontWeight: "800",
-            letterSpacing: "-0.3px",
-            flexShrink: 0,
-          }}
-        >
-          {dday}
-        </div>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+        {dday && (
+          <div
+            style={{
+              padding: "4px 12px",
+              background: dday === "D-DAY" ? theme.primary : theme.bgBadge,
+              color: dday === "D-DAY" ? theme.textWhite : theme.text,
+              borderRadius: theme.radiusFull,
+              fontSize: "13px",
+              fontWeight: "800",
+              letterSpacing: "-0.3px",
+              flexShrink: 0,
+            }}
+          >
+            {dday}
+          </div>
+        )}
+        <KofiCoffeeButton size={28} />
+      </div>
     </div>
   );
 }
@@ -11608,40 +11718,6 @@ function SettingsTab({
         </div>
       </div>
 
-      {/* 후원 */}
-      <div style={sectionStyle}>
-        <div
-          style={{
-            padding: "12px 16px 8px",
-            fontSize: "12px",
-            fontWeight: "700",
-            color: theme.textLight,
-            letterSpacing: "0.5px",
-          }}
-        >
-          후원
-        </div>
-        <a
-          href={KOFI_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ ...rowStyle, borderBottom: "none" }}
-        >
-          <span style={{ fontSize: "20px" }}>☕</span>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{ fontSize: "15px", fontWeight: "600", color: theme.text }}
-            >
-              후원하기
-            </div>
-            <div style={{ fontSize: "12px", color: theme.textSub }}>
-              커피 한 잔으로 개발자를 응원해주세요
-            </div>
-          </div>
-          <span style={{ fontSize: "16px", color: theme.textLight }}>›</span>
-        </a>
-      </div>
-
       {/* 아카이브 */}
       <button
         onClick={() => setArchiveOpen(true)}
@@ -13110,26 +13186,29 @@ export default function App() {
                 </div>
               </div>
             </div>
-            {getDday(state.tripStart) && (
-              <div
-                style={{
-                  padding: "6px 16px",
-                  background:
-                    getDday(state.tripStart) === "D-DAY"
-                      ? theme.primary
-                      : theme.bgBadge,
-                  color:
-                    getDday(state.tripStart) === "D-DAY"
-                      ? theme.textWhite
-                      : theme.text,
-                  borderRadius: theme.radiusFull,
-                  fontSize: "14px",
-                  fontWeight: "800",
-                }}
-              >
-                {getDday(state.tripStart)}
-              </div>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {getDday(state.tripStart) && (
+                <div
+                  style={{
+                    padding: "6px 16px",
+                    background:
+                      getDday(state.tripStart) === "D-DAY"
+                        ? theme.primary
+                        : theme.bgBadge,
+                    color:
+                      getDday(state.tripStart) === "D-DAY"
+                        ? theme.textWhite
+                        : theme.text,
+                    borderRadius: theme.radiusFull,
+                    fontSize: "14px",
+                    fontWeight: "800",
+                  }}
+                >
+                  {getDday(state.tripStart)}
+                </div>
+              )}
+              <KofiCoffeeButton size={32} />
+            </div>
           </div>
         )}
 
