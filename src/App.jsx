@@ -23,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.6";
+const APP_VERSION = "v2.21.7";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -221,6 +221,7 @@ const DEFAULT_STATE = {
   expenses: [],
   budget: { totalKRW: 0, totalLocal: 0, categories: [] },
   selectedRegion: "",
+  tripCity: "",
   checkStates: {},
   companionType: "",
   companionCount: 1,
@@ -415,6 +416,16 @@ function loadState() {
     /* ignore */
   }
   return null;
+}
+
+// 구버전 데이터(tripCity 없음)를 열 때, accommodation이 TRIP_REGIONS 도시 목록과
+// 정확히 일치하면 tripCity로 역추적. accommodation 값 자체는 건드리지 않는다
+// (Klook/Trip.com 링크 검색에 계속 쓰이기 때문).
+function migrateTripCity(data) {
+  if (!data || data.tripCity) return data;
+  const allCities = TRIP_REGIONS.flatMap((r) => r.cities);
+  const matched = allCities.includes(data.accommodation) ? data.accommodation : "";
+  return { ...data, tripCity: matched };
 }
 
 function saveState(state) {
@@ -1331,6 +1342,7 @@ function TripSetupForm({ bgMode, onComplete, onBack }) {
     tripStart: "",
     tripEnd: "",
     accommodation: "",
+    tripCity: "",
     currency: "JPY",
     rate: 9.2,
   });
@@ -1375,28 +1387,29 @@ function TripSetupForm({ bgMode, onComplete, onBack }) {
   const handleSelectRegion = (region) => {
     if (selectedRegionId === region.id) {
       setSelectedRegionId(null);
-      setForm((prev) => ({ ...prev, accommodation: "" }));
+      setForm((prev) => ({ ...prev, accommodation: "", tripCity: "" }));
       return;
     }
     setSelectedRegionId(region.id);
     setForm((prev) => ({
       ...prev,
       accommodation: "",
+      tripCity: "",
       currency: region.currency,
     }));
   };
 
   const handleSelectCity = (city) => {
     if (form.accommodation === city) {
-      setForm((prev) => ({ ...prev, accommodation: "" }));
+      setForm((prev) => ({ ...prev, accommodation: "", tripCity: "" }));
       return;
     }
     setForm((prev) => {
-      if (nameEdited) return { ...prev, accommodation: city };
+      if (nameEdited) return { ...prev, accommodation: city, tripCity: city };
       const year = prev.tripStart
         ? new Date(prev.tripStart).getFullYear()
         : new Date().getFullYear();
-      return { ...prev, accommodation: city, tripName: `${year} ${city} 여행` };
+      return { ...prev, accommodation: city, tripCity: city, tripName: `${year} ${city} 여행` };
     });
   };
 
@@ -9099,7 +9112,7 @@ function useDrive(state, setState) {
       const data = await driveLoad();
       if (data.archives) saveArchive(data.archives);
       const { archives: _a, savedAt: _s, appVersion: _v, ...tripData } = data;
-      setState({ ...DEFAULT_STATE, ...tripData });
+      setState(migrateTripCity({ ...DEFAULT_STATE, ...tripData }));
       const now = new Date().toLocaleString("ko-KR", {
         month: "numeric",
         day: "numeric",
@@ -9855,6 +9868,7 @@ function TripEditModal({ state, onSave, onClose }) {
     tripEnd: state.tripEnd || "",
     tripRegion: state.tripRegion || "overseas",
     accommodation: state.accommodation || "",
+    tripCity: state.tripCity || "",
     currency: state.currency || "JPY",
     rate: String(state.rate || ""),
   });
@@ -9870,6 +9884,12 @@ function TripEditModal({ state, onSave, onClose }) {
     } else {
       setForm((p) => ({ ...p, [k]: v }));
     }
+  };
+
+  const editRegionObj = TRIP_REGIONS.find((r) => r.id === state.selectedRegion);
+
+  const handleSelectCity = (city) => {
+    setForm((p) => ({ ...p, tripCity: p.tripCity === city ? "" : city }));
   };
 
   const inputStyle = {
@@ -9998,6 +10018,49 @@ function TripEditModal({ state, onSave, onClose }) {
               </button>
             ))}
           </div>
+        </div>
+        <div>
+          <label style={labelStyle}>여행 도시</label>
+          {editRegionObj && editRegionObj.cities.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "6px",
+                marginBottom: "6px",
+              }}
+            >
+              {editRegionObj.cities.map((city) => (
+                <button
+                  key={city}
+                  onClick={() => handleSelectCity(city)}
+                  style={{
+                    padding: "6px 12px",
+                    border: `1px solid ${form.tripCity === city ? theme.primary : theme.border}`,
+                    borderRadius: theme.radiusFull,
+                    background:
+                      form.tripCity === city
+                        ? theme.primaryLight
+                        : theme.bgInput,
+                    color:
+                      form.tripCity === city ? theme.primary : theme.textSub,
+                    fontSize: "12.5px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  {city}
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            type="text"
+            value={form.tripCity}
+            onChange={(e) => update("tripCity", e.target.value)}
+            placeholder="다른 도시 직접 입력"
+            style={inputStyle}
+          />
         </div>
         <div>
           <label style={labelStyle}>숙소 지역</label>
@@ -10807,6 +10870,7 @@ function SettingsTab({
     tripEnd: state.tripEnd,
     tripRegion: state.tripRegion,
     accommodation: state.accommodation,
+    tripCity: state.tripCity,
     itinerary: state.itinerary,
     version: "2.0",
   });
@@ -12665,7 +12729,7 @@ export default function App() {
               appVersion: _v,
               ...tripData
             } = data;
-            const merged = { ...DEFAULT_STATE, ...tripData };
+            const merged = migrateTripCity({ ...DEFAULT_STATE, ...tripData });
             createTripFromImport(
               (merged.itinerary || []).map((s) => ({
                 ...s,
@@ -12727,7 +12791,7 @@ export default function App() {
     const arch = loadArchive();
     setArchives(arch);
     if (saved && saved.tripName) {
-      setState(saved);
+      setState(migrateTripCity({ ...DEFAULT_STATE, ...saved }));
       setScreen("main");
       const order = getTabOrder(saved.tripStart, saved.tripEnd);
       setActiveTab(order[0]);
@@ -12793,11 +12857,11 @@ export default function App() {
 
   const handleImportOverwrite = () => {
     if (!pendingImport) return;
-    const newState = {
+    const newState = migrateTripCity({
       ...pendingImport,
       expenses: pendingImport.expenses || [],
       version: "2.0",
-    };
+    });
     setState(newState);
     saveState(newState);
     const order = getTabOrder(newState.tripStart, newState.tripEnd);
