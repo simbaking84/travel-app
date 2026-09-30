@@ -182,13 +182,42 @@
       });
 
       let refreshing = false;
-navigator.serviceWorker.addEventListener('controllerchange', function () {
-  if (refreshing) return;
-  var isFirstVisit = !localStorage.getItem('onboarding_seen_v1');
-  if (isFirstVisit) return;
-  refreshing = true;
-  window.location.reload();
-});
+      let userInteracted = false;
+      let pendingReload = false;
+
+      function markInteracted() {
+        userInteracted = true;
+        window.removeEventListener('pointerdown', markInteracted, true);
+        window.removeEventListener('keydown', markInteracted, true);
+        window.removeEventListener('touchstart', markInteracted, true);
+      }
+      window.addEventListener('pointerdown', markInteracted, { capture: true, passive: true });
+      window.addEventListener('keydown', markInteracted, { capture: true, passive: true });
+      window.addEventListener('touchstart', markInteracted, { capture: true, passive: true });
+
+      function doReload() {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      }
+
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (refreshing) return;
+        var isFirstVisit = !localStorage.getItem('onboarding_seen_v1');
+        if (isFirstVisit) return;
+        if (userInteracted) {
+          pendingReload = true;
+          return;
+        }
+        doReload();
+      });
+
+      document.addEventListener('visibilitychange', function () {
+        if (pendingReload && document.visibilityState === 'hidden') {
+          pendingReload = false;
+          doReload();
+        }
+      });
     }
   </script>
 </body>
