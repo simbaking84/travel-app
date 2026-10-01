@@ -1,5 +1,5 @@
 // ⚠️ 배포할 때마다 버전 번호를 올려주세요 (캐시 갱신을 위해 필수)
-const CACHE_NAME = 'travel-planner-v34';
+const CACHE_NAME = 'travel-planner-v35';
 
 const CORE_ASSETS = [
   '/',
@@ -41,7 +41,18 @@ const MASCOT_ASSETS = [
   '/assets/icons/loading-mascot.png',
 ];
 
-const ALL_ASSETS = [...CORE_ASSETS, ...BACKGROUND_ASSETS, ...PARTICLE_ASSETS, ...MASCOT_ASSETS];
+const WEATHER_ASSETS = [
+  '/assets/weather/sunny.png',
+  '/assets/weather/partly.png',
+  '/assets/weather/cloudy.png',
+  '/assets/weather/rain.png',
+  '/assets/weather/shower.png',
+  '/assets/weather/thunder.png',
+  '/assets/weather/snow.png',
+  '/assets/weather/fog.png',
+];
+
+const ALL_ASSETS = [...CORE_ASSETS, ...BACKGROUND_ASSETS, ...PARTICLE_ASSETS, ...MASCOT_ASSETS, ...WEATHER_ASSETS];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
