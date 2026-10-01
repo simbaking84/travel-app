@@ -23,7 +23,7 @@ import AdBanner, {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.21.8";
+const APP_VERSION = "v2.22.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -222,6 +222,7 @@ const DEFAULT_STATE = {
   budget: { totalKRW: 0, totalLocal: 0, categories: [] },
   selectedRegion: "",
   tripCity: "",
+  dayWeather: {},
   checkStates: {},
   companionType: "",
   companionCount: 1,
@@ -321,6 +322,179 @@ const TRIP_REGIONS = [
     accomPlaceholder: "예: 서큘러키, CBD",
   },
 ];
+
+// ─── 여행 날씨 기록 (사용자 직접 입력, 외부 API 호출 없음) ───
+const WEATHER_TYPES = [
+  { key: "sunny", emoji: "☀️", label: "맑음" },
+  { key: "partly", emoji: "⛅", label: "구름 조금" },
+  { key: "cloudy", emoji: "☁️", label: "흐림" },
+  { key: "rain", emoji: "🌧️", label: "비" },
+  { key: "shower", emoji: "🌦️", label: "소나기" },
+  { key: "thunder", emoji: "⛈️", label: "천둥번개" },
+  { key: "snow", emoji: "❄️", label: "눈" },
+  { key: "fog", emoji: "🌫️", label: "안개" },
+];
+
+// "emoji" | "image" — image 모드는 public/assets/weather/{key}.png를 쓰고,
+// 파일이 없으면(로드 실패) 자동으로 이모지로 대체된다.
+const WEATHER_ICON_MODE = "image";
+
+// 날씨 아이콘 크기를 한곳에서 조절 (이미지 자체 크기 — 타일 여백은 별도)
+const WEATHER_ICON_SIZE = {
+  chip: 28, // 일정 탭 날씨 칩 (모바일)
+  chipDesktop: 32, // 일정 탭 날씨 칩 (PC)
+  picker: 40, // 입력 모달의 아이콘 선택 그리드
+  archive: 28, // 여행 기록(아카이브) 줄
+};
+
+// image 모드에서 스케치 아이콘을 종이색 둥근 타일 위에 표시할지 여부.
+// false면 타일 없이 투명 배경 그대로, true면 아래 타일 스타일(모든 테마 공통 고정값)을 씌운다.
+const WEATHER_ICON_TILE = false;
+const WEATHER_TILE_BG = "#FBF7EE";
+const WEATHER_TILE_PADDING = 4;
+const WEATHER_TILE_RADIUS = 8;
+
+// 도시/좌표/검색어 없이, 지역당 대표 사이트 하나만 안내
+const WEATHER_LINKS = {
+  domestic: {
+    label: "기상청 날씨누리",
+    url: "https://www.weather.go.kr/w/index.do",
+  },
+  overseas: { label: "Weather.com", url: "https://weather.com/" },
+};
+
+function WeatherIcon({ weatherKey, size = WEATHER_ICON_SIZE.chip }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const type = WEATHER_TYPES.find((w) => w.key === weatherKey);
+  if (!type) return null;
+  if (WEATHER_ICON_MODE === "image" && !imgFailed) {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: WEATHER_ICON_TILE ? WEATHER_TILE_BG : "transparent",
+          borderRadius: WEATHER_ICON_TILE ? `${WEATHER_TILE_RADIUS}px` : 0,
+          padding: WEATHER_ICON_TILE ? `${WEATHER_TILE_PADDING}px` : 0,
+          flexShrink: 0,
+        }}
+      >
+        <img
+          src={`${process.env.PUBLIC_URL}/assets/weather/${type.key}.png`}
+          alt={type.label}
+          onError={(e) => {
+            console.warn(`날씨 아이콘 로드 실패: ${e.target.src}`);
+            setImgFailed(true);
+          }}
+          style={{ width: size, height: size, objectFit: "contain", display: "block" }}
+        />
+      </span>
+    );
+  }
+  return (
+    <span
+      style={{ fontSize: size, lineHeight: 1 }}
+      role="img"
+      aria-label={type.label}
+    >
+      {type.emoji}
+    </span>
+  );
+}
+
+// 도시별 1~12월 평년 월평균 기온(섭씨) — 참고용 근사치입니다.
+// 온도 입력 시 placeholder 제안값 계산에만 쓰이며, 실제 관측치가 아닙니다.
+const TEMP_NORMALS = {
+  제주: [6, 6, 9, 14, 18, 21, 26, 27, 23, 18, 12, 7],
+  부산: [3, 5, 9, 14, 18, 21, 25, 26, 22, 17, 11, 5],
+  강릉: [1, 3, 7, 13, 18, 21, 25, 26, 21, 15, 9, 3],
+  여수: [3, 4, 8, 13, 18, 21, 25, 26, 22, 16, 10, 4],
+  경주: [1, 3, 8, 14, 18, 22, 25, 26, 21, 15, 8, 2],
+  서울: [-2, 0, 6, 12, 18, 22, 25, 26, 21, 14, 7, 0],
+  도쿄: [5, 6, 9, 14, 19, 22, 26, 27, 24, 18, 13, 8],
+  오사카: [6, 6, 10, 15, 20, 24, 28, 29, 25, 19, 14, 8],
+  후쿠오카: [7, 8, 11, 15, 20, 23, 27, 28, 24, 19, 14, 9],
+  삿포로: [-4, -3, 1, 7, 13, 17, 21, 22, 18, 11, 5, -1],
+  나고야: [5, 6, 9, 15, 20, 23, 27, 28, 24, 18, 13, 7],
+  오키나와: [17, 17, 19, 21, 24, 27, 29, 29, 28, 25, 22, 19],
+  상하이: [5, 6, 10, 16, 21, 25, 29, 29, 25, 20, 14, 8],
+  베이징: [-3, 0, 7, 15, 21, 25, 27, 26, 21, 14, 6, -1],
+  청도: [0, 2, 6, 12, 17, 21, 25, 26, 22, 17, 10, 3],
+  광저우: [14, 15, 18, 22, 26, 28, 29, 29, 28, 25, 20, 15],
+  선전: [15, 16, 19, 23, 26, 28, 29, 29, 28, 25, 21, 17],
+  시안: [0, 3, 9, 15, 21, 26, 28, 26, 21, 15, 8, 2],
+  방콕: [27, 28, 30, 30, 30, 30, 29, 29, 28, 28, 28, 27],
+  다낭: [22, 23, 25, 27, 29, 30, 30, 30, 28, 26, 24, 22],
+  발리: [27, 27, 27, 27, 27, 26, 26, 26, 27, 27, 27, 27],
+  세부: [27, 27, 28, 29, 29, 28, 28, 28, 28, 28, 28, 27],
+  싱가포르: [27, 27, 28, 28, 28, 28, 28, 28, 28, 28, 27, 27],
+  코타키나발루: [27, 27, 28, 28, 28, 28, 28, 28, 28, 28, 28, 27],
+  파리: [5, 6, 9, 12, 16, 19, 21, 21, 18, 13, 9, 6],
+  로마: [8, 9, 11, 14, 19, 23, 26, 26, 22, 18, 13, 9],
+  런던: [5, 5, 8, 10, 13, 16, 19, 19, 16, 12, 8, 5],
+  바르셀로나: [10, 11, 13, 15, 18, 22, 25, 25, 22, 18, 14, 11],
+  프라하: [0, 1, 4, 10, 15, 18, 20, 20, 15, 10, 4, 1],
+  암스테르담: [4, 4, 7, 10, 14, 16, 19, 19, 16, 12, 7, 4],
+  뉴욕: [0, 2, 6, 12, 18, 23, 26, 25, 21, 15, 9, 4],
+  LA: [14, 15, 16, 17, 19, 21, 23, 24, 23, 20, 17, 14],
+  라스베가스: [8, 11, 15, 20, 26, 31, 35, 34, 28, 21, 13, 8],
+  샌프란시스코: [11, 12, 13, 14, 15, 16, 17, 17, 18, 17, 14, 11],
+  토론토: [-4, -4, 1, 7, 14, 19, 22, 22, 18, 11, 5, -1],
+  하와이: [23, 23, 24, 25, 26, 27, 27, 28, 28, 27, 25, 24],
+  칸쿤: [25, 25, 26, 27, 28, 29, 29, 29, 29, 28, 26, 25],
+  리오데자네이루: [26, 27, 26, 25, 23, 22, 21, 22, 22, 23, 24, 26],
+  부에노스아이레스: [25, 24, 22, 18, 15, 12, 11, 13, 15, 18, 21, 24],
+  멕시코시티: [13, 15, 17, 19, 19, 19, 18, 18, 18, 17, 15, 13],
+  카이로: [14, 16, 18, 23, 26, 29, 29, 30, 28, 25, 20, 16],
+  케이프타운: [21, 21, 20, 17, 15, 13, 12, 13, 14, 16, 18, 20],
+  마라케시: [12, 14, 17, 19, 23, 26, 30, 30, 26, 22, 17, 13],
+  나이로비: [18, 19, 19, 19, 18, 17, 16, 16, 17, 18, 18, 18],
+  시드니: [23, 23, 22, 19, 16, 14, 13, 14, 16, 19, 20, 22],
+  멜버른: [21, 21, 19, 16, 13, 11, 10, 11, 13, 15, 17, 19],
+  오클랜드: [20, 20, 19, 17, 14, 12, 11, 12, 13, 15, 17, 19],
+  골드코스트: [25, 25, 24, 22, 19, 17, 16, 17, 20, 22, 23, 25],
+};
+
+// 일차의 온도 입력 placeholder 제안값을 우선순위대로 계산:
+// 날짜(월) 기준 도시 평년값 → 여행 지역 대표도시 평년값 → 같은 여행의
+// 앞선 일차 중 가장 가까운 기록값 → 고정 기본값(20). 날짜를 못 구하면
+// 평년값 단계(도시/지역) 없이 곧바로 "앞선 일차" 단계로 넘어간다.
+function getTempSuggestion(state, dayIndex) {
+  let month = null;
+  if (state.tripStart) {
+    const d = new Date(state.tripStart + "T00:00:00");
+    if (!isNaN(d.getTime())) {
+      d.setDate(d.getDate() + dayIndex);
+      month = d.getMonth();
+    }
+  }
+
+  if (month != null) {
+    if (state.tripCity && TEMP_NORMALS[state.tripCity]) {
+      return { value: TEMP_NORMALS[state.tripCity][month], source: "city" };
+    }
+    const region = TRIP_REGIONS.find((r) => r.id === state.selectedRegion);
+    const regionCity = region?.cities?.[0];
+    if (regionCity && TEMP_NORMALS[regionCity]) {
+      return {
+        value: TEMP_NORMALS[regionCity][month],
+        source: "region",
+        city: regionCity,
+      };
+    }
+  }
+
+  const dw = state.dayWeather || {};
+  for (let i = dayIndex - 1; i >= 0; i--) {
+    const rec = dw[i];
+    if (rec && rec.temp != null) {
+      return { value: rec.temp, source: "prev" };
+    }
+  }
+
+  return { value: 20, source: "default" };
+}
 
 // ─── 실시간 환율 조회 ───
 async function fetchExchangeRate(currencyCode) {
@@ -1966,6 +2140,23 @@ function exportArchiveAsPDF(archive) {
   }
 }
 
+// 여행 날짜 기준 실제 일차 범위 안에 있는 날씨 기록만 정렬해 반환
+// (일정이 줄어도 범위 밖 기록은 삭제하지 않고 화면에만 숨긴다)
+function getArchiveDayWeatherList(archive) {
+  const dw = archive.dayWeather || {};
+  let dayCount = Infinity;
+  if (archive.tripStart && archive.tripEnd) {
+    const start = new Date(archive.tripStart + "T00:00:00");
+    const end = new Date(archive.tripEnd + "T00:00:00");
+    dayCount = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  }
+  return Object.keys(dw)
+    .map((k) => parseInt(k, 10))
+    .filter((idx) => !isNaN(idx) && idx >= 0 && idx < dayCount && dw[idx])
+    .sort((a, b) => a - b)
+    .map((idx) => ({ dayIndex: idx, ...dw[idx] }));
+}
+
 // ─── 여행기록 수정 모달 ───
 function ArchiveEditModal({ archive, onSave, onClose }) {
   const [tripName, setTripName] = useState(archive.tripName || "");
@@ -2986,6 +3177,32 @@ function ArchiveScreen({
                     일정 {arc.itinerary?.length || 0}개 · 지출{" "}
                     {arc.expenses?.length || 0}건
                   </p>
+                  {getArchiveDayWeatherList(arc).length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "8px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {getArchiveDayWeatherList(arc).map((w) => (
+                        <span
+                          key={w.dayIndex}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px",
+                            fontSize: "12.5px",
+                          }}
+                        >
+                          {w.dayIndex + 1}일차{" "}
+                          <WeatherIcon weatherKey={w.icon} size={WEATHER_ICON_SIZE.archive} />
+                          {w.temp != null ? `${w.temp}°` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -4966,9 +5183,345 @@ function TextImportModal({ onImport, onClose }) {
   );
 }
 
+// ─── 날씨 입력 모달 ───
+function WeatherEntryModal({
+  dayLabel,
+  initial,
+  suggestion,
+  tripRegion,
+  tripCity,
+  selectedRegion,
+  onSave,
+  onClear,
+  onClose,
+}) {
+  const hasSavedTemp = initial && initial.temp != null;
+  const [selectedIcon, setSelectedIcon] = useState(initial?.icon || null);
+  const [tempStr, setTempStr] = useState(hasSavedTemp ? String(initial.temp) : "");
+
+  const clampTemp = (n) => Math.max(-50, Math.min(60, n));
+
+  // 비어있거나 부호만 있는 상태일 때 -/+/부호전환이 기준으로 삼을 값
+  const baseFromEmpty = () => (suggestion ? suggestion.value : 0);
+
+  const handleTempChange = (v) => {
+    if (v === "" || v === "-") {
+      setTempStr(v);
+      return;
+    }
+    if (!/^-?\d{1,3}$/.test(v)) return;
+    const n = parseInt(v, 10);
+    if (isNaN(n)) return;
+    setTempStr(String(clampTemp(n)));
+  };
+
+  const stepTemp = (delta) => {
+    setTempStr((prev) => {
+      const cur = prev === "" || prev === "-" ? baseFromEmpty() : parseInt(prev, 10);
+      return String(clampTemp((isNaN(cur) ? 0 : cur) + delta));
+    });
+  };
+
+  const toggleSign = () => {
+    setTempStr((prev) => {
+      const cur = prev === "" || prev === "-" ? baseFromEmpty() : parseInt(prev, 10);
+      return String(clampTemp(-(isNaN(cur) ? 0 : cur)));
+    });
+  };
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    setTempStr(String(clampTemp(suggestion.value)));
+  };
+
+  const handleSaveClick = () => {
+    if (!selectedIcon) return;
+    const n = parseInt(tempStr, 10);
+    const temp = tempStr === "" || tempStr === "-" || isNaN(n) ? null : clampTemp(n);
+    onSave({ icon: selectedIcon, temp });
+  };
+
+  const showSuggestionChip =
+    !hasSavedTemp && suggestion && suggestion.source !== "default";
+  const suggestionChipLabel =
+    suggestion?.source === "city"
+      ? `평년 약 ${suggestion.value}° 사용`
+      : suggestion?.source === "region"
+        ? `평년 약 ${suggestion.value}° 사용 (${suggestion.city} 기준)`
+        : suggestion?.source === "prev"
+          ? `전날 기록 ${suggestion.value}° 사용`
+          : "";
+
+  const linkInfo =
+    tripRegion === "domestic" ? WEATHER_LINKS.domestic : WEATHER_LINKS.overseas;
+  const regionLabel = TRIP_REGIONS.find((r) => r.id === selectedRegion)?.label;
+  const caption = tripCity
+    ? `${tripCity} 날씨는 사이트에서 확인해요`
+    : regionLabel
+      ? `${regionLabel} 날씨는 사이트에서 확인해요`
+      : "날씨는 사이트에서 확인해요";
+
+  return (
+    <ModalWrapper onClose={onClose}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "18px",
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: theme.text }}>
+          {dayLabel} 날씨 기록
+        </h3>
+        <button
+          onClick={onClose}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: "22px",
+            cursor: "pointer",
+            color: theme.textLight,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "8px",
+          marginBottom: "20px",
+        }}
+      >
+        {WEATHER_TYPES.map((w) => {
+          const isActive = selectedIcon === w.key;
+          return (
+            <button
+              key={w.key}
+              onClick={() => setSelectedIcon(w.key)}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "4px",
+                padding: "10px 6px",
+                border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
+                borderRadius: theme.radiusSm,
+                background: isActive ? theme.primaryLight : theme.bgCard,
+                cursor: "pointer",
+              }}
+            >
+              <WeatherIcon weatherKey={w.key} size={WEATHER_ICON_SIZE.picker} />
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  color: isActive ? theme.primary : theme.textSub,
+                }}
+              >
+                {w.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginBottom: "20px" }}>
+        <label
+          style={{
+            display: "block",
+            fontSize: "13px",
+            fontWeight: "700",
+            color: theme.textSub,
+            marginBottom: "6px",
+          }}
+        >
+          기온 (°C, 선택)
+        </label>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => stepTemp(-1)}
+            style={{
+              width: "40px",
+              height: "40px",
+              flexShrink: 0,
+              border: `1.5px solid ${theme.border}`,
+              borderRadius: theme.radiusSm,
+              background: theme.bgCard,
+              color: theme.text,
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "700",
+            }}
+          >
+            −
+          </button>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={tempStr}
+            onChange={(e) => handleTempChange(e.target.value)}
+            placeholder={suggestion ? String(suggestion.value) : "예: 24"}
+            style={{
+              flex: 1,
+              width: "100%",
+              padding: "11px 14px",
+              border: `1.5px solid ${theme.border}`,
+              borderRadius: theme.radiusSm,
+              fontSize: "15px",
+              fontWeight: "600",
+              color: theme.text,
+              background: theme.bgCard,
+              outline: "none",
+              textAlign: "center",
+              boxSizing: "border-box",
+              fontFamily: "inherit",
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => stepTemp(1)}
+            style={{
+              width: "40px",
+              height: "40px",
+              flexShrink: 0,
+              border: `1.5px solid ${theme.border}`,
+              borderRadius: theme.radiusSm,
+              background: theme.bgCard,
+              color: theme.text,
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "700",
+            }}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={toggleSign}
+            title="부호 전환"
+            style={{
+              width: "40px",
+              height: "40px",
+              flexShrink: 0,
+              border: `1.5px solid ${theme.border}`,
+              borderRadius: theme.radiusSm,
+              background: theme.bgCard,
+              color: theme.text,
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "700",
+            }}
+          >
+            ±
+          </button>
+        </div>
+        {showSuggestionChip && (
+          <button
+            type="button"
+            onClick={applySuggestion}
+            style={{
+              marginTop: "8px",
+              padding: "5px 10px",
+              border: `1px solid ${theme.border}`,
+              borderRadius: theme.radiusFull,
+              background: theme.bgInput,
+              color: theme.textSub,
+              fontSize: "11.5px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            {suggestionChipLabel}
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          onClick={onClear}
+          style={{
+            flex: 1,
+            padding: "14px",
+            background: "#FEE2E2",
+            color: "#B91C1C",
+            border: "none",
+            borderRadius: theme.radius,
+            fontSize: "15px",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+        >
+          지우기
+        </button>
+        <button
+          onClick={handleSaveClick}
+          disabled={!selectedIcon}
+          style={{
+            flex: 2,
+            padding: "14px",
+            background: selectedIcon ? theme.primary : theme.bgInput,
+            color: selectedIcon ? theme.textWhite : theme.textSub,
+            border: selectedIcon ? "none" : `1.5px dashed ${theme.border}`,
+            borderRadius: theme.radius,
+            fontSize: "15px",
+            fontWeight: "700",
+            cursor: selectedIcon ? "pointer" : "not-allowed",
+          }}
+        >
+          저장
+        </button>
+      </div>
+      {!selectedIcon && (
+        <div
+          style={{
+            fontSize: "11.5px",
+            color: theme.textLight,
+            textAlign: "center",
+            marginTop: "8px",
+          }}
+        >
+          아이콘을 선택하면 저장할 수 있어요
+        </div>
+      )}
+
+      <div style={{ marginTop: "18px", textAlign: "center" }}>
+        <div style={{ fontSize: "12px", color: theme.textSub, marginBottom: "6px" }}>
+          {caption}
+        </div>
+        <a
+          href={linkInfo.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-block",
+            padding: "9px 16px",
+            borderRadius: theme.radiusFull,
+            border: `1.5px solid ${theme.border}`,
+            background: theme.bgInput,
+            color: theme.text,
+            fontSize: "13px",
+            fontWeight: "700",
+            textDecoration: "none",
+          }}
+        >
+          {linkInfo.label} 바로가기 ↗
+        </a>
+        <div style={{ fontSize: "10.5px", color: theme.textLight, marginTop: "6px" }}>
+          외부 사이트로 이동해요
+        </div>
+      </div>
+    </ModalWrapper>
+  );
+}
+
 // ─── Tab Content Components ───
 
-function ItineraryTab({ state, setState }) {
+function ItineraryTab({ state, setState, isMobile }) {
   const days = [];
   if (state.tripStart && state.tripEnd) {
     const start = new Date(state.tripStart + "T00:00:00");
@@ -4988,9 +5541,28 @@ function ItineraryTab({ state, setState }) {
   const [bulkInputOpen, setBulkInputOpen] = useState(false);
   const [aiPromptOpen, setAiPromptOpen] = useState(false);
   const [textImportOpen, setTextImportOpen] = useState(false);
+  const [weatherModalOpen, setWeatherModalOpen] = useState(false);
   const fileRef = useRef(null);
 
   const isOverseas = state.tripRegion === "overseas";
+  const currentDayWeather = state.dayWeather?.[selectedDay] || null;
+
+  const handleSaveWeather = (w) => {
+    setState((prev) => ({
+      ...prev,
+      dayWeather: { ...(prev.dayWeather || {}), [selectedDay]: w },
+    }));
+    setWeatherModalOpen(false);
+  };
+
+  const handleClearWeather = () => {
+    setState((prev) => {
+      const next = { ...(prev.dayWeather || {}) };
+      delete next[selectedDay];
+      return { ...prev, dayWeather: next };
+    });
+    setWeatherModalOpen(false);
+  };
 
   const daySlots = state.itinerary
     .filter((s) => s.day === selectedDay)
@@ -5209,6 +5781,40 @@ function ItineraryTab({ state, setState }) {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Day Weather */}
+      {days.length > 0 && (
+        <div style={{ padding: "0 20px 12px" }}>
+          <button
+            onClick={() => setWeatherModalOpen(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 12px",
+              border: `1.5px solid ${currentDayWeather ? theme.primary : theme.border}`,
+              borderRadius: theme.radiusFull,
+              background: currentDayWeather ? theme.primaryLight : theme.bgInput,
+              color: currentDayWeather ? theme.primary : theme.textSub,
+              fontSize: "12.5px",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            {currentDayWeather ? (
+              <>
+                <WeatherIcon
+                  weatherKey={currentDayWeather.icon}
+                  size={isMobile ? WEATHER_ICON_SIZE.chip : WEATHER_ICON_SIZE.chipDesktop}
+                />
+                {currentDayWeather.temp != null ? `${currentDayWeather.temp}°` : ""}
+              </>
+            ) : (
+              "+ 날씨"
+            )}
+          </button>
         </div>
       )}
 
@@ -5694,6 +6300,19 @@ function ItineraryTab({ state, setState }) {
         <TextImportModal
           onImport={handleTextImport}
           onClose={() => setTextImportOpen(false)}
+        />
+      )}
+      {weatherModalOpen && (
+        <WeatherEntryModal
+          dayLabel={`${selectedDay + 1}일차`}
+          initial={currentDayWeather}
+          suggestion={getTempSuggestion(state, selectedDay)}
+          tripRegion={state.tripRegion}
+          tripCity={state.tripCity}
+          selectedRegion={state.selectedRegion}
+          onSave={handleSaveWeather}
+          onClear={handleClearWeather}
+          onClose={() => setWeatherModalOpen(false)}
         />
       )}
     </div>
@@ -10608,6 +11227,30 @@ function ArchiveModal({ archives, onClose, onDeleteArchive, onEditArchive }) {
                           value: `${(arc.expenses || []).length}건 · ${Math.round(totalSpent).toLocaleString()}원`,
                         },
                         {
+                          label: "날씨",
+                          value:
+                            getArchiveDayWeatherList(arc).length > 0
+                              ? getArchiveDayWeatherList(arc).map((w) => (
+                                  <span
+                                    key={w.dayIndex}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "3px",
+                                      marginRight: "10px",
+                                    }}
+                                  >
+                                    {w.dayIndex + 1}일차{" "}
+                                    <WeatherIcon
+                                      weatherKey={w.icon}
+                                      size={WEATHER_ICON_SIZE.archive}
+                                    />{" "}
+                                    {w.temp != null ? `${w.temp}°` : ""}
+                                  </span>
+                                ))
+                              : "-",
+                        },
+                        {
                           label: "동행",
                           value: arc.companionType
                             ? `${arc.companionType} ${arc.companionCount || ""}명`
@@ -10871,6 +11514,7 @@ function SettingsTab({
     tripRegion: state.tripRegion,
     accommodation: state.accommodation,
     tripCity: state.tripCity,
+    dayWeather: state.dayWeather,
     itinerary: state.itinerary,
     version: "2.0",
   });
@@ -12860,6 +13504,7 @@ export default function App() {
     const newState = migrateTripCity({
       ...pendingImport,
       expenses: pendingImport.expenses || [],
+      dayWeather: pendingImport.dayWeather || {},
       version: "2.0",
     });
     setState(newState);
@@ -13086,7 +13731,7 @@ export default function App() {
   const renderTab = () => {
     switch (currentTab) {
       case "itinerary":
-        return <ItineraryTab state={state} setState={setState} />;
+        return <ItineraryTab state={state} setState={setState} isMobile={isMobile} />;
       case "expense":
         return <ExpenseTab state={state} setState={setState} />;
       case "check":
