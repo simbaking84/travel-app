@@ -4,6 +4,10 @@ import {
   useLayoutEffect,
   useRef,
   useCallback,
+  useMemo,
+  lazy,
+  Suspense,
+  Fragment,
 } from "react";
 import * as XLSX from "xlsx";
 import LZString from "lz-string";
@@ -20,10 +24,82 @@ import AdBanner, {
   MOBILE_AD_RESERVED_HEIGHT_FALLBACK,
   SHOW_PLACEHOLDER,
 } from "./components/AdBanner";
+import { haversineKm, formatDistance } from "./utils/geo";
+
+// 지도 모듈 청크 로드 실패(오프라인, 배포 후 사라진 옛 청크 요청 404 등) 시
+// 대신 보여줄 컴포넌트. LocationPickerModal과 달리 onRetry(재시도)도 받는다.
+function MapLoadErrorFallback({ onClose, onRetry }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2000,
+        background: "var(--t-bg)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+        textAlign: "center",
+        gap: "20px",
+      }}
+    >
+      <div style={{ color: "var(--t-text-sub)", fontSize: "14px", lineHeight: 1.6 }}>
+        지도를 불러오지 못했어요.
+        <br />
+        인터넷 연결을 확인하고 다시 시도해 주세요.
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button
+          onClick={onRetry}
+          style={{
+            padding: "10px 24px",
+            borderRadius: "8px",
+            border: "none",
+            background: "var(--t-primary)",
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          다시 시도
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            padding: "10px 24px",
+            borderRadius: "8px",
+            border: "1px solid var(--t-border)",
+            background: "var(--t-bg-card)",
+            color: "var(--t-text-sub)",
+            fontSize: "14px",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          닫기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 메인 번들에 지도 라이브러리(maplibre-gl)가 포함되지 않도록 지연 로딩한다.
+// 청크 로드가 실패하면(오프라인, 배포 후 사라진 옛 청크 404 등) import()가 reject되어
+// lazy 컴포넌트가 렌더링 중 그 에러를 던지는데, 이 범위에 에러 바운더리를 따로 두는 대신
+// .catch로 실패를 흡수해 안내용 대체 컴포넌트를 반환한다(앱 전체가 깨지는 것을 방지).
+// lazy()는 한 번 실패(=resolve된) 결과를 계속 재사용하므로, 첫 로드는 이 공유 인스턴스를
+// 쓰되 "다시 시도"를 누르면 SlotEditorModal에서 매번 새 lazy()를 만들어 다시 import한다.
+function loadLocationPickerModule() {
+  return import("./map/LocationPickerModal").catch(() => ({ default: MapLoadErrorFallback }));
+}
+const LocationPickerModal = lazy(loadLocationPickerModule);
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.22.2";
+const APP_VERSION = "v2.23.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -3496,6 +3572,45 @@ function getMapUrl(place, isOverseas) {
   return `https://map.naver.com/v5/search/${encodeURIComponent(cleaned)}`;
 }
 
+// 일정 카드 사이에 표시하는 직선거리 배지. 이전/현재 일정 둘 다 좌표가 있을 때만 쓰인다.
+function DistanceBadge({ label }) {
+  const [showInfo, setShowInfo] = useState(false);
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+        paddingLeft: "44px",
+        fontSize: "12px",
+        color: theme.textLight,
+      }}
+    >
+      <span>📏 직선 {label}</span>
+      <button
+        onClick={() => setShowInfo((v) => !v)}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: theme.textLight,
+          fontSize: "12px",
+          padding: "2px",
+          lineHeight: 1,
+        }}
+        aria-label="거리 안내"
+      >
+        ⓘ
+      </button>
+      {showInfo && (
+        <span style={{ fontSize: "11.5px" }}>
+          지도상 직선거리예요. 실제 이동 거리는 도로 상황에 따라 더 길 수 있어요.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function parseCSV(text) {
   const timeMap = {
     morning: "09:00",
@@ -4192,7 +4307,7 @@ function TripInProgressModal({ tripName, onClose, onGoToTrip }) {
   );
 }
 
-function SlotEditorModal({ slot, day, onSave, onClose }) {
+function SlotEditorModal({ slot, day, state, onSave, onClose }) {
   const [form, setForm] = useState(
     slot
       ? {
@@ -4200,21 +4315,34 @@ function SlotEditorModal({ slot, day, onSave, onClose }) {
           title: slot.title || "",
           place: slot.place || "",
           note: slot.note || "",
+          lat: typeof slot.lat === "number" ? slot.lat : null,
+          lng: typeof slot.lng === "number" ? slot.lng : null,
         }
       : {
           startTime: "09:00",
           title: "",
           place: "",
           note: "",
+          lat: null,
+          lng: null,
         },
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // 0이면 모듈 최초 로드 때부터 공유하는 LocationPickerModal을 그대로 쓰고,
+  // 지도 로드 실패 후 "다시 시도"를 누르면 값을 올려 매번 새 lazy()로 다시 import한다.
+  const [mapLoadAttempt, setMapLoadAttempt] = useState(0);
+  const MapModalComponent = useMemo(
+    () => (mapLoadAttempt === 0 ? LocationPickerModal : lazy(loadLocationPickerModule)),
+    [mapLoadAttempt],
   );
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const isValid = form.title.trim();
+  const hasLocation = typeof form.lat === "number" && typeof form.lng === "number";
 
   const handleSave = () => {
     if (!isValid) return;
-    onSave({
+    const result = {
       id: slot?.id || generateId(),
       day: slot?.day ?? day,
       startTime: form.startTime,
@@ -4222,7 +4350,12 @@ function SlotEditorModal({ slot, day, onSave, onClose }) {
       place: form.place.trim(),
       note: form.note.trim(),
       visited: slot?.visited || false,
-    });
+    };
+    if (hasLocation) {
+      result.lat = form.lat;
+      result.lng = form.lng;
+    }
+    onSave(result);
   };
 
   const inputStyle = {
@@ -4303,14 +4436,78 @@ function SlotEditorModal({ slot, day, onSave, onClose }) {
         </div>
         <div>
           <label style={labelStyle}>장소</label>
-          <input
-            type="text"
-            value={form.place}
-            onChange={(e) => update("place", e.target.value)}
-            placeholder="예: 나고야성 (지도 검색용)"
-            style={inputStyle}
-          />
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="text"
+              value={form.place}
+              onChange={(e) => update("place", e.target.value)}
+              placeholder="예: 나고야성 (지도 검색용)"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              title={hasLocation ? "지정된 위치 보기/수정" : "지도에서 위치 지정"}
+              style={{
+                flexShrink: 0,
+                width: "46px",
+                border: `1.5px solid ${hasLocation ? theme.primary : theme.border}`,
+                borderRadius: theme.radiusSm,
+                background: hasLocation ? theme.primaryLight : theme.bgCard,
+                color: hasLocation ? theme.primary : theme.textLight,
+                fontSize: "18px",
+                cursor: "pointer",
+              }}
+            >
+              📍
+            </button>
+          </div>
         </div>
+        {pickerOpen && (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 2000,
+                  background: theme.bg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: theme.textSub,
+                  fontSize: "14px",
+                }}
+              >
+                지도를 불러오는 중...
+              </div>
+            }
+          >
+            <MapModalComponent
+              key={mapLoadAttempt}
+              slot={{
+                id: slot?.id,
+                day: slot?.day ?? day,
+                startTime: form.startTime,
+                title: form.title,
+                place: form.place,
+                lat: form.lat,
+                lng: form.lng,
+              }}
+              state={state}
+              onSave={({ lat, lng }) => {
+                setForm((p) => ({ ...p, lat, lng }));
+                setPickerOpen(false);
+              }}
+              onClear={() => {
+                setForm((p) => ({ ...p, lat: null, lng: null }));
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+              onRetry={() => setMapLoadAttempt((n) => n + 1)}
+            />
+          </Suspense>
+        )}
         <div>
           <label style={labelStyle}>메모</label>
           <textarea
@@ -5865,9 +6062,25 @@ function ItineraryTab({ state, setState, isMobile }) {
               const mapUrl = slot.place
                 ? getMapUrl(slot.place, isOverseas)
                 : null;
+              const prevSlot = idx > 0 ? daySlots[idx - 1] : null;
+              const showDistance =
+                prevSlot &&
+                typeof prevSlot.lat === "number" &&
+                typeof prevSlot.lng === "number" &&
+                typeof slot.lat === "number" &&
+                typeof slot.lng === "number";
+              const distanceLabel = showDistance
+                ? formatDistance(
+                    haversineKm(
+                      { lat: prevSlot.lat, lng: prevSlot.lng },
+                      { lat: slot.lat, lng: slot.lng },
+                    ),
+                  )
+                : null;
               return (
+                <Fragment key={slot.id}>
+                {showDistance && <DistanceBadge label={distanceLabel} />}
                 <div
-                  key={slot.id}
                   style={{
                     display: "flex",
                     gap: "12px",
@@ -6022,6 +6235,7 @@ function ItineraryTab({ state, setState, isMobile }) {
                     </button>
                   </div>
                 </div>
+                </Fragment>
               );
             })}
           </div>
@@ -6271,6 +6485,7 @@ function ItineraryTab({ state, setState, isMobile }) {
         <SlotEditorModal
           slot={editingSlot}
           day={selectedDay}
+          state={state}
           onSave={handleSaveSlot}
           onClose={() => {
             setEditorOpen(false);
