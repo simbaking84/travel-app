@@ -24,7 +24,7 @@ import AdBanner, {
   MOBILE_AD_RESERVED_HEIGHT_FALLBACK,
   SHOW_PLACEHOLDER,
 } from "./components/AdBanner";
-import { haversineKm, formatDistance } from "./utils/geo";
+import { haversineKm, formatDistanceCompact } from "./utils/geo";
 
 // 지도 모듈 청크 로드 실패(오프라인, 배포 후 사라진 옛 청크 요청 404 등) 시
 // 대신 보여줄 컴포넌트. LocationPickerModal과 달리 onRetry(재시도)도 받는다.
@@ -97,9 +97,77 @@ function loadLocationPickerModule() {
 }
 const LocationPickerModal = lazy(loadLocationPickerModule);
 
+// 일정 지도 보기 청크 로드 실패(오프라인, 배포 후 사라진 옛 청크 요청 404 등) 시
+// 대신 보여줄 컴포넌트. 전체 화면 모달이 아니라 지도 영역 안에만 표시되므로
+// 그 크기에 맞춘 작은 안내로 둔다. 일정 목록 자체는 그대로 유지된다.
+function DayMapLoadErrorFallback({ onRetry, variant = "mobile" }) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: variant === "mobile" ? "35dvh" : "360px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "12px",
+        background: "var(--t-bg-input)",
+        padding: "20px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ color: "var(--t-text-sub)", fontSize: "13px", lineHeight: 1.6 }}>
+        지도를 불러오지 못했어요
+      </div>
+      <button
+        onClick={onRetry}
+        style={{
+          padding: "8px 20px",
+          borderRadius: "8px",
+          border: "none",
+          background: "var(--t-primary)",
+          color: "#fff",
+          fontSize: "13px",
+          fontWeight: "700",
+          cursor: "pointer",
+        }}
+      >
+        다시 시도
+      </button>
+    </div>
+  );
+}
+
+// 지도 모듈과 동일한 이유로 메인 번들에 포함되지 않도록 지연 로딩한다.
+// 좌표가 있는 일정이 있을 때만(=부모가 렌더링할 때만) 청크를 요청한다.
+function loadDayMapViewModule() {
+  return import("./map/DayMapView").catch(() => ({ default: DayMapLoadErrorFallback }));
+}
+const DayMapView = lazy(loadDayMapViewModule);
+
+// PC 2단 레이아웃의 우측 패널에서 쓰는 지도 래퍼(손잡이 없이 패널 높이에 맞춤).
+// ItineraryTab의 모바일 지도와 같은 재시도 패턴(실패 시 매번 새 lazy()로 다시 import)을 쓴다.
+function PCItineraryMapView({ slots, selectedSlotId, onSelectSlot }) {
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const MapViewComponent = useMemo(
+    () => (loadAttempt === 0 ? DayMapView : lazy(loadDayMapViewModule)),
+    [loadAttempt],
+  );
+  return (
+    <MapViewComponent
+      key={loadAttempt}
+      slots={slots}
+      selectedSlotId={selectedSlotId}
+      onSelectSlot={onSelectSlot}
+      variant="desktop"
+      onRetry={() => setLoadAttempt((n) => n + 1)}
+    />
+  );
+}
+
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.23.0";
+const APP_VERSION = "v2.24.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -638,6 +706,23 @@ function getTripPhase(tripStart, tripEnd) {
   return "during";
 }
 
+// 일정 탭에서 유효한 일차 개수(0 ~ 반환값-1). 여행 기간과, 기간 밖에 저장된
+// 일정(day)이 있을 수도 있으니 그 중 더 큰 쪽을 기준으로 삼는다.
+function getItineraryDayCount(state) {
+  if (!state) return 0;
+  let fromDates = 0;
+  if (state.tripStart && state.tripEnd) {
+    const start = new Date(state.tripStart + "T00:00:00");
+    const end = new Date(state.tripEnd + "T00:00:00");
+    fromDates = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  }
+  const fromItinerary = (state.itinerary || []).reduce(
+    (max, s) => Math.max(max, (typeof s.day === "number" ? s.day : -1) + 1),
+    0,
+  );
+  return Math.max(fromDates, fromItinerary);
+}
+
 function getDday(tripStart) {
   if (!tripStart) return null;
   const today = new Date();
@@ -656,6 +741,24 @@ function formatDate(dateStr) {
   const day = d.getDate();
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
   return `${m}/${day}(${weekdays[d.getDay()]})`;
+}
+
+// src/map/mapConfig.js의 isDarkBackground()와 같은 방식(배경색 밝기 직접 판정)의
+// 축소 복사본. mapConfig.js를 그대로 import하면 maplibre-gl이 메인 번들에 끌려
+// 들어와 지도 지연 로딩이 깨지므로, 여기서는 의존성 없는 이 작은 버전을 따로 둔다.
+function isDarkBackground() {
+  if (typeof document === "undefined") return false;
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue("--t-bg")
+    .trim();
+  const hex = raw.replace("#", "");
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return false;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
 }
 
 function loadState() {
@@ -3572,41 +3675,31 @@ function getMapUrl(place, isOverseas) {
   return `https://map.naver.com/v5/search/${encodeURIComponent(cleaned)}`;
 }
 
-// 일정 카드 사이에 표시하는 직선거리 배지. 이전/현재 일정 둘 다 좌표가 있을 때만 쓰인다.
+// 일정 카드 사이의 레일(세로 연결선) 위에 표시하는 직선거리 태그.
+// 이전/현재 일정 둘 다 좌표가 있을 때만 쓰인다(번호 원 레일과 폭을 맞춤).
+// 번호 원들을 잇는 하나의 연속된 세로선(타임라인 바깥의 absolute div, 레일) 위에
+// 걸쳐 보이도록, 이 자체는 선을 그리지 않고 태그만 레일 중심(14px)에 겹쳐 놓는다.
 function DistanceBadge({ label }) {
-  const [showInfo, setShowInfo] = useState(false);
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "4px",
-        paddingLeft: "44px",
-        fontSize: "12px",
-        color: theme.textLight,
-      }}
-    >
-      <span>📏 직선 {label}</span>
-      <button
-        onClick={() => setShowInfo((v) => !v)}
+    <div style={{ position: "relative", height: "20px" }}>
+      <span
         style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: theme.textLight,
-          fontSize: "12px",
-          padding: "2px",
-          lineHeight: 1,
+          position: "absolute",
+          left: "14px",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 1,
+          fontSize: "11.5px",
+          fontWeight: "700",
+          color: theme.textSub,
+          background: theme.bgInput,
+          padding: "2px 9px",
+          borderRadius: theme.radiusFull,
+          whiteSpace: "nowrap",
         }}
-        aria-label="거리 안내"
       >
-        ⓘ
-      </button>
-      {showInfo && (
-        <span style={{ fontSize: "11.5px" }}>
-          지도상 직선거리예요. 실제 이동 거리는 도로 상황에 따라 더 길 수 있어요.
-        </span>
-      )}
+        {label}
+      </span>
     </div>
   );
 }
@@ -4307,7 +4400,7 @@ function TripInProgressModal({ tripName, onClose, onGoToTrip }) {
   );
 }
 
-function SlotEditorModal({ slot, day, state, onSave, onClose }) {
+function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen = false }) {
   const [form, setForm] = useState(
     slot
       ? {
@@ -4327,7 +4420,7 @@ function SlotEditorModal({ slot, day, state, onSave, onClose }) {
           lng: null,
         },
   );
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(initialPickerOpen);
   // 0이면 모듈 최초 로드 때부터 공유하는 LocationPickerModal을 그대로 쓰고,
   // 지도 로드 실패 후 "다시 시도"를 누르면 값을 올려 매번 새 lazy()로 다시 import한다.
   const [mapLoadAttempt, setMapLoadAttempt] = useState(0);
@@ -5718,7 +5811,19 @@ function WeatherEntryModal({
 
 // ─── Tab Content Components ───
 
-function ItineraryTab({ state, setState, isMobile }) {
+function ItineraryTab({
+  state,
+  setState,
+  isMobile,
+  selectedDay,
+  onSelectDay,
+  selectedSlotId,
+  onSelectSlotFromList,
+  onSelectSlotFromMap,
+  mapFocusToken,
+}) {
+  // 위치 없는 번호 원의 다크 테마 대비 보정에만 쓴다(라이트 테마는 그대로 둠).
+  const isDark = isDarkBackground();
   const days = [];
   if (state.tripStart && state.tripEnd) {
     const start = new Date(state.tripStart + "T00:00:00");
@@ -5731,15 +5836,25 @@ function ItineraryTab({ state, setState, isMobile }) {
     }
   }
 
-  const [selectedDay, setSelectedDay] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
+  const [editorOpenPicker, setEditorOpenPicker] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkInputOpen, setBulkInputOpen] = useState(false);
   const [aiPromptOpen, setAiPromptOpen] = useState(false);
   const [textImportOpen, setTextImportOpen] = useState(false);
   const [weatherModalOpen, setWeatherModalOpen] = useState(false);
+  const [flashSlotId, setFlashSlotId] = useState(null);
+  // 0이면 모듈 최초 로드 때부터 공유하는 DayMapView를 그대로 쓰고, 지도 영역의
+  // "다시 시도"를 누르면 값을 올려 매번 새 lazy()로 다시 import한다(LocationPickerModal과 동일 패턴).
+  const [mapViewLoadAttempt, setMapViewLoadAttempt] = useState(0);
+  const MapViewComponent = useMemo(
+    () => (mapViewLoadAttempt === 0 ? DayMapView : lazy(loadDayMapViewModule)),
+    [mapViewLoadAttempt],
+  );
   const fileRef = useRef(null);
+  const cardRefs = useRef({});
+  const flashTimerRef = useRef(null);
 
   const isOverseas = state.tripRegion === "overseas";
   const currentDayWeather = state.dayWeather?.[selectedDay] || null;
@@ -5769,11 +5884,13 @@ function ItineraryTab({ state, setState, isMobile }) {
 
   const handleAddSlot = () => {
     setEditingSlot(null);
+    setEditorOpenPicker(false);
     setEditorOpen(true);
   };
 
-  const handleEditSlot = (slot) => {
+  const handleEditSlot = (slot, openPicker = false) => {
     setEditingSlot(slot);
+    setEditorOpenPicker(openPicker);
     setEditorOpen(true);
   };
 
@@ -5888,6 +6005,35 @@ function ItineraryTab({ state, setState, isMobile }) {
 
   const visitedCount = daySlots.filter((s) => s.visited).length;
 
+  // 지도에 쓰는 형태로 변환. 좌표 없는 일정도 번호(목록과 동일한 번호)를 위해 포함하고,
+  // 핀/점선 생성은 DayMapView 내부에서 좌표가 있는 것만 걸러서 처리한다.
+  const mapSlots = daySlots.map((s, i) => ({
+    id: s.id,
+    number: i + 1,
+    title: s.title,
+    lat: s.lat,
+    lng: s.lng,
+    visited: s.visited,
+  }));
+  const hasAnyCoords = mapSlots.some(
+    (s) => typeof s.lat === "number" && typeof s.lng === "number",
+  );
+
+  // 지도의 핀을 탭했을 때(mapFocusToken 증가) 목록을 해당 카드로 스크롤하고 잠깐 강조한다.
+  // 목록의 번호 원을 탭했을 때는(지도만 이동) 이 효과가 반응하지 않는다.
+  useEffect(() => {
+    if (!selectedSlotId) return;
+    const el = cardRefs.current[selectedSlotId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashSlotId(selectedSlotId);
+    clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setFlashSlotId(null), 1200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapFocusToken]);
+
+  useEffect(() => () => clearTimeout(flashTimerRef.current), []);
+
   return (
     <div>
       {/* Trip Card */}
@@ -5925,7 +6071,7 @@ function ItineraryTab({ state, setState, isMobile }) {
             return (
               <button
                 key={dayIndex}
-                onClick={() => setSelectedDay(dayIndex)}
+                onClick={() => onSelectDay(dayIndex)}
                 style={{
                   flexShrink: 0,
                   padding: "8px 16px",
@@ -5979,6 +6125,56 @@ function ItineraryTab({ state, setState, isMobile }) {
             );
           })}
         </div>
+      )}
+
+      {/* Day Map — PC는 우측 패널(PCRightPanel)에서 같은 지도를 보여주므로 여기서는 모바일만 */}
+      {isMobile && days.length > 0 && (
+        hasAnyCoords ? (
+          <div style={{ marginBottom: "4px" }}>
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    width: "100%",
+                    height: "35dvh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: theme.bgInput,
+                    color: theme.textSub,
+                    fontSize: "13px",
+                  }}
+                >
+                  지도를 불러오는 중...
+                </div>
+              }
+            >
+              <MapViewComponent
+                key={mapViewLoadAttempt}
+                slots={mapSlots}
+                selectedSlotId={selectedSlotId}
+                onSelectSlot={onSelectSlotFromMap}
+                variant="mobile"
+                onRetry={() => setMapViewLoadAttempt((n) => n + 1)}
+              />
+            </Suspense>
+          </div>
+        ) : (
+          <div
+            style={{
+              margin: "0 20px 16px",
+              padding: "16px",
+              borderRadius: theme.radius,
+              background: theme.bgInput,
+              color: theme.textSub,
+              fontSize: "13px",
+              lineHeight: 1.6,
+              textAlign: "center",
+            }}
+          >
+            위치를 지정하면 이날의 동선을 지도에서 볼 수 있어요. 일정의 📍를 눌러 보세요.
+          </div>
+        )
       )}
 
       {/* Day Weather */}
@@ -6056,183 +6252,295 @@ function ItineraryTab({ state, setState, isMobile }) {
       <div style={{ padding: "0 20px 100px" }}>
         {daySlots.length > 0 ? (
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
           >
+            {/* 번호 원들을 잇는 하나의 연속된 레일. 첫/마지막 번호 원의 중심(반지름 14px)
+                사이만 이어서 마지막 카드 아래로 연장되지 않는다. 위치 없는 일정이 있어도
+                끊기지 않는다(일정 순서를 보여주는 UI 레일이며 지도 경로가 아님). */}
+            {daySlots.length > 1 && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: "14px",
+                  top: "14px",
+                  bottom: "14px",
+                  width: "2px",
+                  background: "color-mix(in srgb, var(--t-text) 38%, transparent)",
+                  zIndex: 0,
+                }}
+              />
+            )}
             {daySlots.map((slot, idx) => {
               const mapUrl = slot.place
                 ? getMapUrl(slot.place, isOverseas)
                 : null;
               const prevSlot = idx > 0 ? daySlots[idx - 1] : null;
+              const hasSlotCoords =
+                typeof slot.lat === "number" && typeof slot.lng === "number";
               const showDistance =
                 prevSlot &&
                 typeof prevSlot.lat === "number" &&
                 typeof prevSlot.lng === "number" &&
-                typeof slot.lat === "number" &&
-                typeof slot.lng === "number";
+                hasSlotCoords;
               const distanceLabel = showDistance
-                ? formatDistance(
+                ? formatDistanceCompact(
                     haversineKm(
                       { lat: prevSlot.lat, lng: prevSlot.lng },
                       { lat: slot.lat, lng: slot.lng },
                     ),
                   )
                 : null;
+              const isSelected = selectedSlotId === slot.id;
+              const isFlashed = flashSlotId === slot.id;
+              // 번호 원 3가지 상태: 위치 없음(흰 배경+점선 테두리+회색 숫자),
+              // 좌표 있음+방문완료(회색 배경+✓), 좌표 있음+미방문(primary 배경+번호).
+              const circleVisited = hasSlotCoords && slot.visited;
+              let circleStyle;
+              if (!hasSlotCoords) {
+                // 다크 테마는 테두리·숫자를 텍스트색 60% 불투명도로 올려 대비를 높인다.
+                // 라이트 테마는 기존 모양(테두리색/연한 회색 숫자) 그대로 둔다.
+                circleStyle = isDark
+                  ? {
+                      background: theme.bgCard,
+                      border: "1.5px dashed color-mix(in srgb, var(--t-text) 60%, transparent)",
+                      color: "color-mix(in srgb, var(--t-text) 60%, transparent)",
+                    }
+                  : {
+                      background: theme.bgCard,
+                      border: `1.5px dashed ${theme.border}`,
+                      color: theme.textLight,
+                    };
+              } else if (circleVisited) {
+                circleStyle = { background: "#9CA3AF", border: "none", color: theme.textWhite };
+              } else {
+                circleStyle = { background: theme.primary, border: "none", color: theme.textWhite };
+              }
+              if (isSelected) {
+                circleStyle = { ...circleStyle, border: `2px solid ${theme.primary}` };
+              }
               return (
                 <Fragment key={slot.id}>
                 {showDistance && <DistanceBadge label={distanceLabel} />}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    background: theme.bgCard,
-                    borderRadius: theme.radius,
-                    padding: "14px 16px",
-                    border: `1px solid ${slot.visited ? theme.success + "40" : theme.borderLight}`,
-                    boxShadow: theme.shadow,
-                    alignItems: "flex-start",
-                    opacity: slot.visited ? 0.7 : 1,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {/* Visit Check */}
-                  <button
-                    onClick={() => handleToggleVisited(slot.id)}
+                <div style={{ display: "flex", gap: "12px" }}>
+                  {/* Rail: 번호 원(레일 세로선은 목록 바깥의 absolute div 하나로 통일) */}
+                  <div
                     style={{
                       width: "28px",
-                      height: "28px",
-                      borderRadius: "50%",
-                      border: `2px solid ${slot.visited ? theme.success : theme.border}`,
-                      background: slot.visited ? theme.success : "transparent",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
                       flexShrink: 0,
-                      marginTop: "1px",
-                      transition: "all 0.15s",
-                      fontSize: "13px",
-                      color: theme.textWhite,
-                    }}
-                  >
-                    {slot.visited ? "✓" : ""}
-                  </button>
-
-                  {/* Time */}
-                  <div
-                    style={{
-                      minWidth: "44px",
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      color: slot.visited ? theme.textLight : theme.primary,
-                      paddingTop: "3px",
-                    }}
-                  >
-                    {slot.startTime || "--:--"}
-                  </div>
-
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: "15px",
-                        fontWeight: "700",
-                        color: slot.visited ? theme.textLight : theme.text,
-                        letterSpacing: "-0.2px",
-                        textDecoration: slot.visited ? "line-through" : "none",
-                      }}
-                    >
-                      {slot.title}
-                    </div>
-                    {slot.place && (
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          color: theme.primary,
-                          marginTop: "4px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        {mapUrl ? (
-                          <a
-                            href={mapUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              color: theme.primary,
-                              textDecoration: "none",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "4px",
-                            }}
-                          >
-                            🗺️ {slot.place}
-                          </a>
-                        ) : (
-                          <span>📍 {slot.place}</span>
-                        )}
-                      </div>
-                    )}
-                    {slot.note && (
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          color: theme.textSub,
-                          marginTop: "3px",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {slot.note}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div
-                    style={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: "2px",
-                      flexShrink: 0,
+                      alignItems: "center",
                     }}
                   >
                     <button
-                      onClick={() => handleEditSlot(slot)}
+                      onClick={() => hasSlotCoords && onSelectSlotFromList(slot.id)}
+                      aria-label={`${idx + 1}번 일정${hasSlotCoords ? " 지도에서 보기" : ""}`}
+                      disabled={!hasSlotCoords}
                       style={{
-                        width: "30px",
-                        height: "30px",
+                        position: "relative",
+                        zIndex: 1,
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        ...circleStyle,
+                        fontSize: "12.5px",
+                        fontWeight: "700",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "15px",
-                        borderRadius: "6px",
-                        color: theme.textLight,
+                        cursor: hasSlotCoords ? "pointer" : "default",
+                        flexShrink: 0,
+                        boxShadow: isSelected ? theme.shadowMd : "none",
+                        transition: "all 0.15s",
                       }}
                     >
-                      ✏️
+                      {circleVisited ? "✓" : idx + 1}
                     </button>
+                  </div>
+
+                  {/* Card */}
+                  <div
+                    ref={(el) => {
+                      cardRefs.current[slot.id] = el;
+                    }}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      display: "flex",
+                      gap: "12px",
+                      background: isFlashed ? theme.primaryLight : theme.bgCard,
+                      borderRadius: theme.radius,
+                      padding: "14px 16px",
+                      border: `1px solid ${slot.visited ? theme.success + "40" : theme.borderLight}`,
+                      boxShadow: theme.shadow,
+                      alignItems: "flex-start",
+                      opacity: slot.visited ? 0.7 : 1,
+                      transition: "background 0.3s, opacity 0.2s",
+                    }}
+                  >
+                    {/* Visit Check */}
                     <button
-                      onClick={() => handleDeleteSlot(slot)}
+                      onClick={() => handleToggleVisited(slot.id)}
                       style={{
-                        width: "30px",
-                        height: "30px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        border: `2px solid ${slot.visited ? theme.success : theme.border}`,
+                        background: slot.visited ? theme.success : "transparent",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: "none",
-                        border: "none",
                         cursor: "pointer",
-                        fontSize: "15px",
-                        borderRadius: "6px",
-                        color: theme.textLight,
+                        flexShrink: 0,
+                        marginTop: "1px",
+                        transition: "all 0.15s",
+                        fontSize: "13px",
+                        color: theme.textWhite,
                       }}
                     >
-                      🗑️
+                      {slot.visited ? "✓" : ""}
                     </button>
+
+                    {/* Time */}
+                    <div
+                      style={{
+                        minWidth: "44px",
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        color: slot.visited ? theme.textLight : theme.primary,
+                        paddingTop: "3px",
+                      }}
+                    >
+                      {slot.startTime || "--:--"}
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: "700",
+                          color: slot.visited ? theme.textLight : theme.text,
+                          letterSpacing: "-0.2px",
+                          textDecoration: slot.visited ? "line-through" : "none",
+                        }}
+                      >
+                        {slot.title}
+                      </div>
+                      {slot.place && (
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: theme.primary,
+                            marginTop: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          {mapUrl ? (
+                            <a
+                              href={mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: theme.primary,
+                                textDecoration: "none",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              🗺️ {slot.place}
+                            </a>
+                          ) : (
+                            <span>📍 {slot.place}</span>
+                          )}
+                        </div>
+                      )}
+                      {slot.note && (
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: theme.textSub,
+                            marginTop: "3px",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {slot.note}
+                        </div>
+                      )}
+                      {!hasSlotCoords && (
+                        <button
+                          onClick={() => handleEditSlot(slot, true)}
+                          style={{
+                            marginTop: "6px",
+                            padding: "3px 10px",
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: theme.radiusFull,
+                            background: theme.bgInput,
+                            color: theme.textSub,
+                            fontSize: "11.5px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                          }}
+                        >
+                          📍 위치 지정
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <button
+                        onClick={() => handleEditSlot(slot)}
+                        style={{
+                          width: "30px",
+                          height: "30px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "15px",
+                          borderRadius: "6px",
+                          color: theme.textLight,
+                        }}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSlot(slot)}
+                        style={{
+                          width: "30px",
+                          height: "30px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "15px",
+                          borderRadius: "6px",
+                          color: theme.textLight,
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 </div>
                 </Fragment>
@@ -6486,6 +6794,7 @@ function ItineraryTab({ state, setState, isMobile }) {
           slot={editingSlot}
           day={selectedDay}
           state={state}
+          initialPickerOpen={editorOpenPicker}
           onSave={handleSaveSlot}
           onClose={() => {
             setEditorOpen(false);
@@ -12864,7 +13173,7 @@ function SettingsTab({
 
 // ─── Main App ───
 // ─── PC 우측 패널 (탭별 요약) ───
-function PCRightPanel({ tab, state, setState }) {
+function PCRightPanel({ tab, state, setState, selectedDay, selectedSlotId, onSelectSlotFromMap }) {
   const rate = state.rate || 1;
   const toKRW = (e) => (e.currency === "KRW" ? e.amount : e.amount * rate);
   const totalSpent = (state.expenses || []).reduce((s, e) => s + toKRW(e), 0);
@@ -12919,8 +13228,70 @@ function PCRightPanel({ tab, state, setState }) {
     }
     const totalSlots = (state.itinerary || []).length;
     const visited = (state.itinerary || []).filter((s) => s.visited).length;
+
+    const daySlotsForMap = (state.itinerary || [])
+      .filter((s) => s.day === selectedDay)
+      .sort((a, b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
+    const mapSlotsForPanel = daySlotsForMap.map((s, i) => ({
+      id: s.id,
+      number: i + 1,
+      title: s.title,
+      lat: s.lat,
+      lng: s.lng,
+      visited: s.visited,
+    }));
+    const hasAnyCoordsForPanel = mapSlotsForPanel.some(
+      (s) => typeof s.lat === "number" && typeof s.lng === "number",
+    );
+
     return (
       <div>
+        {/* 같은 지도 — 모바일 ItineraryTab 안의 지도와 동일(손잡이 없이 패널 높이에 맞춤) */}
+        {days.length > 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            {hasAnyCoordsForPanel ? (
+              <Suspense
+                fallback={
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "360px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: theme.bgInput,
+                      color: theme.textSub,
+                      fontSize: "13px",
+                      borderRadius: theme.radius,
+                    }}
+                  >
+                    지도를 불러오는 중...
+                  </div>
+                }
+              >
+                <PCItineraryMapView
+                  slots={mapSlotsForPanel}
+                  selectedSlotId={selectedSlotId}
+                  onSelectSlot={onSelectSlotFromMap}
+                />
+              </Suspense>
+            ) : (
+              <div
+                style={{
+                  padding: "16px",
+                  borderRadius: theme.radius,
+                  background: theme.bgInput,
+                  color: theme.textSub,
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                  textAlign: "center",
+                }}
+              >
+                위치를 지정하면 이날의 동선을 지도에서 볼 수 있어요. 일정의 📍를 눌러 보세요.
+              </div>
+            )}
+          </div>
+        )}
         {/* D-day 카드 */}
         {dday && (
           <div
@@ -13325,6 +13696,24 @@ export default function App() {
   const [screen, setScreen] = useState("loading");
   const [loadingScreenDone, setLoadingScreenDone] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
+  // 일정 탭의 선택된 일차/일정. PC에서는 좌측 타임라인과 우측 지도 패널이
+  // 같은 지도를 보여줘야 하므로 ItineraryTab 내부 state가 아니라 여기서 공유한다.
+  const [selectedItineraryDay, setSelectedItineraryDay] = useState(0);
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
+  // 지도의 핀을 탭해 목록을 스크롤/강조해야 할 때만 증가시키는 토큰.
+  // 목록의 번호 원을 탭했을 때(지도만 이동)와 구분하기 위함.
+  const [mapFocusToken, setMapFocusToken] = useState(0);
+  const handleSelectItineraryDay = (dayIndex) => {
+    setSelectedItineraryDay(dayIndex);
+    setSelectedSlotId(null);
+  };
+  const handleSelectSlotFromList = (slotId) => {
+    setSelectedSlotId(slotId);
+  };
+  const handleSelectSlotFromMap = (slotId) => {
+    setSelectedSlotId(slotId);
+    setMapFocusToken((t) => t + 1);
+  };
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showExitPending, setShowExitPending] = useState(false);
   // "종료" 확정 직후 우리가 직접 발생시키는 history.go() 네비게이션을
@@ -13943,10 +14332,36 @@ export default function App() {
     return null;
   }
 
+  // 새 여행 시작/여행 종료/데이터 복원/가져오기 등으로 state가 통째로 바뀌어도
+  // selectedItineraryDay가 이전 여행의 일차를 계속 가리키지 않도록, 저장된
+  // 값이 아니라 매 렌더마다 현재 여행 기준으로 보정한 값을 자식에게 내려준다
+  // (이 지점 외에는 손대지 않는, 가장 작은 변경).
+  const itineraryDayCount = getItineraryDayCount(state);
+  const effectiveSelectedDay =
+    selectedItineraryDay >= 0 && selectedItineraryDay < itineraryDayCount
+      ? selectedItineraryDay
+      : 0;
+  const effectiveSelectedSlotId =
+    selectedSlotId && (state.itinerary || []).some((s) => s.id === selectedSlotId)
+      ? selectedSlotId
+      : null;
+
   const renderTab = () => {
     switch (currentTab) {
       case "itinerary":
-        return <ItineraryTab state={state} setState={setState} isMobile={isMobile} />;
+        return (
+          <ItineraryTab
+            state={state}
+            setState={setState}
+            isMobile={isMobile}
+            selectedDay={effectiveSelectedDay}
+            onSelectDay={handleSelectItineraryDay}
+            selectedSlotId={effectiveSelectedSlotId}
+            onSelectSlotFromList={handleSelectSlotFromList}
+            onSelectSlotFromMap={handleSelectSlotFromMap}
+            mapFocusToken={mapFocusToken}
+          />
+        );
       case "expense":
         return <ExpenseTab state={state} setState={setState} />;
       case "check":
@@ -14158,6 +14573,9 @@ export default function App() {
                 tab={currentTab}
                 state={state}
                 setState={setState}
+                selectedDay={effectiveSelectedDay}
+                selectedSlotId={effectiveSelectedSlotId}
+                onSelectSlotFromMap={handleSelectSlotFromMap}
               />
             </div>
           </div>

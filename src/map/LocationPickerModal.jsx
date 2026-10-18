@@ -1,15 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, Marker, config as maplibreConfig } from "maplibre-gl";
+import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// maplibre-gl 워커 경로 설정(WORKER_URL)은 mapConfig.js에서 import 시점에 한 번 적용된다.
 import { getMapStyleUrl } from "./mapConfig";
 import { getTripCenter } from "../data/cityCoords";
-
-// CRA(webpack 5)는 maplibre-gl이 import.meta.url로 계산하는 워커 경로를 정적으로
-// 분석하지 못해 기본값으로는 워커 로드가 실패한다("Worker failed to load").
-// node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs를 public/에 .js로 확장자만 바꿔
-// 그대로 복사해두고(내용 동일) 그 경로를 직접 지정해 우회한다.
-// maplibre-gl을 업그레이드하면 이 파일도 다시 복사(후 .js로 리네임)해야 한다.
-maplibreConfig.WORKER_URL = `${process.env.PUBLIC_URL}/maplibre-gl-worker.js`;
 
 const DEFAULT_ZOOM = 14;
 

@@ -37,3 +37,19 @@ export function formatDistance(km) {
   }
   return `약 ${Math.round(km)}km`;
 }
+
+// formatDistance와 같은 임계값("같은 위치"/m/km 구분)을 쓰되, 레일 위 거리 태그처럼
+// 좁은 공간에 쓰는 짧은 표기("1.4km" / "850m" / "같은 위치", "약"·📏 없음).
+export function formatDistanceCompact(km) {
+  const meters = km * 1000;
+  if (meters < 10) {
+    return "같은 위치";
+  }
+  if (meters < 995) {
+    return `${Math.round(meters / 10) * 10}m`;
+  }
+  if (km < 99.95) {
+    return `${km.toFixed(1)}km`;
+  }
+  return `${Math.round(km)}km`;
+}
