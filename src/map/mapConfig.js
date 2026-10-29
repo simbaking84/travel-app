@@ -1,4 +1,5 @@
 import { config as maplibreConfig } from "maplibre-gl";
+import { prepareOverviewStyle, prepareDetailStyle } from "./mapStyleTransform";
 
 // 지도 서비스 설정을 이 파일 한 곳에만 둔다.
 // 서비스를 바꿀 때(예: OpenFreeMap → 다른 타일 서비스)는 이 파일만 수정하면 된다.
@@ -46,4 +47,54 @@ function isDarkBackground() {
 
 export function getMapStyleUrl() {
   return isDarkBackground() ? MAP_STYLE_URL.dark : MAP_STYLE_URL.light;
+}
+
+// 공식 스타일 JSON은 테마당(light/dark) 세션에서 한 번만 받아오고, 이후 가공 결과도
+// mode+theme 조합별로 캐시해 재사용한다(동일 스타일을 여러 지도 인스턴스가 열 때마다
+// 다시 받아오거나 다시 가공하지 않기 위함).
+const rawStyleFetchCache = new Map(); // theme -> Promise<object>
+const preparedStyleCache = new Map(); // `${mode}:${theme}` -> object
+
+// fetch 실패(네트워크 오류)·응답 오류(res.ok false)·JSON 파싱 오류 중 하나라도 나면
+// 캐시 항목을 지운다 — 지우지 않으면 실패한 Promise를 계속 재사용해 새로고침 전까지
+// 재시도(다시 시도 버튼)가 전부 같은 실패를 즉시 반환하게 된다.
+function fetchRawStyle(theme) {
+  if (!rawStyleFetchCache.has(theme)) {
+    const promise = fetch(MAP_STYLE_URL[theme])
+      .then((res) => {
+        if (!res.ok) throw new Error(`style fetch failed: ${res.status}`);
+        return res.json();
+      })
+      .catch((err) => {
+        rawStyleFetchCache.delete(theme);
+        throw err;
+      });
+    rawStyleFetchCache.set(theme, promise);
+  }
+  return rawStyleFetchCache.get(theme);
+}
+
+// mode: "overview"(일정 지도, 간소화) | "detail"(위치 지정 지도, 전체 디테일 유지).
+// theme을 생략하면 getMapStyleUrl()과 같은 방식(현재 배경색)으로 자동 판단한다.
+// 반환값은 캐시된 가공 결과의 복제본이다 — 여러 지도 인스턴스가 하나의 객체를
+// 동시에 참조하며 MapLibre 내부에서 변형하는 일을 막기 위해 호출마다 복제해 돌려준다.
+export async function getPreparedStyle(mode, theme) {
+  const resolvedTheme = theme || (isDarkBackground() ? "dark" : "light");
+  const cacheKey = `${mode}:${resolvedTheme}`;
+  if (!preparedStyleCache.has(cacheKey)) {
+    try {
+      const raw = await fetchRawStyle(resolvedTheme);
+      const prepared =
+        mode === "detail"
+          ? prepareDetailStyle(raw, resolvedTheme)
+          : prepareOverviewStyle(raw, resolvedTheme);
+      preparedStyleCache.set(cacheKey, prepared);
+    } catch (err) {
+      // 변환 중 예외여도(가공 함수가 던진 경우) 혹시 모를 캐시 잔재를 지워
+      // 다음 호출이 깨끗하게 다시 시도하도록 한다.
+      preparedStyleCache.delete(cacheKey);
+      throw err;
+    }
+  }
+  return structuredClone(preparedStyleCache.get(cacheKey));
 }

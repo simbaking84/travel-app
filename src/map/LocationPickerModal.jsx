@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 // maplibre-gl 워커 경로 설정(WORKER_URL)은 mapConfig.js에서 import 시점에 한 번 적용된다.
-import { getMapStyleUrl } from "./mapConfig";
+import { getPreparedStyle } from "./mapConfig";
 import { getTripCenter } from "../data/cityCoords";
 
 const DEFAULT_ZOOM = 14;
@@ -33,6 +33,7 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const [mapError, setMapError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [pending, setPending] = useState(
     typeof slot?.lat === "number" && typeof slot?.lng === "number"
       ? { lat: slot.lat, lng: slot.lng }
@@ -42,60 +43,83 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
   const hasInitial = typeof slot?.lat === "number" && typeof slot?.lng === "number";
   const previousLocation = findPreviousLocation(state, slot);
 
+  // 스타일 가공(getPreparedStyle)이 비동기(fetch)라, 그 사이 모달이 닫히는 경우를
+  // cancelled 플래그로 막는다. map은 IIFE 밖에서 선언해 클린업 클로저가 최신 값을 읽는다.
   useEffect(() => {
     const center = hasInitial
       ? { lat: slot.lat, lng: slot.lng }
       : getTripCenter(state, slot);
 
-    let map;
-    try {
-      map = new MapLibreMap({
-        container: mapContainerRef.current,
-        style: getMapStyleUrl(),
-        center: [center.lng, center.lat],
-        zoom: DEFAULT_ZOOM,
-        attributionControl: true,
+    let cancelled = false;
+    let map = null;
+
+    (async () => {
+      let style;
+      try {
+        style = await getPreparedStyle("detail");
+      } catch (e) {
+        if (!cancelled) setMapError(true);
+        return;
+      }
+      if (cancelled) return;
+
+      try {
+        map = new MapLibreMap({
+          container: mapContainerRef.current,
+          style,
+          center: [center.lng, center.lat],
+          zoom: DEFAULT_ZOOM,
+          attributionControl: true,
+        });
+      } catch (e) {
+        setMapError(true);
+        return;
+      }
+
+      mapRef.current = map;
+
+      map.on("error", () => setMapError(true));
+
+      map.on("load", () => {
+        // 모달이 열리는 과정에서 컨테이너 크기가 늦게 확정되면 첫 화면이
+        // 빈 채로 남는 경우가 있어, load 시점에 한 번 더 리사이즈/리페인트한다.
+        map.resize();
+        map.triggerRepaint();
+        if (hasInitial) {
+          markerRef.current = new Marker({ color: "#2563EB" })
+            .setLngLat([slot.lng, slot.lat])
+            .addTo(map);
+        }
       });
-    } catch (e) {
-      setMapError(true);
-      return;
-    }
 
-    mapRef.current = map;
-
-    map.on("error", () => setMapError(true));
-
-    map.on("load", () => {
-      // 모달이 열리는 과정에서 컨테이너 크기가 늦게 확정되면 첫 화면이
-      // 빈 채로 남는 경우가 있어, load 시점에 한 번 더 리사이즈/리페인트한다.
-      map.resize();
-      map.triggerRepaint();
-      if (hasInitial) {
-        markerRef.current = new Marker({ color: "#2563EB" })
-          .setLngLat([slot.lng, slot.lat])
-          .addTo(map);
-      }
-    });
-
-    map.on("click", (e) => {
-      const { lng, lat } = e.lngLat;
-      setPending({ lat: round5(lat), lng: round5(lng) });
-      if (markerRef.current) {
-        markerRef.current.setLngLat([lng, lat]);
-      } else {
-        markerRef.current = new Marker({ color: "#2563EB" })
-          .setLngLat([lng, lat])
-          .addTo(map);
-      }
-    });
+      map.on("click", (e) => {
+        const { lng, lat } = e.lngLat;
+        setPending({ lat: round5(lat), lng: round5(lng) });
+        if (markerRef.current) {
+          markerRef.current.setLngLat([lng, lat]);
+        } else {
+          markerRef.current = new Marker({ color: "#2563EB" })
+            .setLngLat([lng, lat])
+            .addTo(map);
+        }
+      });
+    })();
 
     return () => {
-      map.remove();
-      mapRef.current = null;
-      markerRef.current = null;
+      cancelled = true;
+      if (map) {
+        map.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryKey]);
+
+  const handleRetry = () => {
+    setMapError(false);
+    setRetryKey((k) => k + 1);
+  };
 
   const movePin = (coord) => {
     setPending(coord);
@@ -183,8 +207,10 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
               position: "absolute",
               inset: 0,
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
+              gap: "12px",
               background: "var(--t-bg)",
               padding: "24px",
               textAlign: "center",
@@ -195,6 +221,22 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
               <br />
               인터넷 연결을 확인해 주세요.
             </div>
+            <button
+              type="button"
+              onClick={handleRetry}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "8px",
+                border: "none",
+                background: "var(--t-primary)",
+                color: "#fff",
+                fontSize: "13px",
+                fontWeight: "700",
+                cursor: "pointer",
+              }}
+            >
+              다시 시도
+            </button>
           </div>
         )}
 
