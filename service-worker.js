@@ -1,5 +1,5 @@
 // ⚠️ 배포할 때마다 버전 번호를 올려주세요 (캐시 갱신을 위해 필수)
-const CACHE_NAME = 'travel-planner-v39';
+const CACHE_NAME = 'travel-planner-v40';
 
 const CORE_ASSETS = [
   '/',
