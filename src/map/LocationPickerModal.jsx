@@ -28,7 +28,21 @@ function findPreviousLocation(state, slot) {
 // 전체 화면 지도 모달. 일정의 lat/lng를 탭으로 지정/수정/해제한다.
 // 외부로 나가는 요청은 MapLibre가 발생시키는 지도 타일 이미지 요청뿐이며,
 // 일정 제목·장소·메모는 어떤 네트워크 요청에도 포함하지 않는다.
-export default function LocationPickerModal({ slot, state, onSave, onClear, onClose }) {
+// hint/progress/onSkip/skipLabel/primaryLabel은 모두 선택 props다. 기존처럼 넘기지
+// 않으면 지금과 똑같이 동작한다 — AI 추정 위치 확인·위치 없는 일정 일괄 지정처럼
+// 이 모달을 순서대로 여러 번 여는 얇은 래퍼(AiLocationPanel)가 넘겨준다.
+export default function LocationPickerModal({
+  slot,
+  state,
+  onSave,
+  onClear,
+  onClose,
+  hint,
+  progress,
+  onSkip,
+  skipLabel,
+  primaryLabel,
+}) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -163,21 +177,44 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: "15px",
-              fontWeight: 700,
-              color: "var(--t-text)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {slot?.title || "일정"}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div
+              style={{
+                fontSize: "15px",
+                fontWeight: 700,
+                color: "var(--t-text)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+              }}
+            >
+              {slot?.title || "일정"}
+            </div>
+            {progress && (
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "var(--t-text-sub)",
+                  background: "var(--t-bg-input)",
+                  padding: "2px 8px",
+                  borderRadius: "9999px",
+                  flexShrink: 0,
+                }}
+              >
+                {progress}
+              </span>
+            )}
           </div>
           {slot?.place && (
             <div style={{ fontSize: "13px", color: "var(--t-text-sub)", marginTop: "2px" }}>
               {slot.place}
+            </div>
+          )}
+          {hint && (
+            <div style={{ fontSize: "12.5px", color: "var(--t-primary)", marginTop: "6px", lineHeight: 1.5 }}>
+              {hint}
             </div>
           )}
         </div>
@@ -288,7 +325,7 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
             cursor: pending ? "pointer" : "not-allowed",
           }}
         >
-          이 위치로 저장
+          {primaryLabel || "이 위치로 저장"}
         </button>
         <button
           onClick={onClear}
@@ -306,6 +343,24 @@ export default function LocationPickerModal({ slot, state, onSave, onClear, onCl
         >
           위치 지정 해제
         </button>
+        {onSkip && (
+          <button
+            onClick={onSkip}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid var(--t-border)",
+              background: "var(--t-bg-card)",
+              color: "var(--t-text-sub)",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            {skipLabel || "건너뛰기"}
+          </button>
+        )}
         <button
           onClick={onClose}
           style={{

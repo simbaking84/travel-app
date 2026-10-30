@@ -37,6 +37,10 @@ const CITY_CHIP_MAX_KM = 150;
 const hasCoords = (s) =>
   typeof s?.lat === "number" && typeof s?.lng === "number";
 
+// locSource 필드가 없는 기존 데이터는(좌표가 있으면) "manual"로 간주한다.
+// 마이그레이션 코드 없이 읽는 쪽에서 매번 이렇게 보정한다.
+const effectiveLocSource = (s) => s.locSource || (hasCoords(s) ? "manual" : undefined);
+
 function truncateTitle(title) {
   const t = title || "";
   return t.length > 12 ? `${t.slice(0, 12)}…` : t;
@@ -128,10 +132,13 @@ function buildSegments(coordSlots) {
   };
 }
 
-// 선택/다음-일정/방문 여부에 따라 핀 DOM을 직접 갱신한다(마커를 다시 만들지 않기 위해).
-// selected와 isNext는 서로 다른 스타일(테두리색·box-shadow)로 겹치지 않게 구분한다.
+// 선택/다음-일정/방문 여부/추정 위치 여부에 따라 핀 DOM을 직접 갱신한다(마커를 다시
+// 만들지 않기 위해). selected와 isNext는 서로 다른 스타일(테두리색·box-shadow)로
+// 겹치지 않게 구분한다. 추정(locSource "ai") 핀은 흰 배경+파란 점선 테두리+파란 번호로
+// 표시하되, 방문완료(회색 ✓)가 되면 그쪽이 우선한다.
 function setMarkerAppearance(entry, { selected, isNext }) {
-  const { el, labelEl, numberEl, visited, number } = entry;
+  const { el, labelEl, numberEl, visited, number, locSource } = entry;
+  const isAiPending = !visited && locSource === "ai";
   let size = 28;
   let border = "2px solid #fff";
   let boxShadow = "0 1px 4px rgba(0,0,0,0.35)";
@@ -145,11 +152,14 @@ function setMarkerAppearance(entry, { selected, isNext }) {
     border = "3px solid #fff";
     boxShadow = "0 1px 4px rgba(0,0,0,0.35), 0 0 0 3px var(--t-primary)";
     fontSize = "13.5px";
+  } else if (isAiPending) {
+    border = "2px dashed var(--t-primary)";
   }
   el.style.width = `${size}px`;
   el.style.height = `${size}px`;
   el.style.fontSize = fontSize;
-  el.style.background = visited ? GRAY : "var(--t-primary)";
+  el.style.background = visited ? GRAY : isAiPending ? "#fff" : "var(--t-primary)";
+  el.style.color = isAiPending ? "var(--t-primary)" : "#fff";
   el.style.border = border;
   el.style.boxShadow = boxShadow;
   el.style.zIndex = selected ? "5" : isNext ? "4" : "1";
@@ -167,7 +177,6 @@ function createMarkerEntry(slot, opts) {
   el.style.alignItems = "center";
   el.style.justifyContent = "center";
   el.style.borderRadius = "50%";
-  el.style.color = "#fff";
   el.style.fontWeight = "700";
   el.style.fontFamily = "inherit";
   el.style.cursor = "pointer";
@@ -196,7 +205,14 @@ function createMarkerEntry(slot, opts) {
   labelEl.textContent = truncateTitle(slot.title);
   el.appendChild(labelEl);
 
-  const entry = { el, labelEl, numberEl, visited: !!slot.visited, number: slot.number };
+  const entry = {
+    el,
+    labelEl,
+    numberEl,
+    visited: !!slot.visited,
+    number: slot.number,
+    locSource: effectiveLocSource(slot),
+  };
   setMarkerAppearance(entry, opts);
   return entry;
 }
@@ -230,7 +246,7 @@ export default function DayMapView({ slots, selectedSlotId, onSelectSlot, varian
     .map((s) => `${s.id}:${hasCoords(s) ? `${s.lat},${s.lng}` : ""}`)
     .join("|");
   const contentKey = slots
-    .map((s) => `${s.id}:${s.number}:${s.title}:${s.visited ? 1 : 0}`)
+    .map((s) => `${s.id}:${s.number}:${s.title}:${s.visited ? 1 : 0}:${s.locSource || ""}`)
     .join("|");
 
   // 합계는 점선과 같은 구간(좌표 있는 일정을 순서대로 잇는 모든 쌍, 위치 없는
@@ -248,6 +264,7 @@ export default function DayMapView({ slots, selectedSlotId, onSelectSlot, varian
   const cityChipName = findNearestCity(renderCoordSlots);
   const totalLabel = hasPair ? formatDistance(sumKm) : null;
   const locationlessCount = slots.length - coordCount;
+  const hasAiPin = renderCoordSlots.some((s) => effectiveLocSource(s) === "ai");
   // 칩이 좁은 모바일 화면에서 길어지지 않도록, M곳 기준 표기는 모바일에서만
   // ⓘ 설명 쪽으로 옮긴다(PC 패널은 폭이 넉넉해 칩에 그대로 둔다).
   const chipText =
@@ -255,9 +272,10 @@ export default function DayMapView({ slots, selectedSlotId, onSelectSlot, varian
       ? `하루 직선 합계 ${totalLabel}`
       : `하루 직선 합계 ${totalLabel} · ${coordCount}곳 기준`;
   const infoText =
-    variant === "mobile"
+    (variant === "mobile"
       ? `카드 사이 거리는 지도상 직선거리예요. 실제 이동 거리는 도로 상황에 따라 더 길 수 있어요. 좌표가 있는 일정 ${coordCount}곳을 기준으로 계산했어요. 정확한 위치는 일정의 지도 링크로 확인하세요.`
-      : "카드 사이 거리는 지도상 직선거리예요. 실제 이동 거리는 도로 상황에 따라 더 길 수 있어요. 정확한 위치는 일정의 지도 링크로 확인하세요.";
+      : "카드 사이 거리는 지도상 직선거리예요. 실제 이동 거리는 도로 상황에 따라 더 길 수 있어요. 정확한 위치는 일정의 지도 링크로 확인하세요.") +
+    (hasAiPin ? " 점선 핀은 AI가 추정한 위치예요." : "");
 
   // 지도 생성(마운트/재시도 시 1회). 일차 전환으로는 다시 만들지 않는다.
   // 스타일 가공(getPreparedStyle)이 비동기(fetch)라, 컴포넌트가 그 사이 언마운트되거나
@@ -396,6 +414,7 @@ export default function DayMapView({ slots, selectedSlotId, onSelectSlot, varian
       if (!entry) return;
       entry.visited = !!slot.visited;
       entry.number = slot.number;
+      entry.locSource = effectiveLocSource(slot);
       entry.labelEl.textContent = truncateTitle(slot.title);
       setMarkerAppearance(entry, {
         selected: slot.id === selectedSlotId,

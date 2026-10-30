@@ -25,6 +25,8 @@ import AdBanner, {
   SHOW_PLACEHOLDER,
 } from "./components/AdBanner";
 import { haversineKm, formatDistanceCompact } from "./utils/geo";
+import { CITY_COORDS } from "./data/cityCoords";
+import { AI_CONCEPTS, DENSITY_OPTIONS } from "./data/aiConcepts";
 
 // 지도 모듈 청크 로드 실패(오프라인, 배포 후 사라진 옛 청크 요청 404 등) 시
 // 대신 보여줄 컴포넌트. LocationPickerModal과 달리 onRetry(재시도)도 받는다.
@@ -167,7 +169,7 @@ function PCItineraryMapView({ slots, selectedSlotId, onSelectSlot }) {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.25.0";
+const APP_VERSION = "v2.26.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -3704,6 +3706,19 @@ function DistanceBadge({ label }) {
   );
 }
 
+// "35.6586,139.7454" / "35.6586, 139.7454" 형태만 허용. 숫자가 아니거나 위도(-90~90)·
+// 경도(-180~180) 범위를 벗어나면 null(해당 좌표만 무시, 일정 자체는 그대로 가져온다).
+function parseCoordPair(raw) {
+  if (!raw) return null;
+  const parts = raw.split(",").map((p) => p.trim());
+  if (parts.length !== 2) return null;
+  const lat = Number(parts[0]);
+  const lng = Number(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat: Math.round(lat * 100000) / 100000, lng: Math.round(lng * 100000) / 100000 };
+}
+
 function parseCSV(text) {
   const timeMap = {
     morning: "09:00",
@@ -3756,6 +3771,7 @@ function parseCSV(text) {
     "안내",
   ]);
   const placeIdx = findIdx(["place", "장소", "위치", "맛집", "상호명"]);
+  const coordIdx = findIdx(["좌표", "위도경도", "coords", "latlng"]);
   if (titleIdx === -1) return [];
   return lines
     .slice(1)
@@ -3781,6 +3797,7 @@ function parseCSV(text) {
       const startTime = timeMap[rawTime] || rawTime || "09:00";
       const rawDay = dayIdx >= 0 ? cols[dayIdx] || "1" : "1";
       const day = (parseInt(String(rawDay).replace(/[^0-9]/g, "")) || 1) - 1;
+      const coord = coordIdx >= 0 ? parseCoordPair(cols[coordIdx]) : null;
       return {
         id: `it_csv_${Date.now()}_${i}`,
         day: day < 0 ? 0 : day,
@@ -3789,9 +3806,45 @@ function parseCSV(text) {
         place: placeIdx >= 0 ? cols[placeIdx] || "" : "",
         note: noteIdx >= 0 ? cols[noteIdx] || "" : "",
         visited: false,
+        ...(coord ? { lat: coord.lat, lng: coord.lng, locSource: "ai" } : {}),
       };
     })
     .filter((s) => s.title);
+}
+
+function median(nums) {
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+const COORD_RANGE_LIMIT_KM = 100;
+
+// AI가 표의 "좌표" 열에 채워 넣은 값 중 기준 위치(여행 도시 좌표, 없으면 이번에
+// 가져온 좌표들의 위도/경도 중앙값)에서 100km를 넘게 떨어진 것은 버린다(좌표만
+// 제거 — 일정 자체는 위치 없이 그대로 가져온다). excludedCount는 안내 문구용.
+function filterOutOfRangeCoords(slots, tripCity) {
+  const withCoord = slots.filter(
+    (s) => typeof s.lat === "number" && typeof s.lng === "number",
+  );
+  if (withCoord.length === 0) return { slots, excludedCount: 0 };
+  const cityRef = tripCity && CITY_COORDS[tripCity];
+  const reference = cityRef || {
+    lat: median(withCoord.map((s) => s.lat)),
+    lng: median(withCoord.map((s) => s.lng)),
+  };
+  let excludedCount = 0;
+  const result = slots.map((s) => {
+    if (typeof s.lat !== "number" || typeof s.lng !== "number") return s;
+    const km = haversineKm(reference, { lat: s.lat, lng: s.lng });
+    if (km > COORD_RANGE_LIMIT_KM) {
+      excludedCount++;
+      const { lat, lng, locSource, ...rest } = s;
+      return rest;
+    }
+    return s;
+  });
+  return { slots: result, excludedCount };
 }
 
 function parseExcel(data) {
@@ -4421,6 +4474,9 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
         },
   );
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen);
+  // 지도 피커로 위치를 새로 찍거나 해제했을 때만 locSource를 "manual"로 바꾼다.
+  // 제목·메모만 고쳐서 저장할 때는 기존 locSource(ai/ai-ok 포함)를 그대로 둔다.
+  const [locTouched, setLocTouched] = useState(false);
   // 0이면 모듈 최초 로드 때부터 공유하는 LocationPickerModal을 그대로 쓰고,
   // 지도 로드 실패 후 "다시 시도"를 누르면 값을 올려 매번 새 lazy()로 다시 import한다.
   const [mapLoadAttempt, setMapLoadAttempt] = useState(0);
@@ -4447,6 +4503,7 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
     if (hasLocation) {
       result.lat = form.lat;
       result.lng = form.lng;
+      result.locSource = locTouched ? "manual" : slot?.locSource;
     }
     onSave(result);
   };
@@ -4590,10 +4647,12 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
               state={state}
               onSave={({ lat, lng }) => {
                 setForm((p) => ({ ...p, lat, lng }));
+                setLocTouched(true);
                 setPickerOpen(false);
               }}
               onClear={() => {
                 setForm((p) => ({ ...p, lat: null, lng: null }));
+                setLocTouched(true);
                 setPickerOpen(false);
               }}
               onClose={() => setPickerOpen(false)}
@@ -5246,8 +5305,14 @@ function BulkInputModal({ day, totalDays, onSave, onClose }) {
 }
 
 // ─── AI 추천 프롬프트 모달 ───
+const AI_CONCEPT_MAX = 3;
+const AI_CUSTOM_CONCEPT_MAX_LEN = 40;
+
 function AIPromptModal({ state, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [conceptIds, setConceptIds] = useState([]);
+  const [customConcept, setCustomConcept] = useState("");
+  const [densityId, setDensityId] = useState("normal");
   const regionLabel =
     TRIP_REGIONS.find((r) => r.id === state.selectedRegion)?.label || "";
   const destination =
@@ -5264,6 +5329,29 @@ function AIPromptModal({ state, onClose }) {
     ? `${state.companionType} ${state.companionCount || ""}명`
     : "";
 
+  const toggleConcept = (id) => {
+    setConceptIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= AI_CONCEPT_MAX) {
+        alert(`여행 컨셉은 최대 ${AI_CONCEPT_MAX}개까지 선택할 수 있어요.`);
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const selectedConcepts = AI_CONCEPTS.filter((c) => conceptIds.includes(c.id));
+  const trimmedCustomConcept = customConcept.trim();
+  const conceptLines = [
+    ...selectedConcepts.map((c) => `- ${c.prompt}`),
+    trimmedCustomConcept ? `- ${trimmedCustomConcept}` : null,
+  ].filter(Boolean);
+  const conceptSection =
+    conceptLines.length > 0 ? `\n\n[여행 컨셉]\n${conceptLines.join("\n")}` : "";
+  const densityRule =
+    DENSITY_OPTIONS.find((d) => d.id === densityId)?.prompt ||
+    DENSITY_OPTIONS.find((d) => d.id === "normal").prompt;
+
   const prompt = `[역할]
 당신은 여행 일정 전문가다.
 내가 주는 정보를 기반으로 여행 일정표를 만든다.
@@ -5271,19 +5359,20 @@ function AIPromptModal({ state, onClose }) {
 
 [입력값]
 - 도시: ${destination}
-- 기간: ${state.tripStart || "미정"} ~ ${state.tripEnd || "미정"} (${nights}박 ${days}일)${companionText ? `\n- 동행: ${companionText}` : ""}
+- 기간: ${state.tripStart || "미정"} ~ ${state.tripEnd || "미정"} (${nights}박 ${days}일)${companionText ? `\n- 동행: ${companionText}` : ""}${conceptSection}
 
 [출력 형식]
-| 일차 | 시간 | 일정명 | 장소 | 메모 |
-|---|---|---|---|---|
+| 일차 | 시간 | 일정명 | 장소 | 메모 | 좌표 |
+|---|---|---|---|---|---|
 
 [작성 규칙]
 1. 숙소 기준으로 이동 동선을 최소화한다.
-2. 하루 2~4개 주요 일정만 구성한다.
+2. ${densityRule}
 3. 대표 명소 + 근처 맛집을 자연스럽게 연결한다.
 4. 일차는 숫자(1,2,3), 시간은 오전/오후/저녁 중 하나로만 작성한다.
-5. 장소는 구글맵에서 검색 가능한 실제 지명·상호명으로 작성한다.
-6. 메모에는 입장료, 운영시간, 예약 필요 여부를 포함한다.`;
+5. 장소는 지도에서 검색할 수 있는 공식 명칭으로 적는다. 식사·이동·휴식처럼 특정 장소가 없는 일정은 장소를 비워도 된다.
+6. 메모에는 입장료, 운영시간, 예약 필요 여부를 포함한다.
+7. 좌표는 "위도,경도" 형식(예: 35.6586,139.7454)으로 적는다. 정확히 아는 유명한 장소에만 쓰고, 모르면 비운다. 추측해서 만들지 않는다. 식사·이동·휴식처럼 특정 장소가 없는 일정은 장소와 좌표를 비워도 된다.`;
 
   return (
     <ModalWrapper onClose={onClose}>
@@ -5309,6 +5398,102 @@ function AIPromptModal({ state, onClose }) {
         AI가 답해준 표를 그대로 복사해서, 다음 화면에서 "텍스트로 가져오기"로
         붙여넣으면 일정에 바로 추가됩니다.
       </p>
+
+      <div style={{ marginBottom: "14px" }}>
+        <div
+          style={{
+            fontSize: "13px",
+            fontWeight: "700",
+            color: theme.textSub,
+            marginBottom: "8px",
+          }}
+        >
+          일정 밀도
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {DENSITY_OPTIONS.map((d) => {
+            const isActive = densityId === d.id;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setDensityId(d.id)}
+                style={{
+                  minHeight: "40px",
+                  padding: "8px 14px",
+                  borderRadius: theme.radiusFull,
+                  border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
+                  background: isActive ? theme.primaryLight : theme.bgCard,
+                  color: isActive ? theme.primary : theme.textSub,
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                }}
+              >
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "14px" }}>
+        <div
+          style={{
+            fontSize: "13px",
+            fontWeight: "700",
+            color: theme.textSub,
+            marginBottom: "8px",
+          }}
+        >
+          여행 컨셉 (선택, 최대 {AI_CONCEPT_MAX}개)
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+          {AI_CONCEPTS.map((c) => {
+            const isActive = conceptIds.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleConcept(c.id)}
+                style={{
+                  minHeight: "40px",
+                  padding: "8px 14px",
+                  borderRadius: theme.radiusFull,
+                  border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
+                  background: isActive ? theme.primaryLight : theme.bgCard,
+                  color: isActive ? theme.primary : theme.textSub,
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                }}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          type="text"
+          value={customConcept}
+          onChange={(e) => setCustomConcept(e.target.value.slice(0, AI_CUSTOM_CONCEPT_MAX_LEN))}
+          placeholder="직접 입력 (선택, 최대 40자)"
+          style={{
+            width: "100%",
+            minHeight: "40px",
+            padding: "8px 14px",
+            border: `1.5px solid ${theme.border}`,
+            borderRadius: theme.radiusSm,
+            fontSize: "13px",
+            color: theme.text,
+            background: theme.bgCard,
+            outline: "none",
+            boxSizing: "border-box",
+            fontFamily: "inherit",
+          }}
+        />
+      </div>
+
       <textarea
         readOnly
         value={prompt}
@@ -5809,6 +5994,183 @@ function WeatherEntryModal({
   );
 }
 
+// AI 추정 위치 확인("모두 수락"/"하나씩 확인")과 위치 없는 일정 일괄 지정을
+// 같은 LocationPickerModal을 순서대로 여는 방식으로 처리하는 얇은 래퍼.
+// 모바일(ItineraryTab)과 PC(PCRightPanel) 양쪽에서 그대로 재사용한다 — 두 컴포넌트가
+// 이미 지도 관련 상태(mapSlots 등)를 각자 따로 계산하는 기존 패턴과 동일하게, 이
+// 컴포넌트도 daySlots/selectedDay를 매개변수로 받아 독립적으로 동작한다.
+// DayMapView 자체의 기존 칩(정보 표시용, 위치 없는 일정 N개 등)은 건드리지 않는다.
+function AiLocationPanel({ state, setState, selectedDay, daySlots }) {
+  // queue: { mode: "ai-confirm" | "bulk", ids: string[], index: number } | null
+  const [queue, setQueue] = useState(null);
+  const [mapLoadAttempt, setMapLoadAttempt] = useState(0);
+  const MapModalComponent = useMemo(
+    () => (mapLoadAttempt === 0 ? LocationPickerModal : lazy(loadLocationPickerModule)),
+    [mapLoadAttempt],
+  );
+
+  const aiSlots = daySlots.filter((s) => s.locSource === "ai");
+  const locationlessSlots = daySlots.filter(
+    (s) => !(typeof s.lat === "number" && typeof s.lng === "number"),
+  );
+
+  const handleAcceptAll = () => {
+    setState((prev) => ({
+      ...prev,
+      itinerary: prev.itinerary.map((s) =>
+        s.day === selectedDay && s.locSource === "ai" ? { ...s, locSource: "ai-ok" } : s,
+      ),
+    }));
+  };
+
+  const advanceOrClose = () => {
+    setQueue((q) => {
+      if (!q) return null;
+      const next = q.index + 1;
+      return next >= q.ids.length ? null : { ...q, index: next };
+    });
+  };
+
+  const currentSlot = queue
+    ? state.itinerary.find((s) => s.id === queue.ids[queue.index])
+    : null;
+
+  const handleQueueSave = ({ lat, lng }) => {
+    if (!currentSlot || !queue) return;
+    const locSource =
+      queue.mode === "bulk"
+        ? "manual"
+        : currentSlot.lat === lat && currentSlot.lng === lng
+          ? "ai-ok"
+          : "manual";
+    setState((prev) => ({
+      ...prev,
+      itinerary: prev.itinerary.map((s) =>
+        s.id === currentSlot.id ? { ...s, lat, lng, locSource } : s,
+      ),
+    }));
+    advanceOrClose();
+  };
+
+  const handleQueueClear = () => {
+    if (!currentSlot) return;
+    setState((prev) => ({
+      ...prev,
+      itinerary: prev.itinerary.map((s) =>
+        s.id === currentSlot.id ? { ...s, lat: null, lng: null, locSource: undefined } : s,
+      ),
+    }));
+    advanceOrClose();
+  };
+
+  if (aiSlots.length === 0 && locationlessSlots.length === 0) return null;
+
+  const pillStyle = {
+    minHeight: "32px",
+    padding: "6px 12px",
+    borderRadius: theme.radiusFull,
+    border: `1px solid ${theme.primary}`,
+    background: theme.primaryLight,
+    color: theme.primary,
+    fontSize: "12px",
+    fontWeight: "700",
+    cursor: "pointer",
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          padding: "0 0 8px",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        {aiSlots.length > 0 && (
+          <>
+            <span style={{ fontSize: "12.5px", fontWeight: "700", color: theme.textSub }}>
+              🤖 AI 추정 위치 {aiSlots.length}곳
+            </span>
+            <button type="button" onClick={handleAcceptAll} style={pillStyle}>
+              모두 수락
+            </button>
+            <button
+              type="button"
+              onClick={() => setQueue({ mode: "ai-confirm", ids: aiSlots.map((s) => s.id), index: 0 })}
+              style={pillStyle}
+            >
+              하나씩 확인
+            </button>
+          </>
+        )}
+        {locationlessSlots.length > 0 && (
+          <button
+            type="button"
+            onClick={() =>
+              setQueue({ mode: "bulk", ids: locationlessSlots.map((s) => s.id), index: 0 })
+            }
+            style={{
+              minHeight: "32px",
+              padding: "6px 12px",
+              borderRadius: theme.radiusFull,
+              border: `1px solid ${theme.border}`,
+              background: theme.bgInput,
+              color: theme.textSub,
+              fontSize: "12px",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            📍 위치 없는 일정 {locationlessSlots.length}개
+          </button>
+        )}
+      </div>
+
+      {queue && currentSlot && (
+        <Suspense
+          fallback={
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 2000,
+                background: theme.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: theme.textSub,
+                fontSize: "14px",
+              }}
+            >
+              지도를 불러오는 중...
+            </div>
+          }
+        >
+          <MapModalComponent
+            key={mapLoadAttempt}
+            slot={currentSlot}
+            state={state}
+            hint={
+              queue.mode === "ai-confirm"
+                ? "AI가 추정한 위치예요. 맞으면 이 위치로 저장, 다르면 지도에서 다시 찍으세요."
+                : undefined
+            }
+            progress={`${queue.index + 1}/${queue.ids.length}`}
+            onSkip={queue.mode === "bulk" ? advanceOrClose : undefined}
+            skipLabel="건너뛰기"
+            onSave={handleQueueSave}
+            onClear={handleQueueClear}
+            onClose={() => setQueue(null)}
+            onRetry={() => setMapLoadAttempt((n) => n + 1)}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+}
+
 // ─── Tab Content Components ───
 
 function ItineraryTab({
@@ -5964,14 +6326,21 @@ function ItineraryTab({
           );
           return;
         }
+        const { slots: filtered, excludedCount } = filterOutOfRangeCoords(
+          parsed,
+          state.tripCity,
+        );
         setState((prev) => ({
           ...prev,
           itinerary: [
             ...prev.itinerary,
-            ...parsed.map((s) => ({ ...s, id: generateId() })),
+            ...filtered.map((s) => ({ ...s, id: generateId() })),
           ],
         }));
-        alert(`${parsed.length}개 일정을 추가했습니다.`);
+        alert(
+          `${filtered.length}개 일정을 추가했습니다.` +
+            (excludedCount > 0 ? ` 범위 밖이라 제외한 위치 ${excludedCount}개` : ""),
+        );
       };
       reader.readAsText(file);
     }
@@ -5988,15 +6357,22 @@ function ItineraryTab({
   };
 
   const handleTextImport = (slots) => {
+    const { slots: filtered, excludedCount } = filterOutOfRangeCoords(
+      slots,
+      state.tripCity,
+    );
     setState((prev) => ({
       ...prev,
       itinerary: [
         ...prev.itinerary,
-        ...slots.map((s) => ({ ...s, id: generateId() })),
+        ...filtered.map((s) => ({ ...s, id: generateId() })),
       ],
     }));
     setTextImportOpen(false);
-    alert(`${slots.length}개 일정을 추가했습니다.`);
+    alert(
+      `${filtered.length}개 일정을 추가했습니다.` +
+        (excludedCount > 0 ? ` 범위 밖이라 제외한 위치 ${excludedCount}개` : ""),
+    );
   };
 
   const handleDownloadTemplate = () => {
@@ -6014,6 +6390,7 @@ function ItineraryTab({
     lat: s.lat,
     lng: s.lng,
     visited: s.visited,
+    locSource: s.locSource,
   }));
   const hasAnyCoords = mapSlots.some(
     (s) => typeof s.lat === "number" && typeof s.lng === "number",
@@ -6177,6 +6554,12 @@ function ItineraryTab({
         )
       )}
 
+      {daySlots.length > 0 && (
+        <div style={{ padding: "0 20px" }}>
+          <AiLocationPanel state={state} setState={setState} selectedDay={selectedDay} daySlots={daySlots} />
+        </div>
+      )}
+
       {/* Day Weather */}
       {days.length > 0 && (
         <div style={{ padding: "0 20px 12px" }}>
@@ -6297,9 +6680,12 @@ function ItineraryTab({
                 : null;
               const isSelected = selectedSlotId === slot.id;
               const isFlashed = flashSlotId === slot.id;
-              // 번호 원 3가지 상태: 위치 없음(흰 배경+점선 테두리+회색 숫자),
-              // 좌표 있음+방문완료(회색 배경+✓), 좌표 있음+미방문(primary 배경+번호).
+              const effectiveLocSource = slot.locSource || (hasSlotCoords ? "manual" : undefined);
+              // 번호 원 4가지 상태: 위치 없음(흰 배경+점선 테두리+회색 숫자),
+              // 좌표 있음+방문완료(회색 배경+✓), AI 추정(흰 배경+파란 점선 테두리+파란
+              // 숫자, 방문완료가 아닐 때만), 좌표 있음+미방문(primary 배경+번호).
               const circleVisited = hasSlotCoords && slot.visited;
+              const circleAiPending = hasSlotCoords && !circleVisited && effectiveLocSource === "ai";
               let circleStyle;
               if (!hasSlotCoords) {
                 // 다크 테마는 테두리·숫자를 텍스트색 60% 불투명도로 올려 대비를 높인다.
@@ -6317,6 +6703,8 @@ function ItineraryTab({
                     };
               } else if (circleVisited) {
                 circleStyle = { background: "#9CA3AF", border: "none", color: theme.textWhite };
+              } else if (circleAiPending) {
+                circleStyle = { background: theme.bgCard, border: `1.5px dashed ${theme.primary}`, color: theme.primary };
               } else {
                 circleStyle = { background: theme.primary, border: "none", color: theme.textWhite };
               }
@@ -6432,7 +6820,7 @@ function ItineraryTab({
                       >
                         {slot.title}
                       </div>
-                      {slot.place && (
+                      {(slot.place || effectiveLocSource === "ai") && (
                         <div
                           style={{
                             fontSize: "13px",
@@ -6441,6 +6829,7 @@ function ItineraryTab({
                             display: "flex",
                             alignItems: "center",
                             gap: "4px",
+                            flexWrap: "wrap",
                           }}
                         >
                           {mapUrl ? (
@@ -6458,8 +6847,23 @@ function ItineraryTab({
                             >
                               🗺️ {slot.place}
                             </a>
-                          ) : (
+                          ) : slot.place ? (
                             <span>📍 {slot.place}</span>
+                          ) : null}
+                          {effectiveLocSource === "ai" && (
+                            <span
+                              style={{
+                                fontSize: "10.5px",
+                                fontWeight: "700",
+                                color: theme.primary,
+                                background: theme.primaryLight,
+                                padding: "1px 6px",
+                                borderRadius: theme.radiusFull,
+                                flexShrink: 0,
+                              }}
+                            >
+                              추정
+                            </span>
                           )}
                         </div>
                       )}
@@ -13239,6 +13643,7 @@ function PCRightPanel({ tab, state, setState, selectedDay, selectedSlotId, onSel
       lat: s.lat,
       lng: s.lng,
       visited: s.visited,
+      locSource: s.locSource,
     }));
     const hasAnyCoordsForPanel = mapSlotsForPanel.some(
       (s) => typeof s.lat === "number" && typeof s.lng === "number",
@@ -13290,6 +13695,16 @@ function PCRightPanel({ tab, state, setState, selectedDay, selectedSlotId, onSel
                 위치를 지정하면 이날의 동선을 지도에서 볼 수 있어요. 일정의 📍를 눌러 보세요.
               </div>
             )}
+          </div>
+        )}
+        {daySlotsForMap.length > 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            <AiLocationPanel
+              state={state}
+              setState={setState}
+              selectedDay={selectedDay}
+              daySlots={daySlotsForMap}
+            />
           </div>
         )}
         {/* D-day 카드 */}
