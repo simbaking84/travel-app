@@ -169,7 +169,7 @@ function PCItineraryMapView({ slots, selectedSlotId, onSelectSlot }) {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.26.0";
+const APP_VERSION = "v2.26.1";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -3719,6 +3719,207 @@ function parseCoordPair(raw) {
   return { lat: Math.round(lat * 100000) / 100000, lng: Math.round(lng * 100000) / 100000 };
 }
 
+const IMPORT_WORD_TIME_MAP = {
+  morning: "09:00",
+  afternoon: "13:00",
+  evening: "18:00",
+  allday: "00:00",
+  오전: "09:00",
+  오후: "13:00",
+  저녁: "18:00",
+  하루종일: "00:00",
+  밤: "20:00",
+  점심: "12:00",
+};
+
+// 오전/오후/저녁 같은 단어형, "HH:MM", "H시 M분", 시간 범위("09:00-10:30",
+// "09:00~10:30" → 시작 시간만)를 모두 "HH:MM"으로 통일. 못 알아들으면 null.
+function parseImportTimeValue(raw) {
+  const s = (raw || "").trim();
+  if (!s) return null;
+  const first = s.split(/[-~]/)[0].trim();
+  const lower = first.toLowerCase();
+  if (IMPORT_WORD_TIME_MAP[lower] !== undefined) return IMPORT_WORD_TIME_MAP[lower];
+  let m = first.match(/^(\d{1,2}):(\d{2})$/);
+  if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
+  m = first.match(/^(\d{1,2})\s*시\s*(\d{1,2})?\s*분?$/);
+  if (m) return `${m[1].padStart(2, "0")}:${(m[2] || "0").padStart(2, "0")}`;
+  return null;
+}
+
+// 같은 날 안에서 시간이 앞 일정보다 이르거나 같으면 앞 일정 + 90분(최대 23:30)으로 보정.
+function enforceSameDayTimeOrder(slots) {
+  const lastTimeByDay = {};
+  return slots.map((s) => {
+    const prev = lastTimeByDay[s.day];
+    let t = s.startTime;
+    if (prev !== undefined && t <= prev) {
+      const [h, m] = prev.split(":").map(Number);
+      const cap = 23 * 60 + 30;
+      const total = Math.min(h * 60 + m + 90, cap);
+      t = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+    lastTimeByDay[s.day] = t;
+    return { ...s, startTime: t };
+  });
+}
+
+const IMPORT_HEADER_ALIASES = {
+  day: ["day", "일차", "날짜", "date"],
+  time: ["time", "시간", "시간대", "시간대별"],
+  title: ["title", "일정명", "일정", "제목", "방문지", "관광지", "장소명", "활동"],
+  note: ["note", "메모", "비고", "노트", "이동수단", "참고", "안내", "설명"],
+  place: ["place", "장소", "위치", "맛집", "상호명", "주소"],
+  coord: ["좌표", "위도경도", "위도,경도", "coords", "latlng"],
+};
+
+const IMPORT_DAY_LIKE_RE = /^(day\s*\d+|\d+\s*일차|\d+\s*일|\d+)$/i;
+
+function stripInvisibleImportChars(s) {
+  return s
+    .replace(/\u00A0/g, " ")
+    .replace(/[\u200B\u200C\u200D\uFEFF\u2060]/g, "");
+}
+
+// 코드펜스, 굵게/이탤릭/인라인코드 기호, 전각 파이프, <br>, 보이지 않는 문자를
+// 파싱 전에 정리. 구분자(파이프/탭) 판단과 셀 분리는 이 다음 단계에서 한다.
+function normalizeImportRaw(raw) {
+  let t = raw;
+  t = t.replace(/^```[^\n]*$/gm, "");
+  t = t.replace(/\*\*/g, "").replace(/__/g, "").replace(/`/g, "");
+  t = t.replace(/｜/g, "|");
+  t = t.replace(/<br\s*\/?>/gi, " ");
+  t = stripInvisibleImportChars(t);
+  return t;
+}
+
+function findImportHeaderIdx(header, candidates) {
+  for (const c of candidates) {
+    const idx = header.indexOf(c.toLowerCase());
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+// 헤더 행과 데이터 행들로부터 일차/시간/일정명/장소/메모/좌표 인덱스를 찾는다.
+// 헤더가 데이터보다 한 칸 적고 데이터 첫 칸이 일차 값이면 "일차"를 보충하고,
+// 헤더 자체가 전혀 매칭되지 않고 데이터처럼 보이면(열 수로 추정) 헤더 없는
+// 표로 간주해 모든 행을 데이터로 쓴다. 반환값의 title===-1이면 인식 실패.
+function resolveImportHeader(headerRow, dataRows) {
+  let header = [...headerRow];
+  if (
+    dataRows.length > 0 &&
+    dataRows[0].length === header.length + 1 &&
+    IMPORT_DAY_LIKE_RE.test((dataRows[0][0] || "").trim())
+  ) {
+    header = ["일차", ...header];
+  }
+  const lowerHeader = header.map((h) => h.toLowerCase().trim());
+  const idx = {
+    day: findImportHeaderIdx(lowerHeader, IMPORT_HEADER_ALIASES.day),
+    time: findImportHeaderIdx(lowerHeader, IMPORT_HEADER_ALIASES.time),
+    title: findImportHeaderIdx(lowerHeader, IMPORT_HEADER_ALIASES.title),
+    place: findImportHeaderIdx(lowerHeader, IMPORT_HEADER_ALIASES.place),
+    note: findImportHeaderIdx(lowerHeader, IMPORT_HEADER_ALIASES.note),
+    coord: findImportHeaderIdx(lowerHeader, IMPORT_HEADER_ALIASES.coord),
+  };
+  if (idx.title !== -1) {
+    return { idx, headerNames: header, allRowsAreData: false };
+  }
+  // 헤더가 전혀 매칭되지 않을 때: 첫 행이 데이터처럼(일차 값) 보이면
+  // 헤더 없는 표로 보고 열 수로 순서를 추정한다(6열=좌표 포함, 5열=좌표 없음).
+  if (IMPORT_DAY_LIKE_RE.test((headerRow[0] || "").trim())) {
+    const n = headerRow.length;
+    if (n === 6) {
+      return {
+        idx: { day: 0, time: 1, title: 2, place: 3, note: 4, coord: 5 },
+        headerNames: header,
+        allRowsAreData: true,
+      };
+    }
+    if (n === 5) {
+      return {
+        idx: { day: 0, time: 1, title: 2, place: 3, note: 4, coord: -1 },
+        headerNames: header,
+        allRowsAreData: true,
+      };
+    }
+  }
+  return { idx: { day: -1, time: -1, title: -1, place: -1, note: -1, coord: -1 }, headerNames: header, allRowsAreData: false };
+}
+
+// "텍스트로 일정 가져오기" 모달에서 쓰는 표 파서. 파이프(｜) 또는 탭으로 구분된
+// 표를 받아 일정 배열을 돌려준다. 구분자가 전혀 없는 줄(설명 문장)은 제외하고,
+// 구분자가 하나도 없으면 빈 배열과 함께 헤더 이름 없음을 알린다.
+// 표를 드래그 선택해 복사할 때 칸/줄 구분자가 전부 사라지는 경우를 감지한다.
+// 200자 이상인데 줄바꿈도, 파이프·탭 구분자도 전혀 없으면 "구분자 소실"로 본다.
+function isLikelyStrippedDelimiters(text) {
+  const t = text || "";
+  if (t.length < 200) return false;
+  if (/[\r\n]/.test(t)) return false;
+  if (t.includes("|") || t.includes("\t")) return false;
+  return true;
+}
+
+function parsePastedScheduleTable(rawInput) {
+  const empty = { slots: [], headerNames: [] };
+  if (!rawInput || !rawInput.trim()) return empty;
+  const normalized = normalizeImportRaw(rawInput);
+  const lines = normalized
+    .split(/\r\n|\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const pipeLines = lines.filter((l) => l.includes("|"));
+  const tabLines = lines.filter((l) => l.includes("\t"));
+
+  let tableRows;
+  if (pipeLines.length >= 2) {
+    tableRows = pipeLines
+      .filter((l) => !/^[\s|:-]+$/.test(l))
+      .map((l) =>
+        l
+          .replace(/^\||\|$/g, "")
+          .split("|")
+          .map((c) => c.trim()),
+      );
+  } else if (tabLines.length >= 1) {
+    tableRows = lines
+      .filter((l) => l.includes("\t"))
+      .map((l) => l.split("\t").map((c) => c.trim()));
+  } else {
+    return empty;
+  }
+  if (tableRows.length < 2) return empty;
+
+  const { idx, headerNames, allRowsAreData } = resolveImportHeader(
+    tableRows[0],
+    tableRows.slice(1),
+  );
+  if (idx.title === -1) return { slots: [], headerNames };
+  const dataRows = allRowsAreData ? tableRows : tableRows.slice(1);
+
+  const slots = dataRows
+    .map((cols, i) => {
+      const rawTime = idx.time >= 0 ? cols[idx.time] || "" : "";
+      const startTime = parseImportTimeValue(rawTime) || "09:00";
+      const rawDay = idx.day >= 0 ? cols[idx.day] || "1" : "1";
+      const day = (parseInt(String(rawDay).replace(/[^0-9]/g, "")) || 1) - 1;
+      const coord = idx.coord >= 0 ? parseCoordPair(cols[idx.coord]) : null;
+      return {
+        id: `it_txt_${Date.now()}_${i}`,
+        day: day < 0 ? 0 : day,
+        startTime,
+        title: (cols[idx.title] || "").trim(),
+        place: idx.place >= 0 ? (cols[idx.place] || "").trim() : "",
+        note: idx.note >= 0 ? (cols[idx.note] || "").trim() : "",
+        visited: false,
+        ...(coord ? { lat: coord.lat, lng: coord.lng, locSource: "ai" } : {}),
+      };
+    })
+    .filter((s) => s.title);
+  return { slots: enforceSameDayTimeOrder(slots), headerNames };
+}
+
 function parseCSV(text) {
   const timeMap = {
     morning: "09:00",
@@ -5355,7 +5556,7 @@ function AIPromptModal({ state, onClose }) {
   const prompt = `[역할]
 당신은 여행 일정 전문가다.
 내가 주는 정보를 기반으로 여행 일정표를 만든다.
-결과는 마크다운 코드블록 없이, 그냥 표 형태로만 출력한다.
+결과는 코드 블록(\`\`\`) 하나로만 출력한다. 코드 블록 안은 파이프(|)로 칸을 나눈 표로 쓰고, 첫 줄은 헤더, 둘째 줄은 구분줄(|---|---|)로 한다. 코드 블록 밖에는 설명이나 인사말을 쓰지 않는다.
 
 [입력값]
 - 도시: ${destination}
@@ -5372,10 +5573,23 @@ function AIPromptModal({ state, onClose }) {
 4. 일차는 숫자(1,2,3), 시간은 오전/오후/저녁 중 하나로만 작성한다.
 5. 장소는 지도에서 검색할 수 있는 공식 명칭으로 적는다. 식사·이동·휴식처럼 특정 장소가 없는 일정은 장소를 비워도 된다.
 6. 메모에는 입장료, 운영시간, 예약 필요 여부를 포함한다.
-7. 좌표는 "위도,경도" 형식(예: 35.6586,139.7454)으로 적는다. 정확히 아는 유명한 장소에만 쓰고, 모르면 비운다. 추측해서 만들지 않는다. 식사·이동·휴식처럼 특정 장소가 없는 일정은 장소와 좌표를 비워도 된다.`;
+7. 좌표는 "위도,경도" 형식(예: 35.6586,139.7454)으로 적는다. 정확히 아는 유명한 장소에만 쓰고, 모르면 비운다. 추측해서 만들지 않는다. 식사·이동·휴식처럼 특정 장소가 없는 일정은 장소와 좌표를 비워도 된다.
+8. 시간 열은 24시간제 HH:MM 형식만 쓴다(예: 09:00, 13:30). '오전·오후·저녁' 같은 단어는 쓰지 않는다.
+9. 물결표(~)는 쓰지 않는다. 범위는 '-'를 쓴다(예: 11:00-21:00).
+10. 표의 맨 윗줄에 헤더(일차, 시간, 일정명, 장소, 메모, 좌표)를 반드시 포함한다.`;
 
   return (
     <ModalWrapper onClose={onClose}>
+      <style>{`
+        .ai-chip-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+        }
+        @media (max-width: 340px) {
+          .ai-chip-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+      `}</style>
       <h3
         style={{
           margin: "0 0 8px 0",
@@ -5395,8 +5609,9 @@ function AIPromptModal({ state, onClose }) {
         }}
       >
         아래 글을 복사해서, 평소 쓰시는 ChatGPT나 Claude 앱에 붙여넣어 보세요.
-        AI가 답해준 표를 그대로 복사해서, 다음 화면에서 "텍스트로 가져오기"로
-        붙여넣으면 일정에 바로 추가됩니다.
+        AI 답변의 코드 블록 오른쪽 위 [복사] 버튼으로 복사해서, 다음 화면의
+        "텍스트로 가져오기"에 붙여넣으세요. 표를 손으로 드래그하면 칸 구분이
+        사라질 수 있어요.
       </p>
 
       <div style={{ marginBottom: "14px" }}>
@@ -5410,7 +5625,7 @@ function AIPromptModal({ state, onClose }) {
         >
           일정 밀도
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+        <div className="ai-chip-grid">
           {DENSITY_OPTIONS.map((d) => {
             const isActive = densityId === d.id;
             return (
@@ -5420,7 +5635,7 @@ function AIPromptModal({ state, onClose }) {
                 onClick={() => setDensityId(d.id)}
                 style={{
                   minHeight: "40px",
-                  padding: "8px 14px",
+                  padding: "6px 8px",
                   borderRadius: theme.radiusFull,
                   border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
                   background: isActive ? theme.primaryLight : theme.bgCard,
@@ -5428,6 +5643,11 @@ function AIPromptModal({ state, onClose }) {
                   fontSize: "13px",
                   fontWeight: "700",
                   cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  lineHeight: 1.3,
                 }}
               >
                 {d.label}
@@ -5448,7 +5668,7 @@ function AIPromptModal({ state, onClose }) {
         >
           여행 컨셉 (선택, 최대 {AI_CONCEPT_MAX}개)
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+        <div className="ai-chip-grid" style={{ marginBottom: "10px" }}>
           {AI_CONCEPTS.map((c) => {
             const isActive = conceptIds.includes(c.id);
             return (
@@ -5458,7 +5678,7 @@ function AIPromptModal({ state, onClose }) {
                 onClick={() => toggleConcept(c.id)}
                 style={{
                   minHeight: "40px",
-                  padding: "8px 14px",
+                  padding: "6px 8px",
                   borderRadius: theme.radiusFull,
                   border: `1.5px solid ${isActive ? theme.primary : theme.border}`,
                   background: isActive ? theme.primaryLight : theme.bgCard,
@@ -5466,6 +5686,14 @@ function AIPromptModal({ state, onClose }) {
                   fontSize: "13px",
                   fontWeight: "700",
                   cursor: "pointer",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  lineHeight: 1.3,
                 }}
               >
                 {c.label}
@@ -5550,31 +5778,13 @@ function AIPromptModal({ state, onClose }) {
 function TextImportModal({ onImport, onClose }) {
   const [text, setText] = useState("");
 
-  const parsed = (() => {
-    const raw = text;
-    if (!raw || !raw.trim()) return [];
-    const lines = raw
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-    const pipeLines = lines.filter((l) => l.includes("|"));
-    if (pipeLines.length >= 2) {
-      const rows = pipeLines
-        .filter((l) => !/^[\s|:-]+$/.test(l))
-        .map((l) =>
-          l
-            .replace(/^\||\|$/g, "")
-            .split("|")
-            .map((c) => c.trim()),
-        );
-      if (rows.length < 2) return [];
-      const csv = rows
-        .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
-        .join("\n");
-      return parseCSV(csv);
-    }
-    return parseCSV(raw.replace(/\t/g, ","));
-  })();
+  const { slots: parsed, headerNames } = useMemo(
+    () => parsePastedScheduleTable(text),
+    [text],
+  );
+  const coordCount = parsed.filter(
+    (s) => typeof s.lat === "number" && typeof s.lng === "number",
+  ).length;
 
   return (
     <ModalWrapper onClose={onClose}>
@@ -5622,19 +5832,34 @@ function TextImportModal({ onImport, onClose }) {
           marginBottom: "10px",
         }}
       />
-      <div
-        style={{
-          fontSize: "12.5px",
-          color: parsed.length > 0 ? theme.success : theme.textLight,
-          marginBottom: "14px",
-        }}
-      >
-        {text.trim() === ""
-          ? "붙여넣으면 자동으로 인식됩니다"
-          : parsed.length > 0
-            ? `✅ ${parsed.length}개 일정을 인식했습니다`
-            : "⚠️ 일정을 인식하지 못했습니다 — 표 형식인지 확인해 주세요"}
-      </div>
+      {text.trim() === "" && (
+        <div
+          style={{
+            fontSize: "12.5px",
+            color: theme.textLight,
+            marginBottom: "14px",
+          }}
+        >
+          💡 AI 답변의 코드 블록 [복사] 버튼으로 복사해 붙여넣으세요.
+        </div>
+      )}
+      {text.trim() !== "" && (
+        <div
+          style={{
+            fontSize: "12.5px",
+            color: parsed.length > 0 ? theme.success : theme.textLight,
+            marginBottom: "14px",
+          }}
+        >
+          {parsed.length > 0
+            ? `✅ 인식된 일정 ${parsed.length}개 · 좌표 ${coordCount}개`
+            : isLikelyStrippedDelimiters(text)
+              ? "표의 칸 구분이 사라진 것 같아요. AI 답변의 표를 드래그해서 복사하면 이렇게 돼요. 코드 블록의 [복사] 버튼으로 다시 복사해 주세요."
+              : `⚠️ 표를 인식하지 못했어요. 읽은 열 이름: ${
+                  headerNames.length > 0 ? headerNames.join(", ") : "(없음)"
+                }. 첫 줄이 '일차 | 시간 | 일정명 | 장소 | 메모' 형태인지 확인해 주세요.`}
+        </div>
+      )}
       <button
         onClick={() => onImport(parsed)}
         disabled={parsed.length === 0}
@@ -6003,6 +6228,7 @@ function WeatherEntryModal({
 function AiLocationPanel({ state, setState, selectedDay, daySlots }) {
   // queue: { mode: "ai-confirm" | "bulk", ids: string[], index: number } | null
   const [queue, setQueue] = useState(null);
+  const [showAiInfo, setShowAiInfo] = useState(false);
   const [mapLoadAttempt, setMapLoadAttempt] = useState(0);
   const MapModalComponent = useMemo(
     () => (mapLoadAttempt === 0 ? LocationPickerModal : lazy(loadLocationPickerModule)),
@@ -6079,15 +6305,28 @@ function AiLocationPanel({ state, setState, selectedDay, daySlots }) {
 
   return (
     <>
-      <div
-        style={{
-          padding: "0 0 8px",
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
+      <div style={{ padding: "0 0 8px" }}>
+        {aiSlots.length > 0 && (
+          <div
+            style={{
+              fontSize: "12px",
+              color: theme.textLight,
+              lineHeight: 1.5,
+              marginBottom: "6px",
+            }}
+          >
+            실제와 다를 수 있어요. 맞으면 [모두 수락], 지도에서 하나씩 보려면
+            [하나씩 확인]을 눌러 주세요.
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
         {aiSlots.length > 0 && (
           <>
             <span style={{ fontSize: "12.5px", fontWeight: "700", color: theme.textSub }}>
@@ -6102,6 +6341,29 @@ function AiLocationPanel({ state, setState, selectedDay, daySlots }) {
               style={pillStyle}
             >
               하나씩 확인
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAiInfo(true)}
+              aria-label="AI 추정 위치 설명"
+              style={{
+                width: "22px",
+                height: "22px",
+                borderRadius: "50%",
+                border: `1px solid ${theme.border}`,
+                background: theme.bgCard,
+                color: theme.textSub,
+                fontSize: "12px",
+                fontWeight: "700",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              ⓘ
             </button>
           </>
         )}
@@ -6126,7 +6388,65 @@ function AiLocationPanel({ state, setState, selectedDay, daySlots }) {
             📍 위치 없는 일정 {locationlessSlots.length}개
           </button>
         )}
+        </div>
       </div>
+
+      {showAiInfo && (
+        <ModalWrapper onClose={() => setShowAiInfo(false)}>
+          <h3
+            style={{
+              margin: "0 0 10px 0",
+              fontSize: "16px",
+              fontWeight: "800",
+              color: theme.text,
+            }}
+          >
+            🤖 AI 추정 위치란?
+          </h3>
+          <div
+            style={{
+              fontSize: "13.5px",
+              color: theme.textSub,
+              lineHeight: 1.7,
+              marginBottom: "16px",
+            }}
+          >
+            <p style={{ margin: "0 0 8px" }}>
+              ① 점선 핀은 AI가 알려 준 좌표(추정 위치)라서 실제와 다를 수
+              있어요.
+            </p>
+            <p style={{ margin: "0 0 8px" }}>
+              ② [모두 수락]: 모두 맞다고 보고 점선 표시를 없애요(위치는
+              그대로예요).
+            </p>
+            <p style={{ margin: "0 0 8px" }}>
+              ③ [하나씩 확인]: 지도에서 하나씩 보고 맞으면 저장하고, 다르면
+              다시 찍을 수 있어요.
+            </p>
+            <p style={{ margin: 0 }}>
+              ④ 위치가 없는 일정은 핀이 없어서 번호가 건너뛰어요. 📍로
+              위치를 지정해 보세요.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAiInfo(false)}
+            style={{
+              width: "100%",
+              padding: "12px",
+              background: theme.primary,
+              color: theme.textWhite,
+              border: "none",
+              borderRadius: theme.radius,
+              fontSize: "14px",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            확인
+          </button>
+        </ModalWrapper>
+      )}
 
       {queue && currentSlot && (
         <Suspense
@@ -6149,7 +6469,7 @@ function AiLocationPanel({ state, setState, selectedDay, daySlots }) {
           }
         >
           <MapModalComponent
-            key={mapLoadAttempt}
+            key={`${mapLoadAttempt}_${currentSlot.id}`}
             slot={currentSlot}
             state={state}
             hint={

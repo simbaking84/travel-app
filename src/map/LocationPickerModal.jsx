@@ -277,6 +277,28 @@ export default function LocationPickerModal({
           </div>
         )}
 
+        {!pending && (
+          <div
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "8px 16px",
+              borderRadius: "9999px",
+              background: "var(--t-bg-card)",
+              color: "var(--t-text-sub)",
+              fontSize: "12.5px",
+              fontWeight: 700,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            지도를 탭해서 위치를 정하세요
+          </div>
+        )}
+
         {previousLocation && (
           <button
             onClick={() => movePin(previousLocation)}
@@ -327,22 +349,24 @@ export default function LocationPickerModal({
         >
           {primaryLabel || "이 위치로 저장"}
         </button>
-        <button
-          onClick={onClear}
-          style={{
-            flex: 1,
-            padding: "12px",
-            borderRadius: "8px",
-            border: "1px solid var(--t-border)",
-            background: "var(--t-bg-card)",
-            color: "var(--t-text-sub)",
-            fontSize: "14px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          위치 지정 해제
-        </button>
+        {hasInitial && (
+          <button
+            onClick={onClear}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid var(--t-border)",
+              background: "var(--t-bg-card)",
+              color: "var(--t-text-sub)",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            위치 지정 해제
+          </button>
+        )}
         {onSkip && (
           <button
             onClick={onSkip}
