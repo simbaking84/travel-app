@@ -170,7 +170,7 @@ function PCItineraryMapView({ slots, selectedSlotId, onSelectSlot }) {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.26.1";
+const APP_VERSION = "v2.27.0";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
