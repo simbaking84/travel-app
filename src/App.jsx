@@ -27,6 +27,7 @@ import AdBanner, {
 import { haversineKm, formatDistanceCompact } from "./utils/geo";
 import { CITY_COORDS } from "./data/cityCoords";
 import { AI_CONCEPTS, DENSITY_OPTIONS } from "./data/aiConcepts";
+import { parseReceipt } from "./receiptParser";
 
 // 지도 모듈 청크 로드 실패(오프라인, 배포 후 사라진 옛 청크 요청 404 등) 시
 // 대신 보여줄 컴포넌트. LocationPickerModal과 달리 onRetry(재시도)도 받는다.
@@ -7567,8 +7568,193 @@ function ItineraryTab({
   );
 }
 
+// ─── Receipt Import Modal (영수증 글자 붙여넣기 → 지출 입력 화면 미리 채우기) ───
+// 붙여넣은 원문은 이 컴포넌트의 지역 상태로만 두고, 부모에는 분석 결과(후보)만 넘긴다.
+function ReceiptImportModal({ state, onAnalyzed, onManual, onClose }) {
+  const [text, setText] = useState("");
+  const [clipboardFailed, setClipboardFailed] = useState(false);
+  const [noInfo, setNoInfo] = useState(false);
+
+  const handleClipboard = async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      setText(t);
+      setClipboardFailed(false);
+      setNoInfo(false);
+    } catch (e) {
+      setClipboardFailed(true);
+    }
+  };
+
+  const handleAnalyze = () => {
+    const result = parseReceipt(text, { defaultCurrency: state.currency });
+    if (result.amountCandidates.length === 0 && !result.date) {
+      setNoInfo(true);
+      return;
+    }
+    onAnalyzed(result);
+  };
+
+  return (
+    <ModalWrapper onClose={onClose}>
+      <h3
+        style={{
+          margin: "0 0 8px 0",
+          fontSize: "17px",
+          fontWeight: "800",
+          color: theme.text,
+        }}
+      >
+        영수증으로 추가
+      </h3>
+      <p
+        style={{
+          fontSize: "13px",
+          color: theme.textSub,
+          margin: "0 0 12px",
+          lineHeight: 1.6,
+        }}
+      >
+        구글 렌즈 등으로 영수증 글자를 복사해서 붙여넣어 주세요.
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setNoInfo(false);
+        }}
+        placeholder="여기에 붙여넣기"
+        rows={10}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          border: `1.5px solid ${theme.border}`,
+          borderRadius: theme.radiusSm,
+          fontSize: "13px",
+          color: theme.text,
+          background: theme.bgCard,
+          outline: "none",
+          boxSizing: "border-box",
+          resize: "vertical",
+          fontFamily: "inherit",
+          lineHeight: 1.6,
+          marginBottom: "8px",
+        }}
+      />
+      <button
+        onClick={handleClipboard}
+        style={{
+          width: "100%",
+          padding: "11px",
+          marginBottom: "8px",
+          background: theme.bgInput,
+          color: theme.textSub,
+          border: "none",
+          borderRadius: theme.radiusSm,
+          fontSize: "13px",
+          fontWeight: "600",
+          cursor: "pointer",
+        }}
+      >
+        클립보드에서 붙여넣기
+      </button>
+      {clipboardFailed && (
+        <div
+          style={{
+            fontSize: "12.5px",
+            color: theme.danger,
+            marginBottom: "8px",
+          }}
+        >
+          붙여넣기 권한이 없어요. 입력창을 길게 눌러 붙여넣어 주세요
+        </div>
+      )}
+      <div
+        style={{
+          fontSize: "12px",
+          color: theme.textLight,
+          marginBottom: "14px",
+        }}
+      >
+        붙여넣은 글자는 이 기기 안에서만 분석되고 저장되지 않아요.
+      </div>
+      {noInfo && (
+        <div
+          style={{
+            padding: "12px 14px",
+            marginBottom: "12px",
+            background: theme.bgInput,
+            borderRadius: theme.radiusSm,
+            fontSize: "13px",
+            color: theme.textSub,
+          }}
+        >
+          <div style={{ fontWeight: "700", marginBottom: "8px" }}>
+            읽을 수 있는 정보가 없어요
+          </div>
+          <button
+            onClick={onManual}
+            style={{
+              width: "100%",
+              padding: "11px",
+              background: theme.primaryLight,
+              color: theme.primary,
+              border: "none",
+              borderRadius: theme.radiusSm,
+              fontSize: "13px",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            직접 입력으로 열기
+          </button>
+        </div>
+      )}
+      <button
+        onClick={handleAnalyze}
+        disabled={text.trim() === ""}
+        style={{
+          width: "100%",
+          padding: "14px",
+          background: text.trim() !== "" ? theme.primary : theme.bgInput,
+          color: text.trim() !== "" ? theme.textWhite : theme.textLight,
+          border: "none",
+          borderRadius: theme.radius,
+          fontSize: "15px",
+          fontWeight: "700",
+          cursor: text.trim() !== "" ? "pointer" : "default",
+        }}
+      >
+        분석
+      </button>
+    </ModalWrapper>
+  );
+}
+
+// 여행 기간의 일차 개수(ExpenseTab의 일차 탭과 같은 계산). 여행 날짜가 없으면 0.
+function getTripDayCount(state) {
+  if (!state.tripStart || !state.tripEnd) return 0;
+  const start = new Date(state.tripStart + "T00:00:00");
+  const end = new Date(state.tripEnd + "T00:00:00");
+  return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// 영수증 날짜("YYYY-MM-DD") -> 일차. 기간 이전 -1(출발전), 기간 이후 null(미선택),
+// 날짜 없음/여행 날짜 없음은 fallbackDay. 로컬 날짜 기준이라 UTC 변환으로 밀리지 않는다.
+function getReceiptInitialDay(dateStr, state, fallbackDay) {
+  const count = getTripDayCount(state);
+  if (!dateStr || count <= 0) return fallbackDay;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const receipt = new Date(y, m - 1, d);
+  const start = new Date(state.tripStart + "T00:00:00");
+  const idx = Math.round((receipt - start) / (1000 * 60 * 60 * 24));
+  if (idx < 0) return -1;
+  if (idx >= count) return null;
+  return idx;
+}
+
 // ─── Expense Editor Modal ───
-function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
+function ExpenseEditorModal({ expense, prefill, day, state, onSave, onClose }) {
   useScrollLock(true);
   const ALL_METHODS = [
     { id: "cash_krw", label: "원화 현금", icon: "💵", isLocal: false },
@@ -7588,6 +7774,30 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
     return state.currency;
   };
 
+  const [receiptInit] = useState(() => {
+    if (!prefill) return null;
+    const type =
+      prefill.paymentMethod === "현금"
+        ? "cash"
+        : prefill.paymentMethod === "카드"
+          ? "card"
+          : null;
+    const method = type
+      ? `${type}${isDomestic || prefill.currency === "KRW" ? "_krw" : "_local"}`
+      : isDomestic
+        ? "card_krw"
+        : "card_local";
+    return {
+      method,
+      methodUnsure: !type,
+      day: getReceiptInitialDay(prefill.date, state, day),
+      dayCount: getTripDayCount(state),
+    };
+  });
+  const [methodUnsure, setMethodUnsure] = useState(
+    receiptInit ? receiptInit.methodUnsure : false,
+  );
+
   const [form, setForm] = useState(
     expense
       ? {
@@ -7598,7 +7808,19 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
           currency: expense.currency || getAutoCurrency(expense.method),
           note: expense.note || "",
         }
-      : {
+      : receiptInit
+        ? {
+            title: prefill.merchant || "",
+            amount: prefill.amountCandidates[0]
+              ? String(prefill.amountCandidates[0].value)
+              : "",
+            method: receiptInit.method,
+            category: "식비",
+            currency: getAutoCurrency(receiptInit.method),
+            note: "",
+            day: receiptInit.day,
+          }
+        : {
           title: "",
           amount: "",
           method: isDomestic ? "card_krw" : "card_local",
@@ -7617,7 +7839,10 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
     }
   };
   const isValid =
-    form.title.trim() && form.amount && parseFloat(form.amount) > 0;
+    form.title.trim() &&
+    form.amount &&
+    parseFloat(form.amount) > 0 &&
+    (!receiptInit || form.day !== null);
 
   const handleSave = () => {
     if (!isValid) return;
@@ -7626,13 +7851,16 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
       id:
         expense?.id ||
         `ex_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      day: expense?.day ?? day,
+      day: expense?.day ?? (receiptInit ? form.day : day),
       title: form.title.trim(),
       amount: parseFloat(form.amount),
       method: form.method,
       category: form.category,
       currency: form.currency,
-      date: expense?.date || new Date().toISOString().split("T")[0],
+      date:
+        expense?.date ||
+        prefill?.date ||
+        new Date().toISOString().split("T")[0],
       ...(note ? { note } : {}),
     });
   };
@@ -7657,6 +7885,50 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
     color: theme.textSub,
     marginBottom: "6px",
   };
+
+  const receiptChipStyle = (active) => ({
+    padding: "7px 12px",
+    background: active ? theme.primary : "transparent",
+    color: active ? theme.textWhite : theme.textSub,
+    border: active ? "none" : `1px solid ${theme.border}`,
+    borderRadius: theme.radiusFull,
+    fontSize: "13px",
+    fontWeight: active ? "700" : "500",
+    cursor: "pointer",
+  });
+  const receiptWarnStyle = {
+    marginTop: "8px",
+    padding: "8px 12px",
+    background: theme.bgInput,
+    border: `1px solid ${theme.danger}`,
+    borderRadius: theme.radiusSm,
+    color: theme.danger,
+    fontSize: "13px",
+    fontWeight: "700",
+    lineHeight: 1.5,
+  };
+  let receiptCurrencyWarn = "";
+  if (prefill) {
+    const rc = prefill.currency;
+    if (rc === "미정") {
+      receiptCurrencyWarn = "통화를 읽지 못했어요. 확인해 주세요.";
+    } else if (isDomestic && rc !== "KRW") {
+      receiptCurrencyWarn = "국내 여행인데 외화 영수증이에요. 원화로 기록돼요.";
+    } else if (rc !== "KRW" && rc !== state.currency) {
+      receiptCurrencyWarn = `영수증 통화(${rc})가 여행 통화(${state.currency})와 달라요. 저장하면 ${state.currency}로 기록돼요.`;
+    }
+  }
+  const receiptCurrencyLabel = prefill
+    ? prefill.currency === "미정"
+      ? "미정"
+      : `${CURRENCIES.find((c) => c.code === prefill.currency)?.symbol || ""} ${prefill.currency}`.trim()
+    : "";
+  const receiptEarlyHint =
+    receiptInit &&
+    prefill.time &&
+    prefill.time < "05:00" &&
+    form.day !== null &&
+    form.day >= 1;
 
   return (
     <ModalWrapper onClose={onClose}>
@@ -7693,6 +7965,54 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
         </button>
       </div>
 
+      {receiptInit && (
+        <div style={{ marginBottom: "16px" }}>
+          <div
+            style={{
+              padding: "12px 14px",
+              background: theme.primaryLight,
+              color: theme.primary,
+              borderRadius: theme.radiusSm,
+              fontSize: "13px",
+              fontWeight: "700",
+              lineHeight: 1.5,
+            }}
+          >
+            자동 추출 결과예요. 확인하고 고쳐 주세요.
+            <div
+              style={{
+                marginTop: "8px",
+                display: "flex",
+                alignItems: "baseline",
+                gap: "8px",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: theme.textSub,
+                }}
+              >
+                영수증 통화
+              </span>
+              <span
+                style={{
+                  fontSize: "22px",
+                  fontWeight: "800",
+                  color: theme.text,
+                }}
+              >
+                {receiptCurrencyLabel}
+              </span>
+            </div>
+          </div>
+          {receiptCurrencyWarn && (
+            <div style={receiptWarnStyle}>{receiptCurrencyWarn}</div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
           <label style={labelStyle}>항목명 *</label>
@@ -7719,6 +8039,30 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
               placeholder="0"
               style={{ fontSize: "18px", fontWeight: "700" }}
             />
+            {receiptInit && prefill.amountCandidates.length > 0 && (
+              <div style={{ marginTop: "8px" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {prefill.amountCandidates.slice(0, 3).map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => update("amount", String(c.value))}
+                      style={receiptChipStyle(form.amount === String(c.value))}
+                    >
+                      {c.value.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: theme.textLight,
+                    marginTop: "4px",
+                  }}
+                >
+                  다른 금액이면 눌러서 바꾸세요
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label style={labelStyle}>통화</label>
@@ -7746,8 +8090,60 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
             </div>
           </div>
         </div>
+        {receiptInit && (
+          <div>
+            <label style={labelStyle}>일차</label>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {[
+                -1,
+                ...Array.from({ length: receiptInit.dayCount }, (_, i) => i),
+              ].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => update("day", d)}
+                  style={receiptChipStyle(form.day === d)}
+                >
+                  {d === -1 ? "출발전" : `${d + 1}일차`}
+                </button>
+              ))}
+            </div>
+            {form.day === null && (
+              <div style={receiptWarnStyle}>
+                여행 기간 밖의 날짜예요. 일차를 선택해 주세요.
+              </div>
+            )}
+            {receiptEarlyHint && (
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: theme.textLight,
+                  marginTop: "6px",
+                }}
+              >
+                전날({form.day}일차)일 수 있어요
+              </div>
+            )}
+          </div>
+        )}
         <div>
-          <label style={labelStyle}>결제 수단</label>
+          <label style={labelStyle}>
+            결제 수단
+            {methodUnsure && (
+              <span
+                style={{
+                  marginLeft: "8px",
+                  padding: "2px 8px",
+                  background: theme.bgBadge,
+                  color: theme.danger,
+                  borderRadius: theme.radiusFull,
+                  fontSize: "11px",
+                  fontWeight: "700",
+                }}
+              >
+                확인 필요
+              </span>
+            )}
+          </label>
           <div
             style={{
               display: "grid",
@@ -7760,7 +8156,10 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
               return (
                 <button
                   key={m.id}
-                  onClick={() => update("method", m.id)}
+                  onClick={() => {
+                    update("method", m.id);
+                    setMethodUnsure(false);
+                  }}
                   style={{
                     padding: "10px",
                     display: "flex",
@@ -7798,6 +8197,30 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
             maxLength={50}
             style={inputStyle}
           />
+          {receiptInit && prefill.noteCandidates.length > 0 && (
+            <div style={{ marginTop: "8px" }}>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {prefill.noteCandidates.slice(0, 3).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => update("note", n.slice(0, 50))}
+                    style={receiptChipStyle(form.note === n.slice(0, 50))}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: theme.textLight,
+                  marginTop: "4px",
+                }}
+              >
+                눌러서 비고에 넣을 수 있어요
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <label style={labelStyle}>카테고리</label>
@@ -8827,6 +9250,8 @@ function ExpenseTab({ state, setState }) {
   }
 
   const [selectedDay, setSelectedDay] = useState(-1);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptPrefill, setReceiptPrefill] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -9427,20 +9852,58 @@ function ExpenseTab({ state, setState }) {
             >
               + 지출 추가
             </button>
+            <button
+              onClick={() => setReceiptOpen(true)}
+              style={{
+                width: "100%",
+                marginTop: "8px",
+                padding: "12px",
+                background: "transparent",
+                color: theme.textSub,
+                border: `1.5px dashed ${theme.border}`,
+                borderRadius: theme.radius,
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              영수증으로 추가
+            </button>
           </>
         )}
       </div>
 
       {/* Modals */}
+      {receiptOpen && (
+        <ReceiptImportModal
+          state={state}
+          onAnalyzed={(result) => {
+            setReceiptOpen(false);
+            setReceiptPrefill(result);
+            setEditingExpense(null);
+            setEditorOpen(true);
+          }}
+          onManual={() => {
+            setReceiptOpen(false);
+            handleAdd();
+          }}
+          onClose={() => setReceiptOpen(false)}
+        />
+      )}
       {editorOpen && (
         <ExpenseEditorModal
           expense={editingExpense}
+          prefill={receiptPrefill}
           day={selectedDay}
           state={state}
-          onSave={handleSave}
+          onSave={(exp) => {
+            handleSave(exp);
+            setReceiptPrefill(null);
+          }}
           onClose={() => {
             setEditorOpen(false);
             setEditingExpense(null);
+            setReceiptPrefill(null);
           }}
         />
       )}
