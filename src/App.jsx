@@ -7596,6 +7596,7 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
           method: expense.method,
           category: expense.category,
           currency: expense.currency || getAutoCurrency(expense.method),
+          note: expense.note || "",
         }
       : {
           title: "",
@@ -7603,6 +7604,7 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
           method: isDomestic ? "card_krw" : "card_local",
           category: "식비",
           currency: isDomestic ? "KRW" : state.currency,
+          note: "",
         },
   );
 
@@ -7619,6 +7621,7 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
 
   const handleSave = () => {
     if (!isValid) return;
+    const note = form.note.trim();
     onSave({
       id:
         expense?.id ||
@@ -7630,6 +7633,7 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
       category: form.category,
       currency: form.currency,
       date: expense?.date || new Date().toISOString().split("T")[0],
+      ...(note ? { note } : {}),
     });
   };
 
@@ -7783,6 +7787,17 @@ function ExpenseEditorModal({ expense, day, state, onSave, onClose }) {
               );
             })}
           </div>
+        </div>
+        <div>
+          <label style={labelStyle}>비고 (선택)</label>
+          <input
+            type="text"
+            value={form.note}
+            onChange={(e) => update("note", e.target.value)}
+            placeholder="예: 네이버페이"
+            maxLength={50}
+            style={inputStyle}
+          />
         </div>
         <div>
           <label style={labelStyle}>카테고리</label>
@@ -9284,6 +9299,20 @@ function ExpenseTab({ state, setState }) {
                             )}
                           </div>
                         </div>
+                        {exp.note && (
+                          <div
+                            style={{
+                              marginTop: "2px",
+                              fontSize: "12px",
+                              color: theme.textLight,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {exp.note}
+                          </div>
+                        )}
                         <div
                           style={{
                             display: "flex",
