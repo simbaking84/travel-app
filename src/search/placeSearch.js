@@ -14,6 +14,7 @@ const MIN_QUERY_LEN = 2;
 const MAX_QUERY_LEN = 100;
 const CACHE_MAX = 30;
 const VIEWBOX_HALF_DEG = 1.5;
+const CENTER_SNAP_DEG = 0.5;
 const ADDRESS_MAX_LEN = 80;
 
 // 검색어와 응답은 이 모듈 변수(메모리)에만 둔다. 새로고침하면 사라진다.
@@ -43,6 +44,13 @@ function sanitizeCenter(center) {
   return { lat, lng };
 }
 
+// 서비스로 보내는 중심 위치를 0.5도 격자로 뭉뚱그린다(viewbox와 캐시 키에만 쓰고,
+// 거리 계산은 원래 center로 한다).
+function snapCenter(center) {
+  const snap = (v) => Math.round(v / CENTER_SNAP_DEG) * CENTER_SNAP_DEG;
+  return { lat: snap(center.lat), lng: snap(center.lng) };
+}
+
 function sanitizeCountryCodes(codes) {
   const list = Array.isArray(codes) ? codes : typeof codes === "string" ? codes.split(",") : [];
   const cleaned = list
@@ -53,7 +61,7 @@ function sanitizeCountryCodes(codes) {
 
 function makeCacheKey(q, center, codes) {
   const normalizedQuery = q.toLowerCase().replace(/\s+/g, " ");
-  const c = center ? `${center.lat.toFixed(1)},${center.lng.toFixed(1)}` : "-";
+  const c = center ? `${center.lat},${center.lng}` : "-";
   return `${normalizedQuery}|${c}|${codes.join(",")}`;
 }
 
@@ -146,8 +154,9 @@ async function runSearch(query, options) {
   if (q.length > MAX_QUERY_LEN) return fail("too-long");
 
   const center = sanitizeCenter(rawCenter);
+  const snapped = center ? snapCenter(center) : null;
   const codes = sanitizeCountryCodes(rawCodes);
-  const key = makeCacheKey(q, center, codes);
+  const key = makeCacheKey(q, snapped, codes);
 
   const cached = cacheGet(key);
   if (cached) return { ok: true, items: withDistance(cached, center), fromCache: true };
@@ -171,7 +180,7 @@ async function runSearch(query, options) {
   try {
     let res;
     try {
-      res = await fetch(buildUrl(q, center, codes), { signal: controller.signal });
+      res = await fetch(buildUrl(q, snapped, codes), { signal: controller.signal });
     } catch (e) {
       return fail(timedOut ? "timeout" : "network");
     }

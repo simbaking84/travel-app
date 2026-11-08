@@ -25,7 +25,8 @@ import AdBanner, {
   SHOW_PLACEHOLDER,
 } from "./components/AdBanner";
 import { haversineKm, formatDistanceCompact } from "./utils/geo";
-import { CITY_COORDS } from "./data/cityCoords";
+import { CITY_COORDS, getTripCenter } from "./data/cityCoords";
+import { searchPlaces } from "./search/placeSearch";
 import { AI_CONCEPTS, DENSITY_OPTIONS } from "./data/aiConcepts";
 import { parseReceipt } from "./receiptParser";
 
@@ -4655,6 +4656,40 @@ function TripInProgressModal({ tripName, onClose, onGoToTrip }) {
   );
 }
 
+// 장소 검색 동의 여부만 localStorage에 둔다(검색어·결과는 저장하지 않는다).
+const PLACE_SEARCH_CONSENT_KEY = "place_search_consent_v1";
+
+function hasPlaceSearchConsent() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PLACE_SEARCH_CONSENT_KEY));
+    return !!parsed && parsed.v === 1;
+  } catch (e) {
+    return false;
+  }
+}
+
+function savePlaceSearchConsent() {
+  try {
+    const d = new Date();
+    const at = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    localStorage.setItem(PLACE_SEARCH_CONSENT_KEY, JSON.stringify({ v: 1, at }));
+  } catch (e) {
+    /* 저장에 실패해도 이번 검색은 그대로 진행한다 */
+  }
+}
+
+const PLACE_SEARCH_UNAVAILABLE_TEXT =
+  "검색 서비스가 일시적으로 응답하지 않아요. 지도에서 핀을 찍어 보세요";
+const PLACE_SEARCH_ERROR_TEXT = {
+  rate: "잠시 후 다시 눌러 주세요",
+  timeout: "응답이 늦어요. 다시 시도하거나 지도에서 핀을 찍어 보세요",
+  network: "인터넷 연결을 확인해 주세요",
+  http: PLACE_SEARCH_UNAVAILABLE_TEXT,
+  parse: PLACE_SEARCH_UNAVAILABLE_TEXT,
+  "too-long": "장소 이름이 너무 길어요. 100자 이하로 줄여 주세요",
+  "empty-query": "장소를 2자 이상 입력해 주세요",
+};
+
 function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen = false }) {
   const [form, setForm] = useState(
     slot
@@ -4690,6 +4725,89 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const isValid = form.title.trim();
   const hasLocation = typeof form.lat === "number" && typeof form.lng === "number";
+
+  // ── 장소 검색([검색] 버튼을 눌렀을 때만 요청한다. 입력 중 자동 검색 없음) ──
+  // placeSearch: null | { status: "loading" } | { status: "ok", items } | { status: "error", reason }
+  const [placeSearch, setPlaceSearch] = useState(null);
+  const [placeConsentOpen, setPlaceConsentOpen] = useState(false);
+  const [placeCooling, setPlaceCooling] = useState(false);
+  const [pickedPlaceName, setPickedPlaceName] = useState("");
+  const placeAbortRef = useRef(null);
+  const placeCoolTimerRef = useRef(null);
+
+  // 편집기를 닫으면(언마운트) 진행 중인 요청을 취소하고 타이머를 정리한다.
+  useEffect(
+    () => () => {
+      if (placeAbortRef.current) placeAbortRef.current.abort();
+      if (placeCoolTimerRef.current) clearTimeout(placeCoolTimerRef.current);
+    },
+    [],
+  );
+
+  const placeSearchDisabled =
+    form.place.trim().length < 2 ||
+    placeSearch?.status === "loading" ||
+    placeCooling;
+
+  const runPlaceSearch = async () => {
+    const query = form.place.trim();
+    if (query.length < 2) return;
+    if (placeAbortRef.current) placeAbortRef.current.abort();
+    const controller = new AbortController();
+    placeAbortRef.current = controller;
+    setPlaceSearch({ status: "loading" });
+    setPlaceCooling(true);
+    if (placeCoolTimerRef.current) clearTimeout(placeCoolTimerRef.current);
+    placeCoolTimerRef.current = setTimeout(() => setPlaceCooling(false), 1200);
+
+    const center = getTripCenter(state, {
+      id: slot?.id,
+      day: slot?.day ?? day,
+      startTime: form.startTime,
+      lat: form.lat,
+      lng: form.lng,
+    });
+    const countryCode =
+      state.tripRegion === "domestic" ? "kr" : CITY_COORDS[state.tripCity]?.country;
+    const result = await searchPlaces(query, {
+      center,
+      countryCodes: countryCode ? [countryCode] : undefined,
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted) return;
+    setPlaceSearch(
+      result.ok
+        ? { status: "ok", items: result.items }
+        : { status: "error", reason: result.reason },
+    );
+  };
+
+  const handlePlaceSearchClick = () => {
+    if (hasPlaceSearchConsent()) runPlaceSearch();
+    else setPlaceConsentOpen(true);
+  };
+
+  const handlePlaceConsentAgree = () => {
+    savePlaceSearchConsent();
+    setPlaceConsentOpen(false);
+    runPlaceSearch();
+  };
+
+  // 장소 글자(form.place)는 그대로 두고 좌표만 채운다. locSource는 저장 시
+  // locTouched로 "manual"이 된다(기존 handleSave 그대로).
+  const handlePickPlace = (item) => {
+    setForm((p) => ({ ...p, lat: item.lat, lng: item.lng }));
+    setLocTouched(true);
+    setPickedPlaceName(item.name);
+    setPlaceSearch(null);
+  };
+
+  const placeNoteStyle = {
+    marginTop: "8px",
+    fontSize: "12.5px",
+    color: theme.textSub,
+    lineHeight: 1.5,
+  };
 
   const handleSave = () => {
     if (!isValid) return;
@@ -4794,8 +4912,28 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
               value={form.place}
               onChange={(e) => update("place", e.target.value)}
               placeholder="예: 나고야성 (지도 검색용)"
-              style={{ ...inputStyle, flex: 1 }}
+              style={{ ...inputStyle, flex: 1, minWidth: 0 }}
             />
+            <button
+              type="button"
+              onClick={handlePlaceSearchClick}
+              disabled={placeSearchDisabled}
+              title="장소 검색"
+              aria-label="장소 검색"
+              style={{
+                flexShrink: 0,
+                width: "46px",
+                border: `1.5px solid ${theme.border}`,
+                borderRadius: theme.radiusSm,
+                background: theme.bgCard,
+                color: theme.textSub,
+                fontSize: "18px",
+                cursor: placeSearchDisabled ? "default" : "pointer",
+                opacity: placeSearchDisabled ? 0.45 : 1,
+              }}
+            >
+              🔍
+            </button>
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
@@ -4814,6 +4952,117 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
               📍
             </button>
           </div>
+          {placeSearch?.status === "loading" && (
+            <div style={placeNoteStyle}>검색 중…</div>
+          )}
+          {placeSearch?.status === "error" && (
+            <div style={{ ...placeNoteStyle, color: theme.danger }}>
+              {PLACE_SEARCH_ERROR_TEXT[placeSearch.reason] ||
+                PLACE_SEARCH_UNAVAILABLE_TEXT}
+            </div>
+          )}
+          {placeSearch?.status === "ok" && placeSearch.items.length === 0 && (
+            <div style={placeNoteStyle}>
+              결과가 없어요. 영어나 현지어로 검색하거나, 지도에서 핀을 찍어
+              보세요.
+              <div style={{ marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  style={{
+                    padding: "8px 14px",
+                    border: `1px solid ${theme.primary}`,
+                    borderRadius: theme.radiusFull,
+                    background: theme.primaryLight,
+                    color: theme.primary,
+                    fontSize: "12.5px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  지도에서 찍기
+                </button>
+              </div>
+            </div>
+          )}
+          {placeSearch?.status === "ok" && placeSearch.items.length > 0 && (
+            <div
+              style={{
+                marginTop: "8px",
+                border: `1px solid ${theme.border}`,
+                borderRadius: theme.radiusSm,
+                overflow: "hidden",
+              }}
+            >
+              {placeSearch.items.slice(0, 5).map((item, idx) => (
+                <button
+                  key={`${item.id}_${idx}`}
+                  type="button"
+                  onClick={() => handlePickPlace(item)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    background: theme.bgCard,
+                    border: "none",
+                    borderTop: idx === 0 ? "none" : `1px solid ${theme.borderLight}`,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "700",
+                      color: theme.text,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                  {item.address && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: theme.textSub,
+                        marginTop: "2px",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {item.address}
+                    </div>
+                  )}
+                  {item.distanceKm != null && (
+                    <div
+                      style={{
+                        fontSize: "11.5px",
+                        color: theme.textLight,
+                        marginTop: "2px",
+                      }}
+                    >
+                      {formatDistanceCompact(item.distanceKm)}
+                      {item.distanceKm > COORD_RANGE_LIMIT_KM && (
+                        <span style={{ marginLeft: "6px", color: theme.danger }}>
+                          여행 지역에서 멀어요
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+          {pickedPlaceName &&
+            !(placeSearch?.status === "ok" && placeSearch.items.length > 0) && (
+              <div style={{ ...placeNoteStyle, color: theme.primary, fontWeight: "700" }}>
+                선택한 위치: {pickedPlaceName}
+              </div>
+            )}
         </div>
         {pickerOpen && (
           <Suspense
@@ -4850,17 +5099,95 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
               onSave={({ lat, lng }) => {
                 setForm((p) => ({ ...p, lat, lng }));
                 setLocTouched(true);
+                setPickedPlaceName("");
                 setPickerOpen(false);
               }}
               onClear={() => {
                 setForm((p) => ({ ...p, lat: null, lng: null }));
                 setLocTouched(true);
+                setPickedPlaceName("");
                 setPickerOpen(false);
               }}
               onClose={() => setPickerOpen(false)}
               onRetry={() => setMapLoadAttempt((n) => n + 1)}
             />
           </Suspense>
+        )}
+        {placeConsentOpen && (
+          <ModalWrapper onClose={() => setPlaceConsentOpen(false)}>
+            <h3
+              style={{
+                margin: "0 0 10px 0",
+                fontSize: "17px",
+                fontWeight: "800",
+                color: theme.text,
+              }}
+            >
+              장소 검색 안내
+            </h3>
+            <p
+              style={{
+                fontSize: "13.5px",
+                color: theme.textSub,
+                lineHeight: 1.7,
+                margin: "0 0 10px",
+              }}
+            >
+              입력한 장소 이름을 외부 검색 서비스(OpenStreetMap Nominatim)로 보내
+              위치를 찾아요. 보내는 정보는 검색어와 여행 지역의 대략적인 범위뿐이에요.
+              일정 제목, 메모, 그 밖의 정보는 보내지 않아요.
+            </p>
+            <a
+              href={`${process.env.PUBLIC_URL}/privacy.html`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-block",
+                marginBottom: "16px",
+                fontSize: "12.5px",
+                color: theme.textLight,
+                textDecoration: "underline",
+              }}
+            >
+              자세히 보기
+            </a>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setPlaceConsentOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: "13px",
+                  background: theme.bgInput,
+                  color: theme.textSub,
+                  border: "none",
+                  borderRadius: theme.radius,
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handlePlaceConsentAgree}
+                style={{
+                  flex: 2,
+                  padding: "13px",
+                  background: theme.primary,
+                  color: theme.textWhite,
+                  border: "none",
+                  borderRadius: theme.radius,
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                }}
+              >
+                동의하고 검색
+              </button>
+            </div>
+          </ModalWrapper>
         )}
         <div>
           <label style={labelStyle}>메모</label>
