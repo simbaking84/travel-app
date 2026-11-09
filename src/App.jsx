@@ -5133,9 +5133,10 @@ function SlotEditorModal({ slot, day, state, onSave, onClose, initialPickerOpen 
                 margin: "0 0 10px",
               }}
             >
-              입력한 장소 이름을 외부 검색 서비스(OpenStreetMap Nominatim)로 보내
-              위치를 찾아요. 보내는 정보는 검색어와 여행 지역의 대략적인 범위뿐이에요.
-              일정 제목, 메모, 그 밖의 정보는 보내지 않아요.
+              입력한 장소 이름을 외부 검색 서비스(OpenStreetMap Nominatim)로 보내 위치를 찾아요.
+              [검색] 버튼을 누를 때만 보내며, 앱이 보내는 정보는 검색어와 여행 지역의 대략적인
+              범위뿐이에요. 일정 제목, 메모, 경비 등 다른 정보는 보내지 않아요. (접속 IP 같은
+              통상적인 접속 정보는 해당 서비스에 전달돼요.)
             </p>
             <a
               href={`${process.env.PUBLIC_URL}/privacy.html`}
