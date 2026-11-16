@@ -171,7 +171,7 @@ function PCItineraryMapView({ slots, selectedSlotId, onSelectSlot }) {
 
 // ─── Constants ───
 // ⚠️ 버전 변경 시 이 한 줄만 수정하면 화면에 표시되는 모든 버전 텍스트가 자동으로 바뀜
-const APP_VERSION = "v2.28.0";
+const APP_VERSION = "v2.28.1";
 
 const STORAGE_KEY = "travel_app_v2";
 const LANDING_SEEN_KEY = "moritravelplan_landing_seen";
@@ -747,6 +747,15 @@ function formatDate(dateStr) {
   return `${m}/${day}(${weekdays[d.getDay()]})`;
 }
 
+// Date 객체를 로컬 기준 "YYYY-MM-DD"로 조합한다. toISOString()은 UTC 기준이라
+// UTC+ 지역에서 자정 근처에 하루가 밀리는 문제가 있어 getFullYear/Month/Date로 직접 조합한다.
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 // src/map/mapConfig.js의 isDarkBackground()와 같은 방식(배경색 밝기 직접 판정)의
 // 축소 복사본. mapConfig.js를 그대로 import하면 maplibre-gl이 메인 번들에 끌려
 // 들어와 지도 지연 로딩이 깨지므로, 여기서는 의존성 없는 이 작은 버전을 따로 둔다.
@@ -785,6 +794,12 @@ function migrateTripCity(data) {
   return { ...data, tripCity: matched };
 }
 
+// currency가 비어있는(구버전) 지출을 해당 여행의 currency로 채운다.
+function normalizeExpenses(expenses, currency) {
+  if (!Array.isArray(expenses)) return expenses;
+  return expenses.map((e) => (e.currency ? e : { ...e, currency: currency || "KRW" }));
+}
+
 function saveState(state) {
   try {
     const s = { ...state, lastSaved: new Date().toISOString() };
@@ -799,7 +814,12 @@ function saveState(state) {
 function loadArchive() {
   try {
     const raw = localStorage.getItem(ARCHIVE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed.map((a) => ({ ...a, expenses: normalizeExpenses(a.expenses, a.currency) }))
+        : parsed;
+    }
   } catch (e) {
     /* ignore */
   }
@@ -1718,7 +1738,7 @@ function TripSetupForm({ bgMode, onComplete, onBack }) {
         if (val && (!prev.tripEnd || prev.tripEnd < val)) {
           const d = new Date(val + "T00:00:00");
           d.setDate(d.getDate() + 3);
-          newEnd = d.toISOString().slice(0, 10);
+          newEnd = toLocalDateStr(d);
         }
         return { ...prev, tripStart: val, tripEnd: newEnd };
       });
@@ -2238,6 +2258,18 @@ function ImportScreen({
 
 // Archive Screen
 // ─── 여행기록 PDF(인쇄) 내보내기 ───
+// HTML 인젝션 방지용 최소 이스케이프. exportArchiveAsPDF가 사용자 입력을
+// 템플릿 리터럴로 직접 HTML에 꽂아 넣기 때문에 출력 직전에 반드시 거친다.
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function exportArchiveAsPDF(archive) {
   const rate = archive.rate || 1;
   const totalKRW = (archive.expenses || []).reduce(
@@ -2253,24 +2285,24 @@ function exportArchiveAsPDF(archive) {
     .map(
       (s) => `<tr>
       <td>D${(s.day || 0) + 1}</td>
-      <td>${s.startTime || ""}</td>
-      <td>${s.title || ""}</td>
-      <td>${s.place || ""}</td>
-      <td>${s.note || ""}</td>
+      <td>${escapeHtml(s.startTime || "")}</td>
+      <td>${escapeHtml(s.title || "")}</td>
+      <td>${escapeHtml(s.place || "")}</td>
+      <td>${escapeHtml(s.note || "")}</td>
     </tr>`,
     )
     .join("");
   const expenseRows = (archive.expenses || [])
     .map(
       (e) => `<tr>
-      <td>${e.title || e.category || ""}</td>
-      <td>${e.category || ""}</td>
-      <td style="text-align:right">${(e.amount || 0).toLocaleString()} ${e.currency || ""}</td>
+      <td>${escapeHtml(e.title || e.category || "")}</td>
+      <td>${escapeHtml(e.category || "")}</td>
+      <td style="text-align:right">${(e.amount || 0).toLocaleString()} ${escapeHtml(e.currency || "")}</td>
     </tr>`,
     )
     .join("");
   const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-  <title>${archive.tripName || "여행"} 기록</title>
+  <title>${escapeHtml(archive.tripName || "여행")} 기록</title>
   <style>
     body{font-family:'Noto Sans KR','Pretendard',sans-serif;padding:32px;color:#1a1a1a;max-width:800px;margin:0 auto;}
     h1{font-size:22px;margin:0 0 4px 0;}
@@ -2286,12 +2318,12 @@ function exportArchiveAsPDF(archive) {
   </style></head>
   <body>
     ${archive.tripCard ? `<img class="tripcard" src="${archive.tripCard}" />` : ""}
-    <h1>${archive.tripName || "여행"}</h1>
+    <h1>${escapeHtml(archive.tripName || "여행")}</h1>
     <div class="sub">
       ${archive.tripStart ? formatDate(archive.tripStart) : ""} ~ ${archive.tripEnd ? formatDate(archive.tripEnd) : ""}
-      ${archive.companionType ? ` · 동행: ${archive.companionType} ${archive.companionCount || ""}명` : ""}
+      ${archive.companionType ? ` · 동행: ${escapeHtml(archive.companionType)} ${archive.companionCount || ""}명` : ""}
     </div>
-    ${archive.review ? `<div class="review">"${archive.review}"</div>` : ""}
+    ${archive.review ? `<div class="review">"${escapeHtml(archive.review)}"</div>` : ""}
 
     <h3>📅 일정 (${(archive.itinerary || []).length}개)</h3>
     <table>
@@ -2305,7 +2337,7 @@ function exportArchiveAsPDF(archive) {
       <tbody>${expenseRows || '<tr><td colspan="3" style="text-align:center;color:#999">지출 없음</td></tr>'}</tbody>
     </table>
     <div class="total">총 지출(원화 환산): ${Math.round(totalKRW).toLocaleString()}원</div>
-    ${archive.tripMemo ? `<h3>📝 메모</h3><p style="font-size:13px;white-space:pre-wrap;">${archive.tripMemo}</p>` : ""}
+    ${archive.tripMemo ? `<h3>📝 메모</h3><p style="font-size:13px;white-space:pre-wrap;">${escapeHtml(archive.tripMemo)}</p>` : ""}
   </body></html>`;
   const win = window.open("", "_blank");
   if (win) {
@@ -8188,7 +8220,7 @@ function ExpenseEditorModal({ expense, prefill, day, state, onSave, onClose }) {
       date:
         expense?.date ||
         prefill?.date ||
-        new Date().toISOString().split("T")[0],
+        toLocalDateStr(new Date()),
       ...(note ? { note } : {}),
     });
   };
@@ -11799,7 +11831,8 @@ function useDrive(state, setState) {
       const data = await driveLoad();
       if (data.archives) saveArchive(data.archives);
       const { archives: _a, savedAt: _s, appVersion: _v, ...tripData } = data;
-      setState(migrateTripCity({ ...DEFAULT_STATE, ...tripData }));
+      const merged = migrateTripCity({ ...DEFAULT_STATE, ...tripData });
+      setState({ ...merged, expenses: normalizeExpenses(merged.expenses, merged.currency) });
       const now = new Date().toLocaleString("ko-KR", {
         month: "numeric",
         day: "numeric",
@@ -12852,9 +12885,34 @@ function TripEditModal({ state, onSave, onClose }) {
           취소
         </button>
         <button
-          onClick={() =>
-            onSave({ ...state, ...form, rate: parseFloat(form.rate) || 0 })
-          }
+          onClick={() => {
+            const updated = { ...state, ...form, rate: parseFloat(form.rate) || 0 };
+            const newDayCount = getTripDayCount(updated);
+            const lastDay = newDayCount - 1;
+            const outItinerary =
+              newDayCount > 0 ? state.itinerary.filter((s) => s.day > lastDay) : [];
+            const outExpenses =
+              newDayCount > 0 ? state.expenses.filter((e) => e.day > lastDay) : [];
+            if (newDayCount > 0 && (outItinerary.length > 0 || outExpenses.length > 0)) {
+              if (
+                window.confirm(
+                  `기간 밖 일정 ${outItinerary.length}개·지출 ${outExpenses.length}개가 있습니다. 마지막 일차로 옮길까요?`,
+                )
+              ) {
+                onSave({
+                  ...updated,
+                  itinerary: state.itinerary.map((s) =>
+                    s.day > lastDay ? { ...s, day: lastDay } : s,
+                  ),
+                  expenses: state.expenses.map((e) =>
+                    e.day > lastDay ? { ...e, day: lastDay } : e,
+                  ),
+                });
+              }
+              return;
+            }
+            onSave(updated);
+          }}
           style={{
             flex: 2,
             padding: "14px",
@@ -15533,6 +15591,7 @@ export default function App() {
               ...tripData
             } = data;
             const merged = migrateTripCity({ ...DEFAULT_STATE, ...tripData });
+            merged.expenses = normalizeExpenses(merged.expenses, merged.currency);
             createTripFromImport(
               (merged.itinerary || []).map((s) => ({
                 ...s,
@@ -15594,7 +15653,8 @@ export default function App() {
     const arch = loadArchive();
     setArchives(arch);
     if (saved && saved.tripName) {
-      setState(migrateTripCity({ ...DEFAULT_STATE, ...saved }));
+      const merged = migrateTripCity({ ...DEFAULT_STATE, ...saved });
+      setState({ ...merged, expenses: normalizeExpenses(merged.expenses, merged.currency) });
       setScreen("main");
       const order = getTabOrder(saved.tripStart, saved.tripEnd);
       setActiveTab(order[0]);
@@ -15660,12 +15720,7 @@ export default function App() {
 
   const handleImportOverwrite = () => {
     if (!pendingImport) return;
-    const newState = migrateTripCity({
-      ...pendingImport,
-      expenses: pendingImport.expenses || [],
-      dayWeather: pendingImport.dayWeather || {},
-      version: "2.0",
-    });
+    const newState = migrateTripCity({ ...DEFAULT_STATE, ...pendingImport });
     setState(newState);
     saveState(newState);
     const order = getTabOrder(newState.tripStart, newState.tripEnd);
